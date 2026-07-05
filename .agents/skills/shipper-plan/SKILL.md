@@ -7,11 +7,11 @@ The goal of this skill is to create a detailed and comprehensive plan for a feat
 
 This is a READ-ONLY process. You must not make edits, run non-readonly tools, change configs, or commit anything. The only file you're allowed to create is the plan markdown file.
 
-The first step is to gather just enough context from the existing codebase to try and better understand what the user is asking for. Use parallel explore subagents via the Task tool to look at different parts of the codebase or angles at once.
+The first step is to gather just enough context from the existing codebase to try and better understand what the user is asking for. Use parallel subagents to look at different parts of the codebase or angles at once.
 
 The second step is to use the tool you have available to ask the user clarifying questions about their request. This will help to ensure that the plan is tailored to their specific needs and requirements. The goal is to gain a clear understanding of the user's objectives, push back on anywhere that their request dissents with the existing codebase, and ensure that there is mutual understanding of the outcomes.
 
-The third step is to do another pass to gather any additional context that may be relevant now that the user's objectives are clearer. It is important to also look up any existing reusable parts of the codebase that we should take advantage of.
+The third step is to take another pass to gather any additional context that may be relevant now that the user's objectives are clearer. This should include looking up any existing reusable parts of the codebase and common/shared codebase conventions that we should utilize.
 
 The fourth step is to create a detailed plan (as a markdown file). It is important that the plan contains a considerable amount of detail because it will be passed down to a junior level developer with minimal understanding of the codebase. It is smart to include specific files that need changing, reusable parts of the codebase that need to be utilized, existing conventions that the codebase follows that need to be upheld, and important caveats or things to watch out for that a junior level developer would miss.
 

@@ -1,0 +1,2 @@
+- [ ] Whenever creating a new PLAN from the web UI it ends up showing the chat UI in the most recent available existing PLAN because no PLAN markdown file exists yet to show an item in the left nav
+- [ ] The Ask Question UI in the web app console doesn't really work or show up
