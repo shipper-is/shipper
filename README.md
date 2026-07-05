@@ -64,7 +64,7 @@ Agent choice is stored per project on your machine (`~/.config/shipper/`), not i
 | `~/.config/shipper/config.json` | Per-project agent preference, last plan |
 | `~/.config/shipper/logs/` | NDJSON session logs (last 20 retained) |
 
-Bundled `shipper-plan` and `shipper-build` skills are embedded in the binary and installed into agent-specific directories at run time (`.cursor/skills/`, `.claude/skills/`, `.opencode/skill/`).
+Bundled `shipper-plan`, `shipper-build`, `shipper-spike`, `shipper-ship`, and `shipper-bug` skills are embedded in the binary and installed into agent-specific directories at run time (`.cursor/skills/`, `.claude/skills/`, `.opencode/skill/`).
 
 ## Debugging
 
