@@ -19,7 +19,13 @@ export function Hero() {
           <CopyInstallCommand />
         </div>
 
-        <p className="mt-10">
+        <div className="mt-10 flex items-center justify-center gap-6">
+          <Link
+            href="/docs"
+            className="font-mono text-sm underline underline-offset-4 transition-colors hover:text-white/60"
+          >
+            Docs
+          </Link>
           <Link
             href={GITHUB_URL}
             target="_blank"
@@ -28,7 +34,7 @@ export function Hero() {
           >
             View on GitHub
           </Link>
-        </p>
+        </div>
       </div>
     </section>
   );
