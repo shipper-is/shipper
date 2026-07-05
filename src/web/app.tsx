@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { PlansSnapshot } from "../shared/protocol.ts";
 import { KeyboardHelp } from "./components/keyboard-help.tsx";
-import { LeftNav } from "./components/left-nav.tsx";
+import { LeftNav, type NavMode } from "./components/left-nav.tsx";
 import { MainPane } from "./components/main-pane.tsx";
 import { ModelPicker } from "./components/model-picker.tsx";
 import { SettingsModal } from "./components/settings-modal.tsx";
@@ -8,6 +9,8 @@ import { TerminalPane } from "./components/terminal-pane.tsx";
 import { useSocket } from "./hooks/use-socket.ts";
 
 const TERMINAL_COLLAPSED_KEY = "shipper.terminalCollapsed";
+
+type ComposeMode = "plan" | "spike";
 
 function loadTerminalCollapsed(): boolean {
   try {
@@ -25,20 +28,45 @@ function saveTerminalCollapsed(collapsed: boolean): void {
   }
 }
 
+function pickPlanByType(plans: PlansSnapshot, mode: NavMode): string | null {
+  const matches = (plan: PlansSnapshot["open"][number]) =>
+    (plan.meta.type === "spike") === (mode === "spike");
+  const open = plans.open.filter(matches);
+  const done = plans.done.filter(matches);
+  if (open.length > 0) {
+    return open[0]!.filename;
+  }
+  if (done.length > 0) {
+    return done[0]!.filename;
+  }
+  return null;
+}
+
 export function App() {
   const socket = useSocket();
   const [terminalCollapsed, setTerminalCollapsed] = useState(loadTerminalCollapsed);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [composingNewPlan, setComposingNewPlan] = useState(false);
+  const [navMode, setNavMode] = useState<NavMode>("plan");
+  const [composing, setComposing] = useState<ComposeMode | null>(null);
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const navRef = useRef<HTMLElement>(null);
 
   const closeOverlays = useCallback(() => {
     setSettingsOpen(false);
     setHelpOpen(false);
-    setComposingNewPlan(false);
+    setComposing(null);
   }, []);
+
+  const handleNavModeChange = useCallback(
+    (mode: NavMode) => {
+      setNavMode(mode);
+      setComposing(null);
+      const filename = pickPlanByType(socket.plans, mode);
+      socket.selectPlan(filename);
+    },
+    [socket],
+  );
 
   const startBuild = useCallback(() => {
     const plan = socket.selectedPlan;
@@ -73,7 +101,7 @@ export function App() {
       }
 
       if (event.key === "Escape") {
-        if (settingsOpen || helpOpen || composingNewPlan) {
+        if (settingsOpen || helpOpen || composing) {
           event.preventDefault();
           closeOverlays();
         }
@@ -92,7 +120,15 @@ export function App() {
 
       if (event.key === "n") {
         event.preventDefault();
-        setComposingNewPlan(true);
+        setNavMode("plan");
+        setComposing("plan");
+        return;
+      }
+
+      if (event.key === "s") {
+        event.preventDefault();
+        setNavMode("spike");
+        setComposing("spike");
         return;
       }
 
@@ -109,7 +145,7 @@ export function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleTerminal, closeOverlays, settingsOpen, helpOpen, composingNewPlan, startBuild]);
+  }, [toggleTerminal, closeOverlays, settingsOpen, helpOpen, composing, startBuild]);
 
   useEffect(() => {
     if (!socket.notice) return;
@@ -177,11 +213,13 @@ export function App() {
           navRef={navRef}
           plans={socket.plans}
           selectedFilename={socket.selectedPlanFilename}
+          mode={navMode}
+          onModeChange={handleNavModeChange}
           onSelectPlan={(filename) => {
-            setComposingNewPlan(false);
+            setComposing(null);
             socket.selectPlan(filename);
           }}
-          onNewPlan={() => setComposingNewPlan(true)}
+          onNewItem={() => setComposing(navMode)}
         />
 
         <MainPane
@@ -189,13 +227,18 @@ export function App() {
           runState={socket.runState}
           chatEntries={socket.chatEntries}
           pendingQuestion={socket.pendingQuestion}
-          composingNewPlan={composingNewPlan}
+          composing={composing}
+          navMode={navMode}
           queuedMessages={socket.queuedMessages}
           noPlans={noPlans}
           chatInputRef={chatInputRef}
-          onStartCompose={() => setComposingNewPlan(true)}
-          onCancelCompose={() => setComposingNewPlan(false)}
+          onStartCompose={(mode) => {
+            setNavMode(mode);
+            setComposing(mode);
+          }}
+          onCancelCompose={() => setComposing(null)}
           onStartPlan={(description) => socket.send({ type: "start-plan", description })}
+          onStartSpike={(description) => socket.send({ type: "start-spike", description })}
           send={socket.send}
           createdPlanFilename={socket.createdPlanFilename}
           onBuildCreatedPlan={() => {

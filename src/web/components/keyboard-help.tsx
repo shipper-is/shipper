@@ -5,6 +5,7 @@ type KeyboardHelpProps = {
 const SHORTCUTS = [
   { keys: "?", description: "Show this help" },
   { keys: "n", description: "New plan" },
+  { keys: "s", description: "New spike" },
   { keys: "↑ / ↓", description: "Move selection in plan list (when nav is focused)" },
   { keys: "Enter", description: "Open selected plan" },
   { keys: "b", description: "Build the selected open plan" },

@@ -186,30 +186,36 @@ Tests:
 ### Section 1: Socket handling
 
 - Overview: receive the new server message in [/Users/matt/Documents/shipper/src/web/hooks/use-socket.ts](/Users/matt/Documents/shipper/src/web/hooks/use-socket.ts).
-- [ ] Handle `spike-created` in `handleMessage` by calling `setSelectedPlanFilename(msg.filename)`. Do NOT set `createdPlanFilename` (that drives the plan-only "Build it now" banner).
+- [x] Handle `spike-created` in `handleMessage` by calling `setSelectedPlanFilename(msg.filename)`. Do NOT set `createdPlanFilename` (that drives the plan-only "Build it now" banner).
 
 ### Section 2: Left nav tabs
 
 - Overview: two-tab switcher with type-filtered lists.
-- [ ] In [/Users/matt/Documents/shipper/src/web/app.tsx](/Users/matt/Documents/shipper/src/web/app.tsx), add `navMode: "plan" | "spike"` state (default `"plan"`) and replace the boolean `composingNewPlan` with `composing: "plan" | "spike" | null` (update `closeOverlays`, the Escape handler, and all `MainPane`/`LeftNav` props accordingly).
-- [ ] In [/Users/matt/Documents/shipper/src/web/components/left-nav.tsx](/Users/matt/Documents/shipper/src/web/components/left-nav.tsx), accept `mode` and `onModeChange` props and render a two-button tab bar ("Plan" / "Spike") above the new-item button, styled like the existing `.main-tabs` pattern (add a `.nav-tabs` block in [/Users/matt/Documents/shipper/src/web/styles.css](/Users/matt/Documents/shipper/src/web/styles.css)).
-- [ ] Filter both sections by type: `plans.open.filter((p) => (p.meta.type === "spike") === (mode === "spike"))` and likewise for `done`. Base `allPlans` (keyboard navigation) and the `noPlans` empty-state check on the filtered arrays, and adjust the empty-state copy per mode ("No spikes yet." with a hint about `+ New spike`).
-- [ ] Change the new-item button label to "+ New plan" / "+ New spike" based on `mode`, invoking the compose flow for that mode.
-- [ ] In `app.tsx`, when `navMode` changes, re-select the first open (else first done) item of the new tab's type, or clear the selection if the tab is empty, so the main pane matches the visible list.
+- [x] In [/Users/matt/Documents/shipper/src/web/app.tsx](/Users/matt/Documents/shipper/src/web/app.tsx), add `navMode: "plan" | "spike"` state (default `"plan"`) and replace the boolean `composingNewPlan` with `composing: "plan" | "spike" | null` (update `closeOverlays`, the Escape handler, and all `MainPane`/`LeftNav` props accordingly).
+- [x] In [/Users/matt/Documents/shipper/src/web/components/left-nav.tsx](/Users/matt/Documents/shipper/src/web/components/left-nav.tsx), accept `mode` and `onModeChange` props and render a two-button tab bar ("Plan" / "Spike") above the new-item button, styled like the existing `.main-tabs` pattern (add a `.nav-tabs` block in [/Users/matt/Documents/shipper/src/web/styles.css](/Users/matt/Documents/shipper/src/web/styles.css)).
+- [x] Filter both sections by type: `plans.open.filter((p) => (p.meta.type === "spike") === (mode === "spike"))` and likewise for `done`. Base `allPlans` (keyboard navigation) and the `noPlans` empty-state check on the filtered arrays, and adjust the empty-state copy per mode ("No spikes yet." with a hint about `+ New spike`).
+- [x] Change the new-item button label to "+ New plan" / "+ New spike" based on `mode`, invoking the compose flow for that mode.
+- [x] In `app.tsx`, when `navMode` changes, re-select the first open (else first done) item of the new tab's type, or clear the selection if the tab is empty, so the main pane matches the visible list.
 
 ### Section 3: Spike compose and main pane
 
 - Overview: the entry point for starting a spike, mirroring the plan compose form in [/Users/matt/Documents/shipper/src/web/components/main-pane.tsx](/Users/matt/Documents/shipper/src/web/components/main-pane.tsx) (lines 66–101).
-- [ ] Generalize the compose branch to render per mode: for spike, heading "New spike", subtitle like "Describe a small, one-off task. Shipper will plan and build it in one run.", and a "Start spike" primary button that sends `{ type: "start-spike", description }` (thread an `onStartSpike` prop from `app.tsx`, or generalize `onStartPlan` to accept the mode).
-- [ ] Update the running-header fallback title (line 138) to show "Spike in progress" when `runState.skill === "spike"`, and add a `.skill-spike` rule in `styles.css` next to `.skill-plan`/`.skill-build` (lines 422–438) so the skill pill renders.
-- [ ] Update the idle empty state (lines 103–119) to be mode-aware: pass `navMode` into `MainPane` and show a "New spike" button and spike copy when in spike mode with no selection. Leave the Build button logic untouched (intentionally available for open spikes as a resume path).
+- [x] Generalize the compose branch to render per mode: for spike, heading "New spike", subtitle like "Describe a small, one-off task. Shipper will plan and build it in one run.", and a "Start spike" primary button that sends `{ type: "start-spike", description }` (thread an `onStartSpike` prop from `app.tsx`, or generalize `onStartPlan` to accept the mode).
+- [x] Update the running-header fallback title (line 138) to show "Spike in progress" when `runState.skill === "spike"`, and add a `.skill-spike` rule in `styles.css` next to `.skill-plan`/`.skill-build` (lines 422–438) so the skill pill renders.
+- [x] Update the idle empty state (lines 103–119) to be mode-aware: pass `navMode` into `MainPane` and show a "New spike" button and spike copy when in spike mode with no selection. Leave the Build button logic untouched (intentionally available for open spikes as a resume path).
 
 ### Section 4: Model picker, settings, shortcuts
 
 - Overview: surface the third skill everywhere models and shortcuts are shown.
-- [ ] In [/Users/matt/Documents/shipper/src/web/components/model-picker.tsx](/Users/matt/Documents/shipper/src/web/components/model-picker.tsx), extend the title logic for `shipper-spike` ("Choose a model for spikes").
-- [ ] In [/Users/matt/Documents/shipper/src/web/components/settings-modal.tsx](/Users/matt/Documents/shipper/src/web/components/settings-modal.tsx), add `"shipper-spike": "Spike"` to `SKILL_LABELS` and include it in the model rows array (line 89).
-- [ ] In `app.tsx`, add an `s` keyboard shortcut that switches `navMode` to `"spike"` and opens the spike compose form (mirror the `n` handler), and document it in [/Users/matt/Documents/shipper/src/web/components/keyboard-help.tsx](/Users/matt/Documents/shipper/src/web/components/keyboard-help.tsx).
+- [x] In [/Users/matt/Documents/shipper/src/web/components/model-picker.tsx](/Users/matt/Documents/shipper/src/web/components/model-picker.tsx), extend the title logic for `shipper-spike` ("Choose a model for spikes").
+- [x] In [/Users/matt/Documents/shipper/src/web/components/settings-modal.tsx](/Users/matt/Documents/shipper/src/web/components/settings-modal.tsx), add `"shipper-spike": "Spike"` to `SKILL_LABELS` and include it in the model rows array (line 89).
+- [x] In `app.tsx`, add an `s` keyboard shortcut that switches `navMode` to `"spike"` and opens the spike compose form (mirror the `n` handler), and document it in [/Users/matt/Documents/shipper/src/web/components/keyboard-help.tsx](/Users/matt/Documents/shipper/src/web/components/keyboard-help.tsx).
+
+### Completion Notes
+
+- `NavMode` is exported from `left-nav.tsx` and shared with `app.tsx` / `main-pane.tsx`. `pickPlanByType` in `app.tsx` handles re-selection when switching tabs.
+- Keyboard `n` forces plan mode + compose; `s` forces spike mode + compose. The left-nav tab bar also switches mode without opening compose.
+- `spike-created` only updates `selectedPlanFilename` — no "Build it now" banner. Phase 4 adds spike-specific tests.
 
 ## Phase 4
 

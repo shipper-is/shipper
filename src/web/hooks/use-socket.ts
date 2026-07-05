@@ -148,6 +148,9 @@ export function useSocket(): UseSocketResult {
         setCreatedPlanFilename(msg.filename);
         setSelectedPlanFilename(msg.filename);
         break;
+      case "spike-created":
+        setSelectedPlanFilename(msg.filename);
+        break;
       case "config-info":
         setConfigInfo(msg.configInfo);
         break;

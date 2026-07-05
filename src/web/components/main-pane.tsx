@@ -1,5 +1,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import type { ClientMessage, PlanSummary, RunState, AgentQuestion, ChatEntry } from "../../shared/protocol.ts";
+import type { NavMode } from "./left-nav.tsx";
 import { ChatLog } from "./chat-log.tsx";
 import { ChatInput } from "./chat-input.tsx";
 import { PlanDocumentView } from "./plan-document-view.tsx";
@@ -7,36 +8,47 @@ import { PlanView } from "./plan-view.tsx";
 import { QuestionCard } from "./question-card.tsx";
 
 type MainTab = "phases" | "plan" | "build";
+type ComposeMode = "plan" | "spike";
 
 type MainPaneProps = {
   plan: PlanSummary | null;
   runState: RunState;
   chatEntries: ChatEntry[];
   pendingQuestion: AgentQuestion | null;
-  composingNewPlan: boolean;
+  composing: ComposeMode | null;
+  navMode: NavMode;
   queuedMessages: string[];
   noPlans: boolean;
   chatInputRef: RefObject<HTMLTextAreaElement | null>;
-  onStartCompose: () => void;
+  onStartCompose: (mode: ComposeMode) => void;
   onCancelCompose: () => void;
   onStartPlan: (description: string) => void;
+  onStartSpike: (description: string) => void;
   send: (msg: ClientMessage) => void;
   createdPlanFilename: string | null;
   onBuildCreatedPlan: () => void;
 };
+
+function runningTitle(skill: RunState["skill"]): string {
+  if (skill === "plan") return "Creating plan…";
+  if (skill === "spike") return "Spike in progress";
+  return "Build in progress";
+}
 
 export function MainPane({
   plan,
   runState,
   chatEntries,
   pendingQuestion,
-  composingNewPlan,
+  composing,
+  navMode,
   queuedMessages,
   noPlans,
   chatInputRef,
   onStartCompose,
   onCancelCompose,
   onStartPlan,
+  onStartSpike,
   send,
   createdPlanFilename,
   onBuildCreatedPlan,
@@ -63,20 +75,29 @@ export function MainPane({
     }
   }, [plan?.filename, isIdle]);
 
-  if (composingNewPlan) {
+  if (composing) {
+    const isSpike = composing === "spike";
     return (
       <main className="main-pane compose-pane">
         <header className="main-pane-header">
           <div>
-            <h1>New plan</h1>
-            <p className="compose-subtitle">Describe the feature or task to plan.</p>
+            <h1>{isSpike ? "New spike" : "New plan"}</h1>
+            <p className="compose-subtitle">
+              {isSpike
+                ? "Describe a small, one-off task. Shipper will plan and build it in one run."
+                : "Describe the feature or task to plan."}
+            </p>
           </div>
         </header>
         <textarea
           className="compose-textarea"
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="What should Shipper plan and build?"
+          placeholder={
+            isSpike
+              ? "What small task should Shipper spike?"
+              : "What should Shipper plan and build?"
+          }
           rows={8}
         />
         <div className="compose-actions">
@@ -85,12 +106,16 @@ export function MainPane({
             className="primary-button"
             disabled={!description.trim() || !isIdle}
             onClick={() => {
-              onStartPlan(description);
+              if (isSpike) {
+                onStartSpike(description);
+              } else {
+                onStartPlan(description);
+              }
               setDescription("");
               onCancelCompose();
             }}
           >
-            Start planning
+            {isSpike ? "Start spike" : "Start planning"}
           </button>
           <button type="button" className="secondary-button" onClick={onCancelCompose}>
             Cancel
@@ -101,18 +126,31 @@ export function MainPane({
   }
 
   if (!plan && !isRunning) {
+    const isSpikeMode = navMode === "spike";
     return (
       <main className="main-pane empty-main">
         {noPlans ? (
           <>
             <h1>Welcome to Shipper</h1>
-            <p>Create your first plan to orchestrate AI agents through structured phases.</p>
+            <p>
+              {isSpikeMode
+                ? "Start a spike to tackle a small task in a single agent run."
+                : "Create your first plan to orchestrate AI agents through structured phases."}
+            </p>
           </>
         ) : (
-          <p>Select a plan from the left, or create a new one.</p>
+          <p>
+            {isSpikeMode
+              ? "Select a spike from the left, or create a new one."
+              : "Select a plan from the left, or create a new one."}
+          </p>
         )}
-        <button type="button" className="primary-button" onClick={onStartCompose}>
-          New plan
+        <button
+          type="button"
+          className="primary-button"
+          onClick={() => onStartCompose(isSpikeMode ? "spike" : "plan")}
+        >
+          {isSpikeMode ? "New spike" : "New plan"}
         </button>
       </main>
     );
@@ -135,7 +173,7 @@ export function MainPane({
     <main className="main-pane main-with-tabs">
       <header className="main-pane-header">
         <div>
-          <h1>{displayPlan?.title ?? (runState.skill === "plan" ? "Creating plan…" : "Build in progress")}</h1>
+          <h1>{displayPlan?.title ?? runningTitle(runState.skill)}</h1>
           {displayPlan && (
             <span className={`folder-badge folder-${displayPlan.folder}`}>{displayPlan.folder}</span>
           )}
