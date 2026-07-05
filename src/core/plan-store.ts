@@ -41,6 +41,7 @@ export type PlanProgress = {
 };
 
 export type PlanMeta = {
+  type: "plan" | "spike";
   branch: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -50,12 +51,17 @@ export type PlanMeta = {
 
 export function emptyPlanMeta(): PlanMeta {
   return {
+    type: "plan",
     branch: null,
     startedAt: null,
     completedAt: null,
     prUrl: null,
     prNumber: null,
   };
+}
+
+function asPlanType(value: unknown): "plan" | "spike" {
+  return value === "spike" ? "spike" : "plan";
 }
 
 function asMetaString(value: unknown): string | null {
@@ -98,6 +104,7 @@ export function parseFrontmatter(markdown: string): PlanMeta {
     }
     const record = parsed as Record<string, unknown>;
     return {
+      type: asPlanType(record.type),
       branch: asMetaString(record.branch),
       startedAt: asMetaString(record.started_at),
       completedAt: asMetaString(record.completed_at),

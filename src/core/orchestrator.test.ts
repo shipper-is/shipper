@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentAdapter, AgentEvent } from "../agents/types.ts";
-import { consumeAgentRun, runBuildLoop, runFollowUp } from "./orchestrator.ts";
+import { consumeAgentRun, runBuildLoop, runFollowUp, runSpike } from "./orchestrator.ts";
 import { appendPendingUserMessages, buildFollowUpPrompt } from "./prompts.ts";
 
 const mockCreateAdapter = vi.fn<(kind: string) => AgentAdapter>();
@@ -400,6 +400,90 @@ describe("runFollowUp", () => {
     expect(result.ok).toBe(true);
     expect(result.lastSessionId).toBe("new-session");
     expect(startOpts?.resumeSessionId).toBe("resume-abc");
+  });
+});
+
+describe("runSpike", () => {
+  let repoPath: string;
+
+  beforeEach(() => {
+    repoPath = mkdtempSync(join(tmpdir(), "shipper-spike-"));
+    mockCreateAdapter.mockReset();
+  });
+
+  const SPIKE_FILE = `---
+type: spike
+---
+# My Spike
+
+- [ ] do the thing
+`;
+
+  it("succeeds when a new spike file appears in open/", async () => {
+    mockCreateAdapter.mockImplementation(() => ({
+      sessionId: "spike-session-1",
+      async *start() {
+        await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
+        await writeFile(join(repoPath, ".shipper", "open", "my-spike.md"), SPIKE_FILE, "utf8");
+        yield { type: "done", result: "ok" };
+      },
+      answer() {},
+      async stop() {},
+    }));
+
+    const result = await runSpike(repoPath, "cursor", "Add a widget", {
+      onEvent: () => {},
+      onQuestion: async () => ({}),
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.filename).toBe("my-spike.md");
+      expect(result.title).toBe("My Spike");
+      expect(result.location).toBe("open");
+      expect(result.lastSessionId).toBe("spike-session-1");
+    }
+  });
+
+  it("succeeds when a new spike file appears in done/", async () => {
+    mockCreateAdapter.mockImplementation(() => ({
+      sessionId: "spike-session-2",
+      async *start() {
+        await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+        await writeFile(join(repoPath, ".shipper", "done", "finished-spike.md"), SPIKE_FILE, "utf8");
+        yield { type: "done", result: "ok" };
+      },
+      answer() {},
+      async stop() {},
+    }));
+
+    const result = await runSpike(repoPath, "cursor", "Ship a fix", {
+      onEvent: () => {},
+      onQuestion: async () => ({}),
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.filename).toBe("finished-spike.md");
+      expect(result.location).toBe("done");
+    }
+  });
+
+  it("returns error when no new spike file appears", async () => {
+    mockCreateAdapter.mockImplementation(() =>
+      mockAdapter([{ type: "done", result: "ok" }], "spike-session-3"),
+    );
+
+    const result = await runSpike(repoPath, "cursor", "Ghost spike", {
+      onEvent: () => {},
+      onQuestion: async () => ({}),
+    });
+
+    expect(result.status).toBe("error");
+    if (result.status === "error") {
+      expect(result.message).toContain("no new spike file");
+      expect(result.lastSessionId).toBe("spike-session-3");
+    }
   });
 });
 

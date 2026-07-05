@@ -1,12 +1,16 @@
 import { useCallback, useMemo, type RefObject } from "react";
 import type { PlansSnapshot } from "../../shared/protocol.ts";
 
+export type NavMode = "plan" | "spike";
+
 type LeftNavProps = {
   navRef: RefObject<HTMLElement | null>;
   plans: PlansSnapshot;
   selectedFilename: string | null;
+  mode: NavMode;
+  onModeChange: (mode: NavMode) => void;
   onSelectPlan: (filename: string) => void;
-  onNewPlan: () => void;
+  onNewItem: () => void;
 };
 
 function progressPercent(checked: number, total: number): number {
@@ -25,6 +29,13 @@ function formatPhaseLine(plan: {
     return `Phase ${progress.currentPhase}/${progress.phaseCount}`;
   }
   return `Phase ${progress.phaseCount}/${progress.phaseCount}`;
+}
+
+function matchesMode(
+  plan: PlansSnapshot["open"][number],
+  mode: NavMode,
+): boolean {
+  return (plan.meta.type === "spike") === (mode === "spike");
 }
 
 function PlanRow({
@@ -85,12 +96,23 @@ export function LeftNav({
   navRef,
   plans,
   selectedFilename,
+  mode,
+  onModeChange,
   onSelectPlan,
-  onNewPlan,
+  onNewItem,
 }: LeftNavProps) {
+  const openPlans = useMemo(
+    () => plans.open.filter((plan) => matchesMode(plan, mode)),
+    [plans.open, mode],
+  );
+  const donePlans = useMemo(
+    () => plans.done.filter((plan) => matchesMode(plan, mode)),
+    [plans.done, mode],
+  );
+
   const allPlans = useMemo(
-    () => [...plans.open, ...plans.done],
-    [plans.open, plans.done],
+    () => [...openPlans, ...donePlans],
+    [openPlans, donePlans],
   );
 
   const moveSelection = useCallback(
@@ -119,33 +141,59 @@ export function LeftNav({
     }
   };
 
-  const noPlans = plans.open.length === 0 && plans.done.length === 0;
+  const noPlans = openPlans.length === 0 && donePlans.length === 0;
+  const itemLabel = mode === "spike" ? "spike" : "plan";
 
   return (
     <nav
       ref={navRef}
       className="left-nav"
       tabIndex={0}
-      aria-label="Plans"
+      aria-label={mode === "spike" ? "Spikes" : "Plans"}
       onKeyDown={onKeyDown}
     >
-      <button type="button" className="new-plan-button" onClick={onNewPlan}>
-        + New plan
+      <div className="nav-tabs" role="tablist" aria-label="Plan or spike">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "plan"}
+          className={mode === "plan" ? "active" : ""}
+          onClick={() => onModeChange("plan")}
+        >
+          Plan
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "spike"}
+          className={mode === "spike" ? "active" : ""}
+          onClick={() => onModeChange("spike")}
+        >
+          Spike
+        </button>
+      </div>
+
+      <button type="button" className="new-plan-button" onClick={onNewItem}>
+        {mode === "spike" ? "+ New spike" : "+ New plan"}
       </button>
 
       {noPlans ? (
         <div className="empty-nav-state">
-          <p>No plans yet.</p>
-          <p className="empty-nav-hint">Create one to get started, or add markdown files to `.shipper/open/`.</p>
+          <p>{mode === "spike" ? "No spikes yet." : "No plans yet."}</p>
+          <p className="empty-nav-hint">
+            {mode === "spike"
+              ? "Use + New spike to start a one-off task."
+              : "Create one to get started, or add markdown files to `.shipper/open/`."}
+          </p>
         </div>
       ) : (
         <>
           <section className="plan-section">
             <h2>Open</h2>
-            {plans.open.length === 0 ? (
-              <p className="empty-section">No open plans</p>
+            {openPlans.length === 0 ? (
+              <p className="empty-section">No open {itemLabel}s</p>
             ) : (
-              plans.open.map((plan) => (
+              openPlans.map((plan) => (
                 <PlanRow
                   key={plan.filename}
                   plan={plan}
@@ -158,10 +206,10 @@ export function LeftNav({
 
           <section className="plan-section">
             <h2>Done</h2>
-            {plans.done.length === 0 ? (
-              <p className="empty-section">No completed plans</p>
+            {donePlans.length === 0 ? (
+              <p className="empty-section">No completed {itemLabel}s</p>
             ) : (
-              plans.done.map((plan) => (
+              donePlans.map((plan) => (
                 <PlanRow
                   key={plan.filename}
                   plan={plan}

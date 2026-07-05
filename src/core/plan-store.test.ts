@@ -125,6 +125,7 @@ describe("parseFrontmatter", () => {
   it("parses all five fields from a complete frontmatter block", () => {
     const meta = parseFrontmatter(FULL_FRONTMATTER);
     expect(meta).toEqual({
+      type: "plan",
       branch: "shipper/plan-completion-metadata",
       startedAt: "2026-07-04T22:15:00-05:00",
       completedAt: "2026-07-05T01:40:00-05:00",
@@ -179,6 +180,39 @@ branch: ignored
 ---
 `;
     expect(parseFrontmatter(md)).toEqual(emptyPlanMeta());
+  });
+
+  it("maps type: spike to spike", () => {
+    const md = `---
+type: spike
+---
+# Spike
+`;
+    expect(parseFrontmatter(md).type).toBe("spike");
+  });
+
+  it("maps type: plan, missing type, and unknown values to plan", () => {
+    const planMd = `---
+type: plan
+---
+# Plan
+`;
+    expect(parseFrontmatter(planMd).type).toBe("plan");
+
+    const missingMd = `---
+branch: foo
+---
+# Plan
+`;
+    expect(parseFrontmatter(missingMd).type).toBe("plan");
+    expect(parseFrontmatter("# No frontmatter").type).toBe("plan");
+
+    const unknownMd = `---
+type: feature
+---
+# Plan
+`;
+    expect(parseFrontmatter(unknownMd).type).toBe("plan");
   });
 });
 

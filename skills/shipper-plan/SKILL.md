@@ -15,6 +15,8 @@ The third step is to take another pass to gather any additional context that may
 
 The fourth step is to create a detailed plan (as a markdown file). It is important that the plan contains a considerable amount of detail because it will be passed down to a junior level developer with minimal understanding of the codebase. It is smart to include specific files that need changing, reusable parts of the codebase that need to be utilized, existing conventions that the codebase follows that need to be upheld, and important caveats or things to watch out for that a junior level developer would miss.
 
+New plan files must start with a YAML frontmatter block containing `type: plan` at the very top (before the `#` title).
+
 The plan should include all of that information at the beginning of the plan structured in the following sections:
 
 A: Plan Overview

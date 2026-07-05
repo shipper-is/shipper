@@ -15,7 +15,7 @@ import {
   type PlanFile,
   type PlanPhase,
 } from "./plan-store.ts";
-import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, appendPendingUserMessages } from "./prompts.ts";
+import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, buildSpikePrompt, appendPendingUserMessages } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
 import { installSkills } from "./skills.ts";
 
@@ -34,6 +34,20 @@ export type AgentRunResult = {
 
 export type PlanCreationResult =
   | { status: "success"; plan: PlanFile; lastSessionId: string | null }
+  | { status: "error"; message: string; lastSessionId?: string | null };
+
+export type SpikeHandlers = AgentRunHandlers & {
+  onPlanUpdate?: () => void;
+};
+
+export type SpikeResult =
+  | {
+      status: "success";
+      filename: string;
+      title: string;
+      location: "open" | "done";
+      lastSessionId: string | null;
+    }
   | { status: "error"; message: string; lastSessionId?: string | null };
 
 export type BuildLoopHandlers = AgentRunHandlers & {
@@ -165,6 +179,22 @@ function findNewOpenPlan(beforeFilenames: Set<string>, openPlans: PlanFile[]): P
   return created[created.length - 1] ?? null;
 }
 
+function findNewPlan(
+  beforeFilenames: Set<string>,
+  openPlans: PlanFile[],
+  donePlans: PlanFile[],
+): { plan: PlanFile; location: "open" | "done" } | null {
+  const newOpen = openPlans.filter((plan) => !beforeFilenames.has(plan.filename));
+  const newDone = donePlans.filter((plan) => !beforeFilenames.has(plan.filename));
+  const created = [...newOpen, ...newDone];
+  if (created.length === 0) {
+    return null;
+  }
+  const plan = created[created.length - 1]!;
+  const location = newDone.some((p) => p.filename === plan.filename) ? "done" : "open";
+  return { plan, location };
+}
+
 export async function runPlanCreation(
   repoPath: string,
   agent: AgentKind,
@@ -206,6 +236,62 @@ export async function runPlanCreation(
   return {
     status: "error",
     message: "Agent finished but no new plan file appeared in .shipper/open/",
+    lastSessionId,
+  };
+}
+
+export async function runSpike(
+  repoPath: string,
+  agent: AgentKind,
+  description: string,
+  handlers: SpikeHandlers,
+  model?: string,
+): Promise<SpikeResult> {
+  const beforePlans = await listPlans(repoPath);
+  const beforeFilenames = new Set([
+    ...beforePlans.open.map((plan) => plan.filename),
+    ...beforePlans.done.map((plan) => plan.filename),
+  ]);
+
+  await installSkills(repoPath, agent);
+
+  const prompt = buildSpikePrompt(description, agent);
+  const adapter = createAdapter(agent);
+  const logger = handlers.logger ?? (await RunLogger.create(agent));
+  const runResult = await consumeAgentRun(
+    adapter,
+    { cwd: repoPath, prompt, ...(model ? { model } : {}) },
+    { ...handlers, logger },
+  );
+  const lastSessionId = adapter.sessionId;
+
+  handlers.onPlanUpdate?.();
+
+  const afterPlans = await listPlans(repoPath);
+  const newSpike = findNewPlan(beforeFilenames, afterPlans.open, afterPlans.done);
+
+  if (newSpike) {
+    await setProjectConfig(repoPath, { lastPlan: newSpike.plan.filename });
+    return {
+      status: "success",
+      filename: newSpike.plan.filename,
+      title: newSpike.plan.title,
+      location: newSpike.location,
+      lastSessionId,
+    };
+  }
+
+  if (!runResult.ok) {
+    return {
+      status: "error",
+      message: runResult.error ?? "Spike failed",
+      lastSessionId,
+    };
+  }
+
+  return {
+    status: "error",
+    message: "Agent finished but no new spike file appeared in .shipper/open/ or .shipper/done/",
     lastSessionId,
   };
 }

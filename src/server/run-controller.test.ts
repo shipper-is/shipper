@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { BuildLoopResult } from "../core/orchestrator.ts";
+import type { BuildLoopResult, SpikeResult } from "../core/orchestrator.ts";
 import {
   applyAgentEvent,
   createRunController,
@@ -80,8 +80,11 @@ describe("createRunController", () => {
   const repoPath = "/repo";
   const broadcasts: unknown[] = [];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     broadcasts.length = 0;
+    const { resolveDefaultModel } = await import("../core/config.ts");
+    vi.mocked(resolveDefaultModel).mockReset();
+    vi.mocked(resolveDefaultModel).mockResolvedValue("test-model");
   });
 
   const baseDeps = () => ({
@@ -113,6 +116,7 @@ describe("createRunController", () => {
       ),
       runPlanCreation: vi.fn(),
       runFollowUp: vi.fn(),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -163,6 +167,7 @@ describe("createRunController", () => {
       }),
       runPlanCreation: vi.fn(),
       runFollowUp: vi.fn(),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -282,6 +287,7 @@ describe("createRunController", () => {
       }),
       runPlanCreation: vi.fn(),
       runFollowUp: vi.fn(),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -341,6 +347,7 @@ describe("createRunController", () => {
         ok: true,
         lastSessionId: "cursor-session-2",
       })),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -384,5 +391,198 @@ describe("createRunController", () => {
         expect.objectContaining({ model: "test-model", planFilename: "foo.md" }),
       );
     });
+  });
+
+  it("requests a model pick for start-spike when no default is set", async () => {
+    const { resolveDefaultModel } = await import("../core/config.ts");
+    vi.mocked(resolveDefaultModel).mockResolvedValueOnce(undefined);
+
+    const runSpike = vi.fn();
+    const controller = createRunController({
+      ...baseDeps(),
+      orchestrator: {
+        runBuildLoop: vi.fn(),
+        runPlanCreation: vi.fn(),
+        runFollowUp: vi.fn(),
+        runSpike,
+      },
+    });
+
+    void controller.handleClientMessage({
+      type: "start-spike",
+      description: "Quick fix",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getModelPickRequest()).not.toBeNull();
+    });
+
+    const pickRequest = controller.getModelPickRequest();
+    expect(pickRequest?.skill).toBe("shipper-spike");
+    expect(broadcasts.some((msg) => (msg as { type: string }).type === "needs-model-pick")).toBe(
+      true,
+    );
+
+    runSpike.mockResolvedValueOnce({
+      status: "success",
+      filename: "quick-fix.md",
+      title: "Quick Fix",
+      location: "done",
+      lastSessionId: "spike-session",
+    } satisfies SpikeResult);
+
+    void controller.handleClientMessage({
+      type: "select-model",
+      skill: "shipper-spike",
+      modelId: "model-a",
+    });
+
+    await vi.waitFor(() => {
+      expect(runSpike).toHaveBeenCalledWith(
+        repoPath,
+        "cursor",
+        "Quick fix",
+        expect.any(Object),
+        "model-a",
+      );
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getRunState().status).toBe("idle");
+    });
+  });
+
+  it("runs a spike with skill spike in run state", async () => {
+    let resolveSpike: ((value: SpikeResult) => void) | undefined;
+
+    const runSpike = vi.fn(
+      (): Promise<SpikeResult> =>
+        new Promise((resolve) => {
+          resolveSpike = resolve;
+        }),
+    );
+
+    const controller = createRunController({
+      ...baseDeps(),
+      orchestrator: {
+        runBuildLoop: vi.fn(),
+        runPlanCreation: vi.fn(),
+        runFollowUp: vi.fn(),
+        runSpike,
+      },
+    });
+
+    void controller.handleClientMessage({
+      type: "start-spike",
+      description: "Add widgets",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getRunState().skill).toBe("spike");
+    });
+
+    resolveSpike?.({
+      status: "success",
+      filename: "widget-spike.md",
+      title: "Widget Spike",
+      location: "open",
+      lastSessionId: "spike-1",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getRunState().status).toBe("idle");
+    });
+
+    expect(runSpike).toHaveBeenCalled();
+  });
+
+  it("broadcasts spike-created and a completion notice on success", async () => {
+    const controller = createRunController({
+      ...baseDeps(),
+      orchestrator: {
+        runBuildLoop: vi.fn(),
+        runPlanCreation: vi.fn(),
+        runFollowUp: vi.fn(),
+        runSpike: vi.fn(async (): Promise<SpikeResult> => ({
+          status: "success",
+          filename: "dark-mode.md",
+          title: "Dark Mode",
+          location: "done",
+          lastSessionId: "spike-2",
+        })),
+      },
+    });
+
+    void controller.handleClientMessage({
+      type: "start-spike",
+      description: "Dark mode",
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        broadcasts.some((msg) => (msg as { type: string }).type === "spike-created"),
+      ).toBe(true);
+    });
+
+    expect(
+      broadcasts.some(
+        (msg) =>
+          (msg as { type: string }).type === "spike-created" &&
+          (msg as { filename: string }).filename === "dark-mode.md",
+      ),
+    ).toBe(true);
+    expect(
+      controller
+        .getChatEntries()
+        .some((entry) => entry.text.includes("Spike complete — Dark Mode")),
+    ).toBe(true);
+  });
+
+  it("resolves follow-up model via shipper-spike after a spike run", async () => {
+    const { resolveDefaultModel } = await import("../core/config.ts");
+    const runFollowUp = vi.fn(async () => ({
+      ok: true,
+      lastSessionId: "spike-followup",
+    }));
+
+    const controller = createRunController({
+      ...baseDeps(),
+      orchestrator: {
+        runBuildLoop: vi.fn(),
+        runPlanCreation: vi.fn(),
+        runFollowUp,
+        runSpike: vi.fn(async (): Promise<SpikeResult> => ({
+          status: "success",
+          filename: "tweak.md",
+          title: "Tweak",
+          location: "open",
+          lastSessionId: "spike-base",
+        })),
+      },
+    });
+
+    void controller.handleClientMessage({
+      type: "start-spike",
+      description: "Small tweak",
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        broadcasts.some((msg) => (msg as { type: string }).type === "spike-created"),
+      ).toBe(true);
+    });
+
+    vi.mocked(resolveDefaultModel).mockClear();
+
+    controller.handleClientMessage({
+      type: "send-message",
+      text: "one more thing",
+    });
+
+    await vi.waitFor(() => {
+      expect(runFollowUp).toHaveBeenCalled();
+    });
+
+    expect(resolveDefaultModel).toHaveBeenCalledWith(repoPath, "cursor", "shipper-spike");
   });
 });

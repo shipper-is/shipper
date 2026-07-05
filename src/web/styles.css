@@ -251,6 +251,28 @@ input:focus-visible,
   background: var(--bg-hover);
 }
 
+.nav-tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.nav-tabs button {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.nav-tabs button.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .plan-section h2 {
   margin: 0 0 0.5rem;
   font-size: 0.75rem;
@@ -435,6 +457,12 @@ input:focus-visible,
   border-color: rgba(255, 255, 255, 0.15);
   background: transparent;
   color: var(--text-dim);
+}
+
+.skill-spike {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
 }
 
 .main-tabs {

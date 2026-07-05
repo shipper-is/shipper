@@ -98,6 +98,7 @@ ${SAMPLE_MARKDOWN}`;
     const summary = planFileToSummary(plan, markdownWithMeta);
 
     expect(summary.meta).toEqual({
+      type: "plan",
       branch: "shipper/plan-completion-metadata",
       startedAt: "2026-07-04T22:15:00-05:00",
       completedAt: "2026-07-05T01:40:00-05:00",

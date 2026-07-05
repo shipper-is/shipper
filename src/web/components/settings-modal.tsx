@@ -4,6 +4,7 @@ import type { ClientMessage, ConfigInfo } from "../../shared/protocol.ts";
 const SKILL_LABELS = {
   "shipper-plan": "Plan",
   "shipper-build": "Build",
+  "shipper-spike": "Spike",
 } as const;
 
 const AGENT_LABELS = {
@@ -86,7 +87,7 @@ export function SettingsModal({ configInfo, onClose, send }: SettingsModalProps)
             {configInfo.defaultAgent && (
               <div className="model-settings">
                 <p className="modal-subtitle">Default models for this repository</p>
-                {(["shipper-plan", "shipper-build"] as const).map((skill) => (
+                {(["shipper-plan", "shipper-build", "shipper-spike"] as const).map((skill) => (
                   <div key={skill} className="model-setting-row">
                     <div className="model-setting-info">
                       <span className="model-setting-label">{SKILL_LABELS[skill]}</span>
