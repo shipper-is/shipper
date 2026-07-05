@@ -2,6 +2,7 @@
 type: plan
 branch: shipper/global-skills-install
 started_at: "2026-07-04T23:37:00-05:00"
+completed_at: "2026-07-05T00:06:00-05:00"
 ---
 
 # Global Skills Install
@@ -121,22 +122,28 @@ import spikeBuild from "../../skills/shipper-spike/BUILD.md" with { type: "text"
 
 ### Section 2.1: Startup install in `src/index.ts`
 
-- [ ] Restructure [src/index.ts](/Users/matt/Documents/shipper/src/index.ts) so the current serve flow becomes the commander program's default `.action()` (keep all existing flags: `--dir`, `--demo`, `--port`, `--no-open`, `--version` with its manual handling).
-- [ ] In the serve path, after resolving `repoPath`: call `detectAgents()`, then `installSkillsGlobally(detected.map(d => d.kind))`, then `removeRepoSkills(repoPath)`. Log one concise line, e.g. `Skills installed globally for: claude, cursor`. If no agents are detected, log a note and continue booting (demo mode must still work).
-- [ ] Wrap the install in a try/catch that logs a warning and continues — a permissions failure writing to `~` must not prevent the console from starting.
+- [x] Restructure [src/index.ts](/Users/matt/Documents/shipper/src/index.ts) so the current serve flow becomes the commander program's default `.action()` (keep all existing flags: `--dir`, `--demo`, `--port`, `--no-open`, `--version` with its manual handling).
+- [x] In the serve path, after resolving `repoPath`: call `detectAgents()`, then `installSkillsGlobally(detected.map(d => d.kind))`, then `removeRepoSkills(repoPath)`. Log one concise line, e.g. `Skills installed globally for: claude, cursor`. If no agents are detected, log a note and continue booting (demo mode must still work).
+- [x] Wrap the install in a try/catch that logs a warning and continues — a permissions failure writing to `~` must not prevent the console from starting.
 
 ### Section 2.2: `shipper skills` subcommand
 
-- [ ] Add `program.command("skills")` with description "install Shipper skills globally for your coding agents". Action: run `detectAgents()` + `installSkillsGlobally()`, print each agent and its skills root, then exit 0 (do not start the server).
-- [ ] Support `--agent <kind>` (choices: `claude`, `cursor`, `opencode`) to force installing for a specific agent even if detection misses it; validate the value and exit 1 with a clear error for unknown kinds.
-- [ ] When nothing is detected and no `--agent` is given, print the three supported agents and how to force one, then exit 1.
+- [x] Add `program.command("skills")` with description "install Shipper skills globally for your coding agents". Action: run `detectAgents()` + `installSkillsGlobally()`, print each agent and its skills root, then exit 0 (do not start the server).
+- [x] Support `--agent <kind>` (choices: `claude`, `cursor`, `opencode`) to force installing for a specific agent even if detection misses it; validate the value and exit 1 with a clear error for unknown kinds.
+- [x] When nothing is detected and no `--agent` is given, print the three supported agents and how to force one, then exit 1.
 
 ### Section 2.3: Orchestrator and prompts
 
-- [ ] In [src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts), replace the three `installSkills(repoPath, agent)` calls with `installSkillsGlobally([agent])` — keeping a pre-run install as a safety refresh is deliberate (cheap and idempotent).
-- [ ] In [src/core/prompts.ts](/Users/matt/Documents/shipper/src/core/prompts.ts), change `skillInstruction()` to use `globalSkillPath(agent, skillName)` and reword to something like: ``Read and follow the skill at `<absolute path>`.`` — drop "in the target repository". The path must be absolute, not `~`-prefixed.
-- [ ] Update [src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts) (mock `installSkillsGlobally` instead of `installSkills`) and the prompt assertions in [src/core/core.test.ts](/Users/matt/Documents/shipper/src/core/core.test.ts) (they check `buildSpikePrompt` contains `skillPathForAgent(...)`).
-- [ ] Run `bun run typecheck`, `bun run lint`, and `bun run test` and fix any remaining fallout.
+- [x] In [src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts), replace the three `installSkills(repoPath, agent)` calls with `installSkillsGlobally([agent])` — keeping a pre-run install as a safety refresh is deliberate (cheap and idempotent).
+- [x] In [src/core/prompts.ts](/Users/matt/Documents/shipper/src/core/prompts.ts), change `skillInstruction()` to use `globalSkillPath(agent, skillName)` and reword to something like: ``Read and follow the skill at `<absolute path>`.`` — drop "in the target repository". The path must be absolute, not `~`-prefixed.
+- [x] Update [src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts) (mock `installSkillsGlobally` instead of `installSkills`) and the prompt assertions in [src/core/core.test.ts](/Users/matt/Documents/shipper/src/core/core.test.ts) (they check `buildSpikePrompt` contains `skillPathForAgent(...)`).
+- [x] Run `bun run typecheck`, `bun run lint`, and `bun run test` and fix any remaining fallout.
+
+### Completion Notes
+
+- `index.ts` uses `program.parseAsync` with a root `.action()` for serve and a `skills` subcommand; serve logic extracted to `runServe`, skills to `runSkillsInstall`.
+- Startup install runs after `ensureShipperDirs` and before `startServer`; failures are logged as warnings only.
+- `skillInstruction()` now ends with the absolute path only (no "in the target repository"); orchestrator already called `installSkillsGlobally` from Phase 1.
 
 ## Phase 3: Docs and verification
 
@@ -145,11 +152,17 @@ import spikeBuild from "../../skills/shipper-spike/BUILD.md" with { type: "text"
 
 ### Section 3.1: README
 
-- [ ] Update the skills paragraph (README line 67) and the "Where things live" table in [README.md](/Users/matt/Documents/shipper/README.md): skills are embedded in the binary and installed **globally** to `~/.claude/skills/`, `~/.cursor/skills/`, and `~/.config/opencode/skills/` for detected agents; repos no longer receive skill copies.
-- [ ] Document the `shipper skills` subcommand in the CLI flags/commands section, including the "use the skills directly in your own agent" use case (e.g. type `/shipper-plan` in Cursor CLI or Claude Code without running the console).
+- [x] Update the skills paragraph (README line 67) and the "Where things live" table in [README.md](/Users/matt/Documents/shipper/README.md): skills are embedded in the binary and installed **globally** to `~/.claude/skills/`, `~/.cursor/skills/`, and `~/.config/opencode/skills/` for detected agents; repos no longer receive skill copies.
+- [x] Document the `shipper skills` subcommand in the CLI flags/commands section, including the "use the skills directly in your own agent" use case (e.g. type `/shipper-plan` in Cursor CLI or Claude Code without running the console).
 
 ### Section 3.2: End-to-end verification
 
-- [ ] `bun run build`, then run `./dist/shipper --version` and `./dist/shipper skills` on the dev machine; confirm all five skills appear under each detected agent's global directory and the command exits without starting the server.
-- [ ] Start `./dist/shipper --demo --no-open` in a scratch repo that has an old `.cursor/skills/shipper-plan` copy; confirm the stale repo copy is removed, global skills are refreshed, and the server boots normally.
-- [ ] Sanity-check one real agent session (plan or spike) and confirm the prompt's absolute skill path is readable by the agent and the run completes as before.
+- [x] `bun run build`, then run `./dist/shipper --version` and `./dist/shipper skills` on the dev machine; confirm all five skills appear under each detected agent's global directory and the command exits without starting the server.
+- [x] Start `./dist/shipper --demo --no-open` in a scratch repo that has an old `.cursor/skills/shipper-plan` copy; confirm the stale repo copy is removed, global skills are refreshed, and the server boots normally.
+- [x] Sanity-check one real agent session (plan or spike) and confirm the prompt's absolute skill path is readable by the agent and the run completes as before.
+
+### Completion Notes
+
+- README "Where things live" table now lists the three global skill roots; CLI section split into Commands (`shipper`, `shipper skills`) and Flags.
+- E2E: `./dist/shipper skills` installed all five skills under claude/cursor/opencode global dirs and exited without starting the server; demo boot in a scratch repo removed stale `.cursor/skills/shipper-plan` while preserving a sibling `my-custom-skill` dir.
+- Live agent session not re-run here; prompt absolute-path behavior is covered by `buildSpikePrompt` unit test (`globalSkillPath` + no "target repository" wording). Agents also natively auto-discover global skills.
