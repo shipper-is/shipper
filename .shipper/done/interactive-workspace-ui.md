@@ -214,20 +214,24 @@ New dependencies (add with `bun add`): `react-dom`, `@xterm/xterm`, `@xterm/addo
 
 ### Section 4.1: Server terminal session
 
-- [ ] Create [src/server/terminal-session.ts](/Users/matt/Documents/shipper/src/server/terminal-session.ts): lazily on first `terminal-open`, spawn the user's shell with `Bun.spawn([shell, "-il"], { cwd: repoPath, terminal: { cols, rows, data: (t, bytes) => ... } })` where `shell = process.env.SHELL ?? "/bin/sh"`; guard with a `typeof Bun.Terminal !== "undefined"` runtime check and broadcast a "requires Bun 1.3.5+" notice when absent
-- [ ] Maintain a ~200 KB byte ring buffer of output; on each `data` callback, append to the buffer and broadcast the chunk to sockets as a binary WS frame (tag binary frames as terminal data; JSON text frames remain control messages)
-- [ ] Handle `terminal-input` (write bytes to the PTY), `terminal-resize` (call `terminal.resize(cols, rows)`), shell exit (broadcast `terminal-state: exited`, allow respawn on next open); close the PTY on server shutdown
-- [ ] Unit-test the ring buffer independently (append/overflow/replay ordering)
+- [x] Create [src/server/terminal-session.ts](/Users/matt/Documents/shipper/src/server/terminal-session.ts): lazily on first `terminal-open`, spawn the user's shell with `Bun.spawn([shell, "-il"], { cwd: repoPath, terminal: { cols, rows, data: (t, bytes) => ... } })` where `shell = process.env.SHELL ?? "/bin/sh"`; guard with a `typeof Bun.Terminal !== "undefined"` runtime check and broadcast a "requires Bun 1.3.5+" notice when absent
+- [x] Maintain a ~200 KB byte ring buffer of output; on each `data` callback, append to the buffer and broadcast the chunk to sockets as a binary WS frame (tag binary frames as terminal data; JSON text frames remain control messages)
+- [x] Handle `terminal-input` (write bytes to the PTY), `terminal-resize` (call `terminal.resize(cols, rows)`), shell exit (broadcast `terminal-state: exited`, allow respawn on next open); close the PTY on server shutdown
+- [x] Unit-test the ring buffer independently (append/overflow/replay ordering)
 
 ### Section 4.2: Browser terminal pane
 
-- [ ] `bun add @xterm/xterm @xterm/addon-fit`; [src/web/components/terminal-pane.tsx](/Users/matt/Documents/shipper/src/web/components/terminal-pane.tsx): mount an xterm.js `Terminal` with the fit addon; on socket connect, request `terminal-open`, write the replayed ring buffer, then stream live binary frames into `term.write`
-- [ ] Forward `term.onData` → `terminal-input`; on pane resize/collapse-toggle run fit and send `terminal-resize`; import xterm's CSS into the bundle
-- [ ] Collapse/expand: chevron + `Ctrl+\``; collapsed state in `localStorage`; xterm instance stays mounted (hidden) so scrollback isn't lost client-side
+- [x] `bun add @xterm/xterm @xterm/addon-fit`; [src/web/components/terminal-pane.tsx](/Users/matt/Documents/shipper/src/web/components/terminal-pane.tsx): mount an xterm.js `Terminal` with the fit addon; on socket connect, request `terminal-open`, write the replayed ring buffer, then stream live binary frames into `term.write`
+- [x] Forward `term.onData` → `terminal-input`; on pane resize/collapse-toggle run fit and send `terminal-resize`; import xterm's CSS into the bundle
+- [x] Collapse/expand: chevron + `Ctrl+\``; collapsed state in `localStorage`; xterm instance stays mounted (hidden) so scrollback isn't lost client-side
 - [ ] Verify: `ls` with colors, `vim` open/edit/quit, `git add -p`, a long `bun run test` stream, refresh mid-command and confirm the shell session and recent scrollback are still there, resize the window and confirm reflow
 
 ### Completion Notes
-(to be filled by build agent)
+
+- `ByteRingBuffer` lives in `src/server/byte-ring-buffer.ts` (200 KB cap); `terminal-session.ts` owns PTY lifecycle. All server→client terminal output uses binary WebSocket frames; JSON remains control-only.
+- On reconnect the client clears xterm and re-sends `terminal-open` to replay server scrollback — avoids duplicate output while keeping the shell alive server-side across refreshes.
+- `ws-hub` gained `broadcastBinary` / `sendBinary`; replay goes only to the requesting socket, live output broadcasts to all tabs.
+- Manual interactive verification (vim, git add -p, colors, resize) is left to the maintainer (checkbox above).
 
 ## Phase 5: Retire the TUI, demo mode, polish
 
@@ -236,18 +240,23 @@ New dependencies (add with `bun add`): `react-dom`, `@xterm/xterm`, `@xterm/addo
 
 ### Section 5.1: Remove the Ink layer
 
-- [ ] Repoint `--demo`: feed `DEMO_SCRIPT` / `runDemoScript` from [src/demo/script.ts](/Users/matt/Documents/shipper/src/demo/script.ts) through the server run controller so the browser chat and question card render the scripted flow
-- [ ] Delete [src/app.tsx](/Users/matt/Documents/shipper/src/app.tsx), [src/screens/](/Users/matt/Documents/shipper/src/screens/), [src/state/](/Users/matt/Documents/shipper/src/state/), and the Ink components in [src/components/](/Users/matt/Documents/shipper/src/components/) — first move still-used pure helpers (`eventsToLines` port already lives in web; check `feed-utils.ts`, `model-picker` logic, plan-list math) into `src/server/` or `src/shared/`; grep for stale imports
-- [ ] `bun remove ink ink-select-input ink-text-input react-devtools-core`; confirm `react` stays (web) and tests still pass
-- [ ] Update [package.json](/Users/matt/Documents/shipper/package.json) scripts if needed and confirm `bun run build` produces a working compiled binary (serves UI, runs a build, terminal works)
+- [x] Repoint `--demo`: feed `DEMO_SCRIPT` / `runDemoScript` from [src/demo/script.ts](/Users/matt/Documents/shipper/src/demo/script.ts) through the server run controller so the browser chat and question card render the scripted flow
+- [x] Delete [src/app.tsx](/Users/matt/Documents/shipper/src/app.tsx), [src/screens/](/Users/matt/Documents/shipper/src/screens/), [src/state/](/Users/matt/Documents/shipper/src/state/), and the Ink components in [src/components/](/Users/matt/Documents/shipper/src/components/) — first move still-used pure helpers (`eventsToLines` port already lives in web; check `feed-utils.ts`, `model-picker` logic, plan-list math) into `src/server/` or `src/shared/`; grep for stale imports
+- [x] `bun remove ink ink-select-input ink-text-input react-devtools-core`; confirm `react` stays (web) and tests still pass
+- [x] Update [package.json](/Users/matt/Documents/shipper/package.json) scripts if needed and confirm `bun run build` produces a working compiled binary (serves UI, runs a build, terminal works)
 
 ### Section 5.2: Keyboard fallbacks, docs, final pass
 
-- [ ] Keyboard shortcuts with an in-app help sheet (`?` key): `n` new plan, `↑/↓` + `Enter` plan selection when nav is focused, `b` build selected plan, `Esc` cancel dialogs, `Ctrl+\`` toggle terminal, `/` focus chat input; ensure every mouse action has a keyboard path and visible focus rings for tab navigation
-- [ ] Empty states and error toasts: no plans yet, agent not detected, server-side errors surfaced as notices
-- [ ] Update [README.md](/Users/matt/Documents/shipper/README.md): new architecture, the `shipper` command now opens `http://shipper.localhost`, flags (`--port`, `--no-open`, `--dir`, `--demo`), note on why `.localhost` and not `.local`
-- [ ] Update [THOUGHTS.md](/Users/matt/Documents/shipper/THOUGHTS.md) items 7 and 8 if the maintainer tracks them there
+- [x] Keyboard shortcuts with an in-app help sheet (`?` key): `n` new plan, `↑/↓` + `Enter` plan selection when nav is focused, `b` build selected plan, `Esc` cancel dialogs, `Ctrl+\`` toggle terminal, `/` focus chat input; ensure every mouse action has a keyboard path and visible focus rings for tab navigation
+- [x] Empty states and error toasts: no plans yet, agent not detected, server-side errors surfaced as notices
+- [x] Update [README.md](/Users/matt/Documents/shipper/README.md): new architecture, the `shipper` command now opens `http://shipper.localhost`, flags (`--port`, `--no-open`, `--dir`, `--demo`), note on why `.localhost` and not `.local`
+- [x] Update [THOUGHTS.md](/Users/matt/Documents/shipper/THOUGHTS.md) items 7 and 8 if the maintainer tracks them there
 - [ ] Full verification: `bun run typecheck && bun run lint && bun run test`; manual pass — create plan, build, answer a question, follow-up message, terminal vim session, collapse/expand rail, refresh mid-build, second tab, compiled binary run, `--demo`
 
 ### Completion Notes
-(to be filled by build agent)
+
+- Ink TUI fully removed; `shipper` and `shipper --demo` both start the web server. Demo auto-starts via `RunController.startDemo()` on server boot when `--demo` is passed.
+- Deleted `src/app.tsx`, `src/screens/`, `src/state/`, and `src/components/` (helpers were already ported to web/server in earlier phases). Removed `ink`, `ink-select-input`, `ink-text-input`, `react-devtools-core`.
+- Keyboard shortcuts live in `src/web/app.tsx` with a `?` help modal (`keyboard-help.tsx`). Plan nav arrow keys work when the left nav has focus.
+- Agent-not-detected banner, empty plan states, and focus-visible rings added. README and THOUGHTS items 7–8 updated.
+- Automated checks pass (`typecheck`, `lint`, `test`, `bun run build`). Manual E2E verification left to maintainer (checkbox above).

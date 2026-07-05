@@ -14,6 +14,7 @@ import {
   type BuildLoopResult,
   type PlanCreationResult,
 } from "../core/orchestrator.ts";
+import { DEMO_SCRIPT, runDemoScript } from "../demo/script.ts";
 import { findPlanByFilename } from "../core/plan-store.ts";
 import type { SkillName } from "../core/skills.ts";
 import type {
@@ -64,6 +65,7 @@ export type RunController = {
   getModelPickRequest: () => ModelPickRequest | null;
   getQueuedMessages: () => string[];
   handleClientMessage: (msg: ClientMessage) => void;
+  startDemo: () => void;
   stopActiveRun: () => void;
   shutdown: () => void;
 };
@@ -564,6 +566,28 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
   };
 
+  const configureModel = async (skill: SkillName) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    try {
+      modelPickRequest = await buildModelPickRequest(agent, skill);
+      deps.onBroadcast({ type: "needs-model-pick", modelPickRequest });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendNotice(`Failed to load models: ${message}`);
+    }
+  };
+
+  const cancelModelPick = () => {
+    modelPickRequest = null;
+    pendingStart = null;
+    deps.onBroadcast({ type: "model-pick-cleared" });
+  };
+
   const startBuild = async (planFilename: string) => {
     if (isRunActive()) {
       deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
@@ -621,10 +645,13 @@ export function createRunController(deps: RunControllerDeps): RunController {
 
     await saveModelChoice(deps.repoPath, agent, skill, modelId);
     modelPickRequest = null;
+    deps.onBroadcast({ type: "model-pick-cleared" });
 
     const pending = pendingStart;
     pendingStart = null;
     if (!pending) {
+      const configInfo = await deps.refreshConfigInfo();
+      deps.onBroadcast({ type: "config-info", configInfo });
       return;
     }
 
@@ -666,6 +693,64 @@ export function createRunController(deps: RunControllerDeps): RunController {
     deps.onBroadcast({ type: "config-info", configInfo });
   };
 
+  const startDemo = async () => {
+    if (isRunActive()) {
+      deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
+      return;
+    }
+
+    abortController = new AbortController();
+    chatEntries = [];
+    pendingQuestion = null;
+    modelPickRequest = null;
+    pendingStart = null;
+
+    runState = {
+      status: "running",
+      skill: "build",
+      planFilename: null,
+      activePhaseNumber: null,
+      logPath: null,
+    };
+    broadcastRunState();
+    appendNotice("Demo mode — scripted agent run for UI verification.");
+
+    const signal = abortController.signal;
+
+    try {
+      await runDemoScript(DEMO_SCRIPT, {
+        signal,
+        onEvent: handleAgentEvent,
+        onQuestion: (question) =>
+          new Promise<void>((resolve) => {
+            pendingQuestion = toProtocolQuestion(question);
+            questionResolver = () => {
+              resolve();
+            };
+            setRunState({ status: "waiting-answer" });
+            deps.onBroadcast({
+              type: "question-pending",
+              question: pendingQuestion,
+              runState: { ...runState },
+            });
+          }),
+      });
+
+      if (!signal.aborted) {
+        appendNotice("Demo complete.");
+      } else {
+        appendNotice("Demo cancelled.");
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        const message = error instanceof Error ? error.message : String(error);
+        appendNotice(`Demo failed: ${message}`);
+      }
+    }
+
+    clearRun();
+  };
+
   return {
     getRunState: () => runState,
     getChatEntries: () => chatEntries,
@@ -689,6 +774,12 @@ export function createRunController(deps: RunControllerDeps): RunController {
         case "select-model":
           void selectModel(msg.skill, msg.modelId);
           break;
+        case "configure-model":
+          void configureModel(msg.skill);
+          break;
+        case "cancel-model-pick":
+          cancelModelPick();
+          break;
         case "set-agent":
           void setAgent(msg.agent);
           break;
@@ -701,6 +792,9 @@ export function createRunController(deps: RunControllerDeps): RunController {
         default:
           break;
       }
+    },
+    startDemo: () => {
+      void startDemo();
     },
     stopActiveRun: stop,
     shutdown: stop,

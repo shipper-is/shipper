@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { KeyboardHelp } from "./components/keyboard-help.tsx";
 import { LeftNav } from "./components/left-nav.tsx";
 import { MainPane } from "./components/main-pane.tsx";
 import { ModelPicker } from "./components/model-picker.tsx";
 import { SettingsModal } from "./components/settings-modal.tsx";
+import { TerminalPane } from "./components/terminal-pane.tsx";
 import { useSocket } from "./hooks/use-socket.ts";
 
 const TERMINAL_COLLAPSED_KEY = "shipper.terminalCollapsed";
@@ -27,7 +29,24 @@ export function App() {
   const socket = useSocket();
   const [terminalCollapsed, setTerminalCollapsed] = useState(loadTerminalCollapsed);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [composingNewPlan, setComposingNewPlan] = useState(false);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+
+  const closeOverlays = useCallback(() => {
+    setSettingsOpen(false);
+    setHelpOpen(false);
+    setComposingNewPlan(false);
+  }, []);
+
+  const startBuild = useCallback(() => {
+    const plan = socket.selectedPlan;
+    if (!plan || plan.folder !== "open" || socket.runState.status !== "idle") {
+      return;
+    }
+    socket.send({ type: "start-build", planFilename: plan.filename });
+  }, [socket]);
 
   const toggleTerminal = useCallback(() => {
     setTerminalCollapsed((prev) => {
@@ -38,15 +57,59 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const isTypingTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey && event.key === "`") {
         event.preventDefault();
         toggleTerminal();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        if (settingsOpen || helpOpen || composingNewPlan) {
+          event.preventDefault();
+          closeOverlays();
+        }
+        return;
+      }
+
+      if (isTypingTarget(event.target) && event.key !== "Escape") {
+        return;
+      }
+
+      if (event.key === "?") {
+        event.preventDefault();
+        setHelpOpen((open) => !open);
+        return;
+      }
+
+      if (event.key === "n") {
+        event.preventDefault();
+        setComposingNewPlan(true);
+        return;
+      }
+
+      if (event.key === "b") {
+        event.preventDefault();
+        startBuild();
+        return;
+      }
+
+      if (event.key === "/") {
+        event.preventDefault();
+        chatInputRef.current?.focus();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleTerminal]);
+  }, [toggleTerminal, closeOverlays, settingsOpen, helpOpen, composingNewPlan, startBuild]);
 
   useEffect(() => {
     if (!socket.notice) return;
@@ -56,11 +119,24 @@ export function App() {
 
   const agentLabel =
     socket.configInfo?.defaultAgent?.toUpperCase() ?? "NO AGENT";
+  const hasAnyAgent =
+    socket.configInfo?.detectedAgents.some((agent) => agent.available) ?? false;
+  const noPlans =
+    socket.plans.open.length === 0 && socket.plans.done.length === 0;
 
   return (
     <div className={`app-shell ${terminalCollapsed ? "terminal-collapsed" : ""}`}>
       {socket.reconnecting && !socket.connected && (
         <div className="reconnect-banner">Reconnecting…</div>
+      )}
+
+      {socket.configInfo && !hasAnyAgent && (
+        <div className="agent-warning-banner" role="alert">
+          No coding agent detected. Open settings to choose or install one.
+          <button type="button" className="link-button" onClick={() => setSettingsOpen(true)}>
+            Settings
+          </button>
+        </div>
       )}
 
       {socket.notice && (
@@ -98,6 +174,7 @@ export function App() {
 
       <div className="workspace">
         <LeftNav
+          navRef={navRef}
           plans={socket.plans}
           selectedFilename={socket.selectedPlanFilename}
           onSelectPlan={(filename) => {
@@ -114,6 +191,8 @@ export function App() {
           pendingQuestion={socket.pendingQuestion}
           composingNewPlan={composingNewPlan}
           queuedMessages={socket.queuedMessages}
+          noPlans={noPlans}
+          chatInputRef={chatInputRef}
           onStartCompose={() => setComposingNewPlan(true)}
           onCancelCompose={() => setComposingNewPlan(false)}
           onStartPlan={(description) => socket.send({ type: "start-plan", description })}
@@ -143,12 +222,13 @@ export function App() {
               {terminalCollapsed ? "◀" : "▶"}
             </button>
           </div>
-          {!terminalCollapsed && (
-            <div className="terminal-placeholder">
-              <p>Passthrough terminal arrives in Phase 4.</p>
-              <p className="dim">Toggle with Ctrl+` or the chevron above.</p>
-            </div>
-          )}
+          <TerminalPane
+            connected={socket.connected}
+            collapsed={terminalCollapsed}
+            terminalState={socket.terminalState}
+            send={socket.send}
+            registerTerminalDataHandler={socket.registerTerminalDataHandler}
+          />
         </aside>
       </div>
 
@@ -164,6 +244,8 @@ export function App() {
         </button>
       )}
 
+      {helpOpen && <KeyboardHelp onClose={() => setHelpOpen(false)} />}
+
       {settingsOpen && socket.configInfo && (
         <SettingsModal
           configInfo={socket.configInfo}
@@ -176,9 +258,7 @@ export function App() {
         <ModelPicker
           request={socket.modelPickRequest}
           onSelect={(msg) => socket.send(msg)}
-          onCancel={() => {
-            // model pick clears when user picks; cancel is visual only until server adds cancel
-          }}
+          onCancel={() => socket.send({ type: "cancel-model-pick" })}
         />
       )}
     </div>

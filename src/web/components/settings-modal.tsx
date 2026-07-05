@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { ClientMessage, ConfigInfo } from "../../shared/protocol.ts";
 
+const SKILL_LABELS = {
+  "shipper-plan": "Plan",
+  "shipper-build": "Build",
+} as const;
+
 const AGENT_LABELS = {
   claude: "Claude Code",
   cursor: "Cursor CLI",
@@ -78,18 +83,26 @@ export function SettingsModal({ configInfo, onClose, send }: SettingsModalProps)
                 </li>
               ))}
             </ul>
-            {configInfo.defaultAgent && configInfo.models && (
-              <div className="saved-models">
-                {configInfo.models["shipper-plan"] && (
-                  <p>
-                    Plan model: <code>{configInfo.models["shipper-plan"]}</code>
-                  </p>
-                )}
-                {configInfo.models["shipper-build"] && (
-                  <p>
-                    Build model: <code>{configInfo.models["shipper-build"]}</code>
-                  </p>
-                )}
+            {configInfo.defaultAgent && (
+              <div className="model-settings">
+                <p className="modal-subtitle">Default models for this repository</p>
+                {(["shipper-plan", "shipper-build"] as const).map((skill) => (
+                  <div key={skill} className="model-setting-row">
+                    <div className="model-setting-info">
+                      <span className="model-setting-label">{SKILL_LABELS[skill]}</span>
+                      <code className="model-setting-value">
+                        {configInfo.models?.[skill] ?? "Not set"}
+                      </code>
+                    </div>
+                    <button
+                      type="button"
+                      className="secondary-button model-setting-change"
+                      onClick={() => send({ type: "configure-model", skill })}
+                    >
+                      Change
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
             <button

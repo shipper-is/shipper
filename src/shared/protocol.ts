@@ -190,6 +190,10 @@ export type ServerNeedsModelPick = {
   modelPickRequest: ModelPickRequest;
 };
 
+export type ServerModelPickCleared = {
+  type: "model-pick-cleared";
+};
+
 export type ServerPlanCreated = {
   type: "plan-created";
   filename: string;
@@ -213,6 +217,7 @@ export type ServerMessage =
   | ServerNotice
   | ServerConfigInfo
   | ServerNeedsModelPick
+  | ServerModelPickCleared
   | ServerPlanCreated
   | ServerQueuedMessages;
 
@@ -247,6 +252,15 @@ export type ClientSelectModel = {
   modelId: string;
 };
 
+export type ClientConfigureModel = {
+  type: "configure-model";
+  skill: "shipper-plan" | "shipper-build";
+};
+
+export type ClientCancelModelPick = {
+  type: "cancel-model-pick";
+};
+
 export type ClientSetAgent = {
   type: "set-agent";
   agent: "claude" | "cursor" | "opencode";
@@ -278,6 +292,8 @@ export type ClientMessage =
   | ClientAnswerQuestion
   | ClientSendMessage
   | ClientSelectModel
+  | ClientConfigureModel
+  | ClientCancelModelPick
   | ClientSetAgent
   | ClientRescanAgents
   | ClientTerminalInput
@@ -316,6 +332,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     skill: z.enum(["shipper-plan", "shipper-build"]),
     modelId: z.string().min(1),
   }),
+  z.object({
+    type: z.literal("configure-model"),
+    skill: z.enum(["shipper-plan", "shipper-build"]),
+  }),
+  z.object({ type: z.literal("cancel-model-pick") }),
   z.object({
     type: z.literal("set-agent"),
     agent: z.enum(["claude", "cursor", "opencode"]),

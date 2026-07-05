@@ -13,6 +13,10 @@ vi.mock("../core/config.ts", () => ({
   setProjectConfig: vi.fn(async () => ({})),
 }));
 
+vi.mock("../agents/models.ts", () => ({
+  listModels: vi.fn(async () => [{ id: "model-a", label: "Model A" }]),
+}));
+
 vi.mock("../core/plan-store.ts", () => ({
   findPlanByFilename: vi.fn(async () => ({
     filename: "foo.md",
@@ -196,6 +200,73 @@ describe("createRunController", () => {
     const controller = createRunController(baseDeps());
     expect(controller.getRunState()).toEqual(idleRunState());
     expect(controller.getChatEntries()).toEqual([]);
+  });
+
+  it("opens and saves model configuration from settings", async () => {
+    const refreshConfigInfo = vi.fn(async () => ({
+      repoPath,
+      defaultAgent: "cursor" as const,
+      detectedAgents: [],
+      models: { "shipper-plan": "model-a" },
+    }));
+
+    const controller = createRunController({
+      ...baseDeps(),
+      refreshConfigInfo,
+    });
+
+    void controller.handleClientMessage({
+      type: "configure-model",
+      skill: "shipper-plan",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getModelPickRequest()).not.toBeNull();
+    });
+
+    expect(broadcasts.some((msg) => (msg as { type: string }).type === "needs-model-pick")).toBe(
+      true,
+    );
+
+    void controller.handleClientMessage({
+      type: "select-model",
+      skill: "shipper-plan",
+      modelId: "model-a",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getModelPickRequest()).toBeNull();
+    });
+
+    expect(refreshConfigInfo).toHaveBeenCalled();
+    expect(broadcasts.some((msg) => (msg as { type: string }).type === "config-info")).toBe(true);
+    expect(broadcasts.some((msg) => (msg as { type: string }).type === "model-pick-cleared")).toBe(
+      true,
+    );
+  });
+
+  it("cancels model pick and clears pending start", async () => {
+    const { resolveDefaultModel } = await import("../core/config.ts");
+    vi.mocked(resolveDefaultModel).mockResolvedValueOnce(undefined);
+
+    const controller = createRunController(baseDeps());
+
+    void controller.handleClientMessage({
+      type: "start-plan",
+      description: "Add widgets",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getModelPickRequest()).not.toBeNull();
+    });
+
+    controller.handleClientMessage({ type: "cancel-model-pick" });
+
+    expect(controller.getModelPickRequest()).toBeNull();
+    expect(broadcasts.some((msg) => (msg as { type: string }).type === "model-pick-cleared")).toBe(
+      true,
+    );
+    expect(controller.getRunState().status).toBe("idle");
   });
 
   it("queues follow-up messages during an active build", async () => {

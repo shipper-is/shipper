@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentQuestion,
   ChatEntry,
@@ -9,6 +9,7 @@ import type {
   PlansSnapshot,
   RunState,
   ServerMessage,
+  TerminalState,
 } from "../../shared/protocol.ts";
 import { idleRunState } from "../../shared/protocol.ts";
 
@@ -25,6 +26,7 @@ export type SocketState = {
   notice: string | null;
   createdPlanFilename: string | null;
   queuedMessages: string[];
+  terminalState: TerminalState | null;
 };
 
 export type UseSocketResult = SocketState & {
@@ -33,6 +35,7 @@ export type UseSocketResult = SocketState & {
   selectedPlan: PlanSummary | null;
   clearNotice: () => void;
   clearCreatedPlan: () => void;
+  registerTerminalDataHandler: (handler: ((data: Uint8Array) => void) | null) => void;
 };
 
 const INITIAL_PLANS: PlansSnapshot = { open: [], done: [] };
@@ -69,7 +72,20 @@ export function useSocket(): UseSocketResult {
   const [notice, setNotice] = useState<string | null>(null);
   const [createdPlanFilename, setCreatedPlanFilename] = useState<string | null>(null);
   const [queuedMessages, setQueuedMessages] = useState<string[]>([]);
+  const [terminalState, setTerminalState] = useState<TerminalState | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const terminalDataHandlerRef = useRef<((data: Uint8Array) => void) | null>(null);
+
+  const registerTerminalDataHandler = useCallback(
+    (handler: ((data: Uint8Array) => void) | null) => {
+      terminalDataHandlerRef.current = handler;
+    },
+    [],
+  );
+
+  const dispatchTerminalData = useCallback((data: Uint8Array) => {
+    terminalDataHandlerRef.current?.(data);
+  }, []);
 
   const handleMessage = useCallback((msg: ServerMessage) => {
     switch (msg.type) {
@@ -81,6 +97,7 @@ export function useSocket(): UseSocketResult {
         setModelPickRequest(msg.modelPickRequest);
         setQueuedMessages(msg.queuedMessages);
         setConfigInfo(msg.configInfo);
+        setTerminalState(msg.terminalState);
         setSelectedPlanFilename((current) => {
           if (current && findPlan(msg.plans, current)) {
             return current;
@@ -124,6 +141,9 @@ export function useSocket(): UseSocketResult {
       case "needs-model-pick":
         setModelPickRequest(msg.modelPickRequest);
         break;
+      case "model-pick-cleared":
+        setModelPickRequest(null);
+        break;
       case "plan-created":
         setCreatedPlanFilename(msg.filename);
         setSelectedPlanFilename(msg.filename);
@@ -136,6 +156,9 @@ export function useSocket(): UseSocketResult {
         break;
       case "queued-messages":
         setQueuedMessages(msg.messages);
+        break;
+      case "terminal-state":
+        setTerminalState(msg.terminalState);
         break;
       default:
         break;
@@ -177,6 +200,16 @@ export function useSocket(): UseSocketResult {
       };
 
       ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          dispatchTerminalData(new Uint8Array(event.data));
+          return;
+        }
+        if (event.data instanceof Blob) {
+          void event.data.arrayBuffer().then((buffer) => {
+            dispatchTerminalData(new Uint8Array(buffer));
+          });
+          return;
+        }
         if (typeof event.data !== "string") {
           return;
         }
@@ -196,7 +229,7 @@ export function useSocket(): UseSocketResult {
       if (retryTimer) clearTimeout(retryTimer);
       ws?.close();
     };
-  }, [handleMessage]);
+  }, [dispatchTerminalData, handleMessage]);
 
   const send = useCallback(
     (msg: ClientMessage) => {
@@ -226,9 +259,11 @@ export function useSocket(): UseSocketResult {
     notice,
     createdPlanFilename,
     queuedMessages,
+    terminalState,
     send,
     selectPlan: setSelectedPlanFilename,
     clearNotice: () => setNotice(null),
     clearCreatedPlan: () => setCreatedPlanFilename(null),
+    registerTerminalDataHandler,
   };
 }

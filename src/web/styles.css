@@ -1,25 +1,20 @@
 :root {
   color-scheme: dark;
-  --bg: #0f1117;
-  --bg-elevated: #171a22;
-  --bg-hover: #1f2430;
-  --border: #2a3140;
-  --text: #e8ecf4;
-  --text-dim: #8b95a8;
-  --accent: #5b9cff;
-  --accent-soft: rgba(91, 156, 255, 0.15);
-  --success: #4ade80;
-  --warning: #fbbf24;
-  --danger: #f87171;
+  --bg: #000000;
+  --bg-elevated: #000000;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.2);
+  --text: #ffffff;
+  --text-dim: rgba(255, 255, 255, 0.6);
+  --accent: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.1);
+  --success: #ffffff;
+  --warning: rgba(255, 255, 255, 0.8);
+  --danger: rgba(255, 255, 255, 0.9);
   --nav-width: 280px;
   --terminal-width: 420px;
   --top-bar-height: 48px;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -43,6 +38,96 @@ button {
   cursor: pointer;
 }
 
+button:focus-visible,
+a:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+.left-nav:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.link-button {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  text-decoration: underline;
+  padding: 0;
+  margin-left: 0.5rem;
+}
+
+.agent-warning-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 19;
+  background: #000000;
+  color: #ffffff;
+  border-bottom: 1px solid #ffffff;
+  text-align: center;
+  padding: 0.35rem 1rem;
+  font-size: 0.875rem;
+}
+
+.empty-nav-state {
+  padding: 1rem 0.75rem;
+  color: var(--text-dim);
+  font-size: 0.875rem;
+}
+
+.empty-nav-state p {
+  margin: 0 0 0.5rem;
+}
+
+.empty-nav-hint {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.keyboard-help-modal {
+  max-width: 420px;
+}
+
+.shortcut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shortcut-list li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-list li:last-child {
+  border-bottom: none;
+}
+
+.shortcut-list kbd {
+  min-width: 6.5rem;
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0.2rem 0.45rem;
+}
+
+.keyboard-help-hint {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+.empty-main h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
 .app-shell {
   display: grid;
   grid-template-rows: var(--top-bar-height) 1fr;
@@ -56,8 +141,9 @@ button {
   left: 0;
   right: 0;
   z-index: 20;
-  background: #92400e;
-  color: #fff;
+  background: #000000;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
   text-align: center;
   padding: 0.35rem 1rem;
   font-size: 0.875rem;
@@ -100,16 +186,17 @@ button {
   font-weight: 600;
   letter-spacing: 0.04em;
   padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
 }
 
 .icon-button {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
-  border-radius: 6px;
+  border-radius: 0;
   width: 2rem;
   height: 2rem;
 }
@@ -117,8 +204,8 @@ button {
 .connection-dot {
   width: 0.65rem;
   height: 0.65rem;
-  border-radius: 50%;
-  background: var(--danger);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .connection-dot.connected {
@@ -149,7 +236,7 @@ button {
 .new-plan-button {
   width: 100%;
   padding: 0.6rem 0.75rem;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px dashed var(--border);
   background: transparent;
   color: var(--text);
@@ -183,7 +270,7 @@ button {
   padding: 0.65rem 0.75rem;
   margin-bottom: 0.35rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -211,7 +298,7 @@ button {
 .progress-track {
   width: 100%;
   height: 4px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--border);
   overflow: hidden;
 }
@@ -262,7 +349,7 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0.15rem 0.45rem;
-  border-radius: 999px;
+  border-radius: 0;
 }
 
 .folder-open {
@@ -280,7 +367,7 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0.25rem 0.55rem;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(139, 149, 168, 0.15);
   color: var(--text-dim);
 }
@@ -310,7 +397,7 @@ button {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 0.35rem 0.75rem;
 }
 
@@ -340,7 +427,7 @@ button {
 
 .phase-item {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 0.75rem;
   background: var(--bg-elevated);
 }
@@ -401,7 +488,7 @@ button {
 
 .markdown-body {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 1rem;
   background: var(--bg-elevated);
   font-size: 0.925rem;
@@ -417,7 +504,7 @@ button {
 .markdown-body code {
   background: var(--bg);
   padding: 0.1rem 0.3rem;
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 .raw-markdown {
@@ -426,7 +513,7 @@ button {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8125rem;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 1rem;
   background: var(--bg-elevated);
   overflow: auto;
@@ -467,6 +554,41 @@ button {
   padding: 1rem;
   color: var(--text-dim);
   font-size: 0.875rem;
+}
+
+.terminal-pane {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.terminal-pane-collapsed {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.terminal-surface {
+  flex: 1;
+  min-height: 0;
+  padding: 0.25rem;
+}
+
+.terminal-surface .xterm {
+  height: 100%;
+}
+
+.terminal-status-banner {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  background: rgba(255, 200, 80, 0.08);
+  border-bottom: 1px solid var(--border);
 }
 
 .terminal-placeholder .dim {
@@ -516,7 +638,7 @@ button {
 .primary-button,
 .secondary-button,
 .danger-button {
-  border-radius: 8px;
+  border-radius: 0;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--border);
 }
@@ -560,7 +682,7 @@ button {
   width: 100%;
   min-height: 12rem;
   resize: vertical;
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   color: var(--text);
@@ -608,7 +730,7 @@ button {
   min-height: 2.75rem;
   resize: vertical;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--surface-raised);
   color: var(--text);
   padding: 0.625rem 0.75rem;
@@ -631,7 +753,7 @@ button {
   color: var(--text-dim);
   padding: 0.5rem 0.75rem;
   border: 1px dashed var(--border);
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .chat-log-wrap {
@@ -671,7 +793,7 @@ button {
   max-width: 80%;
   background: var(--accent-soft);
   border: 1px solid rgba(91, 156, 255, 0.35);
-  border-radius: 12px 12px 4px 12px;
+  border-radius: 0;
   padding: 0.55rem 0.75rem;
 }
 
@@ -720,7 +842,7 @@ button {
   position: absolute;
   bottom: 0.5rem;
   right: 0.5rem;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   color: var(--text);
@@ -730,7 +852,7 @@ button {
 
 .question-card {
   border: 1px solid var(--accent);
-  border-radius: 12px;
+  border-radius: 0;
   padding: 1rem;
   background: var(--bg-elevated);
 }
@@ -752,7 +874,7 @@ button {
 .question-option {
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--bg);
   color: var(--text);
   padding: 0.55rem 0.75rem;
@@ -766,7 +888,7 @@ button {
 .question-other-input {
   width: 100%;
   margin-top: 0.5rem;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
@@ -805,7 +927,7 @@ button {
   align-items: center;
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(74, 222, 128, 0.1);
   border: 1px solid rgba(74, 222, 128, 0.35);
 }
@@ -827,7 +949,7 @@ button {
   overflow: auto;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 0;
   padding: 1rem 1.1rem 1.25rem;
 }
 
@@ -866,7 +988,7 @@ button {
   gap: 1rem;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--bg);
   color: var(--text);
   padding: 0.65rem 0.75rem;
@@ -899,7 +1021,7 @@ button {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
-  border-radius: 6px;
+  border-radius: 0;
   padding: 0.35rem 0.75rem;
 }
 
@@ -922,7 +1044,7 @@ button {
   display: flex;
   justify-content: space-between;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--bg);
   color: var(--text);
   padding: 0.65rem 0.75rem;
@@ -948,6 +1070,46 @@ button {
   color: var(--text-dim);
 }
 
+.model-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.model-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--bg);
+}
+
+.model-setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.model-setting-label {
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+.model-setting-value {
+  color: var(--text);
+  font-size: 0.875rem;
+  word-break: break-all;
+}
+
+.model-setting-change {
+  flex-shrink: 0;
+}
+
 .saved-models code {
   color: var(--text);
 }
@@ -963,7 +1125,7 @@ button {
 .install-block code {
   background: var(--bg);
   padding: 0.35rem 0.5rem;
-  border-radius: 6px;
+  border-radius: 0;
   word-break: break-all;
 }
 
@@ -980,7 +1142,7 @@ button {
   z-index: 25;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 0;
   padding: 0.45rem 0.85rem;
   display: flex;
   align-items: center;

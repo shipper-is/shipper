@@ -6,10 +6,10 @@ import {
   enrichConfigInfo,
   type RunController,
 } from "./run-controller.ts";
+import { createTerminalSession } from "./terminal-session.ts";
 import {
   buildConfigInfo,
   createWsHub,
-  defaultTerminalState,
   type WsClientData,
   type WsHub,
 } from "./ws-hub.ts";
@@ -82,11 +82,23 @@ export async function startServer(
 ): Promise<StartedServer> {
   let plans: PlansSnapshot = { open: [], done: [] };
   let configInfo: ConfigInfo = await enrichConfigInfo(repoPath, await buildConfigInfo(repoPath));
-  const terminalState = defaultTerminalState();
 
   const broadcast = (msg: ServerMessage) => {
     wsHubRef.current?.broadcast(msg);
   };
+
+  const terminalSession = createTerminalSession({
+    repoPath,
+    broadcastBinary: (data) => {
+      wsHubRef.current?.broadcastBinary(data);
+    },
+    sendBinary: (ws, data) => {
+      wsHubRef.current?.sendBinary(ws, data);
+    },
+    broadcastState: (terminalState) => {
+      broadcast({ type: "terminal-state", terminalState });
+    },
+  });
 
   const refreshConfigInfo = async (): Promise<ConfigInfo> => {
     configInfo = await enrichConfigInfo(repoPath, await buildConfigInfo(repoPath));
@@ -122,20 +134,23 @@ export async function startServer(
     getModelPickRequest: () => runController.getModelPickRequest(),
     getQueuedMessages: () => runController.getQueuedMessages(),
     getConfigInfo: () => configInfo,
-    getTerminalState: () => terminalState,
+    getTerminalState: () => terminalSession.getState(),
     handlers: {
-      onClientMessage(msg) {
-        if (msg.type === "terminal-open") {
-          broadcast({
-            type: "terminal-state",
-            terminalState: {
-              ...terminalState,
-              message: "Terminal support arrives in Phase 4.",
-            },
-          });
-          return;
+      onClientMessage(msg, ws) {
+        switch (msg.type) {
+          case "terminal-open":
+            terminalSession.handleOpen(ws);
+            break;
+          case "terminal-input":
+            terminalSession.handleInput(msg.data);
+            break;
+          case "terminal-resize":
+            terminalSession.handleResize(msg.cols, msg.rows);
+            break;
+          default:
+            runController.handleClientMessage(msg);
+            break;
         }
-        runController.handleClientMessage(msg);
       },
     },
   });
@@ -164,12 +179,17 @@ export async function startServer(
     void openBrowser(url);
   }
 
+  if (opts.demoMode) {
+    runController.startDemo();
+  }
+
   return {
     url,
     port,
     runController,
     stop: async () => {
       runController.shutdown();
+      terminalSession.shutdown();
       await plansWatcher.stop();
       await server.stop(true);
     },

@@ -44,6 +44,8 @@ export type WsHub = {
   };
   handleUpgrade: (req: Request, server: Server<WsClientData>) => boolean;
   broadcast: (msg: ServerMessage) => void;
+  broadcastBinary: (data: Uint8Array) => void;
+  sendBinary: (ws: ServerWebSocket<WsClientData>, data: Uint8Array) => void;
   sendSnapshot: (ws: ServerWebSocket<WsClientData>) => void;
   clientCount: () => number;
 };
@@ -72,6 +74,16 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     for (const ws of sockets) {
       ws.send(payload);
     }
+  };
+
+  const broadcastBinary = (data: Uint8Array) => {
+    for (const ws of sockets) {
+      ws.send(data);
+    }
+  };
+
+  const sendBinary = (ws: ServerWebSocket<WsClientData>, data: Uint8Array) => {
+    ws.send(data);
   };
 
   const sendSnapshot = (ws: ServerWebSocket<WsClientData>) => {
@@ -111,6 +123,8 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     },
     handleUpgrade,
     broadcast,
+    broadcastBinary,
+    sendBinary,
     sendSnapshot,
     clientCount: () => sockets.size,
   };

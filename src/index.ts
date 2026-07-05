@@ -1,9 +1,6 @@
 import { Command } from "commander";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { render } from "ink";
-import React from "react";
-import { App } from "./app.tsx";
 import { ensureShipperDirs } from "./core/plan-store.ts";
 import { startServer } from "./server/http.ts";
 import { getVersion } from "./version.ts";
@@ -15,7 +12,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .name("shipper")
     .description("Shipper — plan and build with coding agents")
     .option("--dir <path>", "target repository directory", process.cwd())
-    .option("--demo", "run with scripted demo events for feed/modal verification")
+    .option("--demo", "run with scripted demo events in the browser UI")
     .option("--port <n>", "HTTP port override", (value) => Number.parseInt(value, 10))
     .option("--no-open", "do not open the browser automatically")
     .option("--version", "print version and exit")
@@ -43,15 +40,6 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   await ensureShipperDirs(repoPath);
 
-  if (opts.demo) {
-    const { waitUntilExit } = render(
-      React.createElement(App, { repoPath, demoMode: Boolean(opts.demo) }),
-      { alternateScreen: true },
-    );
-    await waitUntilExit();
-    return;
-  }
-
   let stopping = false;
   let server: Awaited<ReturnType<typeof startServer>> | null = null;
 
@@ -75,10 +63,14 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   server = await startServer(repoPath, {
     port: opts.port,
     openBrowser: opts.open !== false,
+    demoMode: Boolean(opts.demo),
   });
 
   console.log(`Shipper running at ${server.url}`);
   console.log(`Repository: ${repoPath}`);
+  if (opts.demo) {
+    console.log("Demo mode — scripted chat and question flow in the browser.");
+  }
   console.log("Press Ctrl+C to stop.");
 
   await new Promise<void>(() => {

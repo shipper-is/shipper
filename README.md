@@ -1,6 +1,6 @@
 # Shipper
 
-Shipper is a standalone CLI that orchestrates AI coding agents to **plan** and **build** features in any repository. It ships as a compiled binary with a full-screen terminal UI (TUI) — no Node.js required at runtime.
+Shipper is a standalone CLI that orchestrates AI coding agents to **plan** and **build** features in any repository. It ships as a compiled binary with a local web workspace — no Node.js required at runtime.
 
 ## Install
 
@@ -16,35 +16,31 @@ SHIPPER_VERSION=0.1.0 sh -c 'curl -fsSL https://raw.githubusercontent.com/shippe
 
 macOS binaries are **unsigned** in v1. Installing via `curl | sh` avoids Gatekeeper quarantine; downloading the binary directly in a browser may require removing the quarantine attribute or allowing it in System Settings.
 
-Shipper checks for updates once per day and shows the install command in the status bar when a newer release is available. There is no self-update in v1 — re-run the install script to upgrade.
+Shipper checks for updates once per day and shows the install command in the UI when a newer release is available. There is no self-update in v1 — re-run the install script to upgrade.
 
 ## What it does
 
 1. **Plan** — runs the `shipper-plan` skill through your coding agent to produce a structured markdown plan in `.shipper/open/`.
 2. **Build** — loops the `shipper-build` skill phase-by-phase until the plan is complete, moving finished plans to `.shipper/done/`.
 
-```text
-$ cd my-project
-$ shipper
+Running `shipper` starts a local web server and opens your browser at **`http://shipper.localhost`** (port 80, with fallback to `:8712` if 80 is unavailable). Browsers resolve `*.localhost` to your machine with no hosts-file setup. Shipper deliberately uses `.localhost`, not `.local` — the latter is reserved for Bonjour/mDNS and behaves unreliably.
 
-  Shipper · my-project · cursor
-  ─────────────────────────────────
-  Open plans
-    ● Add user auth          Phase 2/4 · 13/41 tasks
-  ─────────────────────────────────
-  ↑↓ select · n new plan · b build · q quit
-```
+The workspace has three sections:
+
+- **Left nav** — open and done plans, live-updating from `.shipper/`
+- **Main window** — plan overview, agent chat, inline questions, follow-up messages, build controls
+- **Right rail** — a passthrough terminal (real PTY) for interactive commands like `vim` or `git add -p`
 
 ### New plan flow
 
-1. Press `n`, describe the feature (multi-line; `Ctrl+D` to submit).
-2. Confirm the agent; Shipper installs bundled skills into your repo and starts a headless agent session.
-3. Answer clarifying questions in the TUI modal when prompted.
+1. Click **New plan** (or press `n`), describe the feature.
+2. Confirm the agent and model if prompted; Shipper installs bundled skills into your repo and starts a headless agent session.
+3. Answer clarifying questions inline when prompted.
 4. A new plan file appears in `.shipper/open/`.
 
 ### Build flow
 
-1. Select an open plan and press `Enter` or `b`.
+1. Select an open plan and click **Build** (or press `b`).
 2. Shipper runs one agent session per phase, auto-continuing until the plan is done.
 3. Progress updates live as the agent checks boxes in the plan file.
 4. Questions pause the loop; everything else continues automatically.
@@ -72,7 +68,7 @@ Bundled `shipper-plan` and `shipper-build` skills are embedded in the binary and
 
 ## Debugging
 
-Every agent session writes an NDJSON log to `~/.config/shipper/logs/<timestamp>-<agent>.ndjson` with typed `AgentEvent`s and raw adapter I/O. Error panels in the TUI show the log path for the failed session.
+Every agent session writes an NDJSON log to `~/.config/shipper/logs/<timestamp>-<agent>.ndjson` with typed `AgentEvent`s and raw adapter I/O. Error notices in the chat show the log path for the failed session.
 
 Demo mode (no agent required):
 
@@ -80,14 +76,17 @@ Demo mode (no agent required):
 shipper --demo
 ```
 
+This opens the browser and runs a scripted chat + question flow so you can verify the UI without a live agent.
+
 ## Development
 
 Requires [Bun](https://bun.sh).
 
 ```bash
 bun install
-bun run dev                    # TUI in current directory
+bun run dev                    # web UI in current directory
 bun run dev -- --dir /path/to/repo
+bun run dev -- --demo          # scripted demo in the browser
 bun run typecheck
 bun test
 bun run build                  # local platform → dist/shipper
@@ -108,5 +107,11 @@ git tag v0.1.0 && git push origin v0.1.0
 | Flag | Description |
 |------|-------------|
 | `--dir <path>` | Target repository (default: current directory) |
-| `--demo` | Scripted feed/modal demo |
+| `--port <n>` | HTTP port override (default: 80, fallback 8712) |
+| `--no-open` | Do not open the browser automatically |
+| `--demo` | Scripted chat/question demo in the browser |
 | `--version` | Print version and exit |
+
+## Keyboard shortcuts
+
+Press `?` in the browser for the full shortcut list. Highlights: `n` new plan, `b` build, `/` focus chat, `Ctrl+\`` toggle terminal.

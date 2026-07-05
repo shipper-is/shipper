@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type RefObject } from "react";
 import type { ClientMessage, PlanSummary, RunState, AgentQuestion, ChatEntry } from "../../shared/protocol.ts";
 import { ChatLog } from "./chat-log.tsx";
 import { ChatInput } from "./chat-input.tsx";
@@ -12,6 +12,8 @@ type MainPaneProps = {
   pendingQuestion: AgentQuestion | null;
   composingNewPlan: boolean;
   queuedMessages: string[];
+  noPlans: boolean;
+  chatInputRef: RefObject<HTMLTextAreaElement | null>;
   onStartCompose: () => void;
   onCancelCompose: () => void;
   onStartPlan: (description: string) => void;
@@ -27,6 +29,8 @@ export function MainPane({
   pendingQuestion,
   composingNewPlan,
   queuedMessages,
+  noPlans,
+  chatInputRef,
   onStartCompose,
   onCancelCompose,
   onStartPlan,
@@ -84,7 +88,14 @@ export function MainPane({
   if (!plan && !isRunning) {
     return (
       <main className="main-pane empty-main">
-        <p>Select a plan from the left, or create a new one.</p>
+        {noPlans ? (
+          <>
+            <h1>Welcome to Shipper</h1>
+            <p>Create your first plan to orchestrate AI agents through structured phases.</p>
+          </>
+        ) : (
+          <p>Select a plan from the left, or create a new one.</p>
+        )}
         <button type="button" className="primary-button" onClick={onStartCompose}>
           New plan
         </button>
@@ -201,6 +212,7 @@ export function MainPane({
 
       {showChatInput && (
         <ChatInput
+          ref={chatInputRef}
           disabled={Boolean(pendingQuestion)}
           disabledHint="Answer the agent's question before sending a message."
           onSend={(text) => send({ type: "send-message", text })}

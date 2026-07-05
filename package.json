@@ -25,14 +25,12 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.201",
     "@opencode-ai/sdk": "^1.17.13",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "chokidar": "^5.0.0",
     "commander": "^15.0.0",
     "execa": "^9.6.1",
-    "ink": "^7.1.0",
-    "ink-select-input": "^6.2.0",
-    "ink-text-input": "^6.0.0",
     "react": "^19.2.7",
-    "react-devtools-core": "^7.0.1",
     "react-dom": "^19.2.7",
     "react-markdown": "^10.1.0",
     "zod": "^4.4.3"
