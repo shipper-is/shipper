@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   getPlanProgress,
@@ -6,7 +9,12 @@ import {
   parseFrontmatter,
   type PlanFile,
 } from "../core/plan-store.ts";
-import { planFileToSummary, phaseToDto } from "./plans-watcher.ts";
+import {
+  loadPlansSnapshot,
+  planFileToSummary,
+  phaseToDto,
+  savePlanMarkdown,
+} from "./plans-watcher.ts";
 import { parseClientMessage } from "../shared/protocol.ts";
 
 const SAMPLE_MARKDOWN = `# Test Plan
@@ -54,6 +62,7 @@ describe("planFileToSummary", () => {
       filename: "test-plan.md",
       path: "/repo/.shipper/open/test-plan.md",
       folder: "open",
+      origin: "main",
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
@@ -63,6 +72,7 @@ describe("planFileToSummary", () => {
     const summary = planFileToSummary(plan, SAMPLE_MARKDOWN);
 
     expect(summary.filename).toBe("test-plan.md");
+    expect(summary.path).toBe("/repo/.shipper/open/test-plan.md");
     expect(summary.folder).toBe("open");
     expect(summary.title).toBe("Test Plan");
     expect(summary.rawMarkdown).toBe(SAMPLE_MARKDOWN);
@@ -89,6 +99,7 @@ ${SAMPLE_MARKDOWN}`;
       filename: "done-plan.md",
       path: "/repo/.shipper/done/done-plan.md",
       folder: "done",
+      origin: "main",
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
@@ -100,11 +111,54 @@ ${SAMPLE_MARKDOWN}`;
     expect(summary.meta).toEqual({
       type: "plan",
       branch: "shipper/plan-completion-metadata",
+      baseBranch: null,
+      worktree: null,
       startedAt: "2026-07-04T22:15:00-05:00",
       completedAt: "2026-07-05T01:40:00-05:00",
+      phaseCommits: {},
       prUrl: "https://github.com/owner/repo/pull/123",
       prNumber: 123,
     });
+  });
+});
+
+describe("savePlanMarkdown", () => {
+  it("writes to the worktree plan path from the snapshot", async () => {
+    const repoPath = await mkdtemp(join(tmpdir(), "shipper-plans-watcher-"));
+    const worktreeOpen = join(
+      repoPath,
+      ".shipper",
+      "worktrees",
+      "edit-me",
+      ".shipper",
+      "open",
+    );
+    await mkdir(worktreeOpen, { recursive: true });
+    const planPath = join(worktreeOpen, "edit-me.md");
+    const original = `---
+type: plan
+worktree: .shipper/worktrees/edit-me
+---
+# Edit Me
+
+## Phase 1: One
+
+### S
+
+- [ ] task
+`;
+    await writeFile(planPath, original, "utf8");
+    await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
+    await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+
+    const snapshot = await loadPlansSnapshot(repoPath);
+    const updated = original.replace("- [ ] task", "- [x] task");
+    const result = await savePlanMarkdown(snapshot, "edit-me.md", updated);
+
+    expect(result).toEqual({ ok: true });
+    expect(await readFile(planPath, "utf8")).toBe(updated);
+
+    await rm(repoPath, { recursive: true, force: true });
   });
 });
 

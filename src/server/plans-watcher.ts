@@ -1,5 +1,4 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
 import {
   isPhaseComplete,
   listPlans,
@@ -16,6 +15,7 @@ import type {
 export function planFileToSummary(plan: PlanFile, rawMarkdown: string): PlanSummary {
   return {
     filename: plan.filename,
+    path: plan.path,
     folder: plan.folder,
     title: plan.title,
     progress: {
@@ -45,14 +45,8 @@ export function phaseToDto(phase: PlanPhase): PlanPhaseDto {
   };
 }
 
-async function loadPlanSummary(
-  repoPath: string,
-  plan: PlanFile,
-): Promise<PlanSummary> {
-  const markdown = await readFile(
-    join(repoPath, ".shipper", plan.folder, plan.filename),
-    "utf8",
-  );
+async function loadPlanSummary(plan: PlanFile): Promise<PlanSummary> {
+  const markdown = await readFile(plan.path, "utf8");
   return planFileToSummary(plan, markdown);
 }
 
@@ -60,17 +54,16 @@ export async function loadPlansSnapshot(repoPath: string): Promise<PlansSnapshot
   const listed = await listPlans(repoPath);
   const open: PlanSummary[] = [];
   for (const plan of listed.open) {
-    open.push(await loadPlanSummary(repoPath, plan));
+    open.push(await loadPlanSummary(plan));
   }
   const done: PlanSummary[] = [];
   for (const plan of listed.done) {
-    done.push(await loadPlanSummary(repoPath, plan));
+    done.push(await loadPlanSummary(plan));
   }
   return { open, done };
 }
 
 export async function savePlanMarkdown(
-  repoPath: string,
   plans: PlansSnapshot,
   planFilename: string,
   markdown: string,
@@ -84,11 +77,7 @@ export async function savePlanMarkdown(
   if (summary.folder !== "open") {
     return { ok: false, error: "Only open plans can be edited." };
   }
-  await writeFile(
-    join(repoPath, ".shipper", summary.folder, summary.filename),
-    markdown,
-    "utf8",
-  );
+  await writeFile(summary.path, markdown, "utf8");
   return { ok: true };
 }
 
@@ -129,7 +118,7 @@ export function createPlansWatcher(
   return {
     getPlans: () => current,
     savePlan: async (planFilename, markdown) => {
-      const result = await savePlanMarkdown(repoPath, current, planFilename, markdown);
+      const result = await savePlanMarkdown(current, planFilename, markdown);
       if (result.ok) {
         await refresh();
       }

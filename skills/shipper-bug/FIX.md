@@ -20,7 +20,7 @@ Now that the root cause is known, size the fix. If it fits a single phase of wor
 
 ## Stage 4: Fix
 
-Check whether a git repo is initialized. If it is, work on a branch named "shipper/bug-<short-bug-name>", and add `branch` to the bug file's frontmatter. Ask the user (when applicable) whether they want a separate worktree to avoid conflicts with other ongoing changes, and whether they want a PR created automatically when finished.
+If a git repo is initialized, read and follow [./GIT.md](./GIT.md) for branching, the worktree question, and bug file location. Also ask whether the user wants a PR created automatically when finished (if not already decided).
 
 Rules for the fix itself:
 
@@ -38,8 +38,8 @@ If an automated test is genuinely infeasible for this bug, a documented manual v
 
 Either way, also re-run the original reproduction to confirm the symptom is gone, and check the blast radius: identify what else shares the code you touched and confirm those paths still behave.
 
-Commit the fix and its test together in one commit, with the bug file updates included.
+Commit the fix and its test together in one commit, with the bug file updates included. Follow [./GIT.md](./GIT.md) for the single-commit rule and branch setup.
 
 ## Stage 6: Close
 
-Set `fixed_at` in the bug file's frontmatter to the current time as a quoted ISO 8601 timestamp and move the file from ".shipper/bugs/open" to ".shipper/bugs/done". If the user opted for an automatic PR, use the shipper-ship skill (if installed and available) for the PR format — the bug file supplies the verification recipe and test evidence, and after the PR is created add `pr_url` and `pr_number` to the bug file's frontmatter the same way shipper-ship does for plans. Finish by giving the user a brief summary: the root cause in plain language, what the fix was, and the proof it works.
+Set `fixed_at` in the bug file's frontmatter to the current time as a quoted ISO 8601 timestamp and move the file from ".shipper/bugs/open" to ".shipper/bugs/done". If the user opted for an automatic PR, use the shipper-ship skill (if installed and available) for the PR format — the bug file supplies the verification recipe and test evidence; shipper-ship writes `pr_url` and `pr_number` per its GIT.md. Then follow [./GIT.md](./GIT.md) for worktree cleanup as the last action. Finish by giving the user a brief summary: the root cause in plain language, what the fix was, and the proof it works.

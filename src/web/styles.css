@@ -726,6 +726,15 @@ input:focus-visible,
   color: var(--text-dim);
 }
 
+.phase-commit-sha {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .phase-sections {
   list-style: none;
   margin: 0.65rem 0 0;

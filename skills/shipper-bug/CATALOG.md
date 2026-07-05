@@ -13,7 +13,7 @@ reported_at: "2026-07-04T22:15:00-05:00"
 ---
 ```
 
-(`branch`, `fixed_at`, `pr_url`, and `pr_number` are added later by the FIX step and the shipper-ship skill; never add them at intake.)
+(`branch`, `base_branch`, `worktree`, `fixed_at`, `pr_url`, and `pr_number` are added later by the FIX step and the shipper-ship skill; never add them at intake.)
 
 The body of the bug file:
 

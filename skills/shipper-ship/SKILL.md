@@ -44,6 +44,6 @@ Guidance on tone and length — the description must not read like AI prose:
 - No filler structure: no summary-of-the-summary, no emojis, no conclusion paragraph. If a section has nothing meaningful to say, write one honest line (e.g. "No known risks beyond the new table migration") rather than padding it.
 - Write it like the author would explain the change to a teammate at their desk, including the parts they are unsure about.
 
-Utilize the command line to create this PR and return a link to the PR for the user to be able to click on and review themselves.
+Read and follow [./GIT.md](./GIT.md) for locating the branch (including worktree recreation), pushing, creating the PR, writing `pr_url` and `pr_number` into frontmatter on the branch, and worktree cleanup. Utilize the command line to create the PR and return a link for the user to review.
 
-After the PR is created, update the YAML frontmatter of the associated plan file in `.shipper/done/` with `pr_url` (the full canonical GitHub PR URL, not a comparison or branch URL) and `pr_number` (the PR number as an integer). These fields power the Shipper UI's PR link, so they must be the real PR URL returned by `gh pr create`. If the plan file has no frontmatter block yet, create one at the very top of the file before the `#` title; if frontmatter already exists, add or update only `pr_url` and `pr_number` without changing other keys.
+`pr_url` must be the full canonical GitHub PR URL returned by `gh pr create` (not a comparison or branch URL). `pr_number` is the integer PR number. These fields power the Shipper UI's PR link. If frontmatter already exists, add or update only `pr_url` and `pr_number` without changing other keys.

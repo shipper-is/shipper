@@ -1,5 +1,6 @@
 node_modules/
 dist/
+.shipper/worktrees/
 .DS_Store
 *.log
 

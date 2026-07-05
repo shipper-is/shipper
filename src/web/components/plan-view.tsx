@@ -32,6 +32,8 @@ function phaseMarker(state: "done" | "in-progress" | "pending"): string {
 function hasMeta(meta: PlanMetaDto): boolean {
   return (
     meta.branch !== null ||
+    meta.baseBranch !== null ||
+    meta.worktree !== null ||
     meta.startedAt !== null ||
     meta.completedAt !== null ||
     meta.prUrl !== null ||
@@ -104,6 +106,22 @@ function PlanMetaPanel({ meta }: { meta: PlanMetaDto }) {
           </span>
         </div>
       )}
+      {meta.baseBranch !== null && (
+        <div className="plan-meta-row">
+          <span className="plan-meta-label">Base</span>
+          <span className="plan-meta-value">
+            <code>{meta.baseBranch}</code>
+          </span>
+        </div>
+      )}
+      {meta.worktree !== null && (
+        <div className="plan-meta-row">
+          <span className="plan-meta-label">Worktree</span>
+          <span className="plan-meta-value">
+            <code>{meta.worktree}</code>
+          </span>
+        </div>
+      )}
       {startedLabel !== null && (
         <div className="plan-meta-row">
           <span className="plan-meta-label">Started</span>
@@ -158,6 +176,7 @@ export function PlanView({ plan, activePhaseNumber }: PlanViewProps) {
       <ol className="phase-tracker">
         {plan.phases.map((phase) => {
           const state = phaseState(phase, activePhaseNumber);
+          const phaseCommit = plan.meta.phaseCommits[phase.number];
           return (
             <li key={phase.number} className={`phase-item phase-${state}`}>
               <div className="phase-heading">
@@ -169,6 +188,9 @@ export function PlanView({ plan, activePhaseNumber }: PlanViewProps) {
                 <span className="phase-counts">
                   {phase.checkedCount}/{phase.checkedCount + phase.uncheckedCount}
                 </span>
+                {phaseCommit !== undefined && (
+                  <code className="phase-commit-sha">{phaseCommit}</code>
+                )}
               </div>
               {phase.sections.length > 0 && (
                 <ul className="phase-sections">
