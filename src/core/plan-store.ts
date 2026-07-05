@@ -1,0 +1,364 @@
+import chokidar, { type FSWatcher } from "chokidar";
+import { mkdir, readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+export type ChecklistItem = {
+  text: string;
+  checked: boolean;
+  line: number;
+};
+
+export type PlanSection = {
+  title: string;
+  items: ChecklistItem[];
+  checkedCount: number;
+  uncheckedCount: number;
+};
+
+export type PlanPhase = {
+  number: number;
+  title: string;
+  introLines: string[];
+  sections: PlanSection[];
+  hasCompletionNotes: boolean;
+  checkedCount: number;
+  uncheckedCount: number;
+};
+
+export type ParsedPlan = {
+  title: string;
+  phases: PlanPhase[];
+  totalChecked: number;
+  totalUnchecked: number;
+};
+
+export type PlanProgress = {
+  totalChecked: number;
+  totalUnchecked: number;
+  currentPhase: number | null;
+  phaseCount: number;
+};
+
+export type PlanFile = {
+  filename: string;
+  path: string;
+  folder: "open" | "done";
+  title: string;
+  progress: PlanProgress;
+  parsed: ParsedPlan;
+};
+
+const PHASE_RE = /^## Phase (\d+)(?::\s*(.*))?$/;
+const SECTION_RE = /^### (.+)$/;
+const CHECKLIST_RE = /^- \[([ xX])\] (.+)$/;
+const TITLE_RE = /^# (.+)$/;
+const ANY_HEADING_RE = /^#{1,6} /;
+const COMPLETION_NOTES_RE = /^#{1,6}\s+Completion Notes\b/i;
+
+function countItems(items: ChecklistItem[]): { checked: number; unchecked: number } {
+  let checked = 0;
+  let unchecked = 0;
+  for (const item of items) {
+    if (item.checked) checked++;
+    else unchecked++;
+  }
+  return { checked, unchecked };
+}
+
+function makeSection(title: string, items: ChecklistItem[]): PlanSection {
+  const counts = countItems(items);
+  return {
+    title,
+    items,
+    checkedCount: counts.checked,
+    uncheckedCount: counts.unchecked,
+  };
+}
+
+function makePhase(
+  number: number,
+  title: string,
+  introLines: string[],
+  sections: PlanSection[],
+  hasCompletionNotes: boolean,
+): PlanPhase {
+  let checkedCount = 0;
+  let uncheckedCount = 0;
+  for (const section of sections) {
+    checkedCount += section.checkedCount;
+    uncheckedCount += section.uncheckedCount;
+  }
+  return {
+    number,
+    title,
+    introLines,
+    sections,
+    hasCompletionNotes,
+    checkedCount,
+    uncheckedCount,
+  };
+}
+
+export function parsePlan(markdown: string): ParsedPlan {
+  try {
+    const lines = markdown.split(/\r?\n/);
+    let title = "Untitled Plan";
+
+    for (const line of lines) {
+      const titleMatch = TITLE_RE.exec(line);
+      if (titleMatch) {
+        title = titleMatch[1]!.trim();
+        break;
+      }
+    }
+
+    const phaseStarts: Array<{ index: number; number: number; title: string }> = [];
+    for (let i = 0; i < lines.length; i++) {
+      const match = PHASE_RE.exec(lines[i]!);
+      if (match) {
+        phaseStarts.push({
+          index: i,
+          number: Number.parseInt(match[1]!, 10),
+          title: (match[2] ?? "").trim(),
+        });
+      }
+    }
+
+    if (phaseStarts.length === 0) {
+      const allItems: ChecklistItem[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        const check = CHECKLIST_RE.exec(lines[i]!);
+        if (check) {
+          allItems.push({
+            text: check[2]!.trim(),
+            checked: check[1] !== " ",
+            line: i + 1,
+          });
+        }
+      }
+      const section = makeSection("Tasks", allItems);
+      const phase = makePhase(1, "", [], [section], false);
+      return {
+        title,
+        phases: allItems.length > 0 ? [phase] : [],
+        totalChecked: section.checkedCount,
+        totalUnchecked: section.uncheckedCount,
+      };
+    }
+
+    const phases: PlanPhase[] = [];
+
+    for (let p = 0; p < phaseStarts.length; p++) {
+      const start = phaseStarts[p]!;
+      const end = p + 1 < phaseStarts.length ? phaseStarts[p + 1]!.index : lines.length;
+      const slice = lines.slice(start.index + 1, end);
+
+      let hasCompletionNotes = false;
+      const introLines: string[] = [];
+      const sections: PlanSection[] = [];
+      let currentSection: PlanSection | null = null;
+      let currentItems: ChecklistItem[] = [];
+      let inIntro = true;
+
+      for (let i = 0; i < slice.length; i++) {
+        const line = slice[i]!;
+        const absoluteLine = start.index + 2 + i;
+
+        if (COMPLETION_NOTES_RE.test(line)) {
+          hasCompletionNotes = true;
+          inIntro = false;
+          if (currentItems.length > 0) {
+            const sectionTitle = currentSection?.title ?? "Tasks";
+            sections.push(makeSection(sectionTitle, currentItems));
+            currentItems = [];
+            currentSection = null;
+          }
+          continue;
+        }
+
+        const sectionMatch = SECTION_RE.exec(line);
+        if (sectionMatch) {
+          inIntro = false;
+          if (currentItems.length > 0) {
+            sections.push(
+              makeSection(currentSection?.title ?? "Tasks", currentItems),
+            );
+            currentItems = [];
+          }
+          currentSection = makeSection(sectionMatch[1]!.trim(), []);
+          continue;
+        }
+
+        const checkMatch = CHECKLIST_RE.exec(line);
+        if (checkMatch) {
+          inIntro = false;
+          currentItems.push({
+            text: checkMatch[2]!.trim(),
+            checked: checkMatch[1] !== " ",
+            line: absoluteLine,
+          });
+          continue;
+        }
+
+        if (inIntro && line.trim() && !ANY_HEADING_RE.test(line)) {
+          introLines.push(line);
+        }
+      }
+
+      if (currentItems.length > 0) {
+        sections.push(makeSection(currentSection?.title ?? "Tasks", currentItems));
+      } else if (currentSection && currentSection.items.length > 0) {
+        sections.push(currentSection);
+      }
+
+      phases.push(
+        makePhase(start.number, start.title, introLines, sections, hasCompletionNotes),
+      );
+    }
+
+    let totalChecked = 0;
+    let totalUnchecked = 0;
+    for (const phase of phases) {
+      totalChecked += phase.checkedCount;
+      totalUnchecked += phase.uncheckedCount;
+    }
+
+    return { title, phases, totalChecked, totalUnchecked };
+  } catch {
+    return {
+      title: "Untitled Plan",
+      phases: [],
+      totalChecked: 0,
+      totalUnchecked: 0,
+    };
+  }
+}
+
+export function isPhaseComplete(phase: PlanPhase): boolean {
+  return (
+    phase.hasCompletionNotes ||
+    (phase.uncheckedCount === 0 && phase.checkedCount > 0)
+  );
+}
+
+export function getFirstIncompletePhase(parsed: ParsedPlan): PlanPhase | null {
+  for (const phase of parsed.phases) {
+    if (!isPhaseComplete(phase)) {
+      return phase;
+    }
+  }
+  return null;
+}
+
+export function getPlanProgress(parsed: ParsedPlan): PlanProgress {
+  let currentPhase: number | null = null;
+
+  for (const phase of parsed.phases) {
+    if (!isPhaseComplete(phase)) {
+      currentPhase = phase.number;
+      break;
+    }
+  }
+
+  return {
+    totalChecked: parsed.totalChecked,
+    totalUnchecked: parsed.totalUnchecked,
+    currentPhase,
+    phaseCount: parsed.phases.length,
+  };
+}
+
+export async function ensureShipperDirs(repoPath: string): Promise<void> {
+  await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
+  await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+}
+
+async function readPlanFile(
+  repoPath: string,
+  folder: "open" | "done",
+  filename: string,
+): Promise<PlanFile> {
+  const path = join(repoPath, ".shipper", folder, filename);
+  const markdown = await readFile(path, "utf8");
+  const parsed = parsePlan(markdown);
+  return {
+    filename,
+    path,
+    folder,
+    title: parsed.title,
+    progress: getPlanProgress(parsed),
+    parsed,
+  };
+}
+
+export async function listPlans(repoPath: string): Promise<{
+  open: PlanFile[];
+  done: PlanFile[];
+}> {
+  await ensureShipperDirs(repoPath);
+
+  const readFolder = async (folder: "open" | "done"): Promise<PlanFile[]> => {
+    const dir = join(repoPath, ".shipper", folder);
+    let entries: string[];
+    try {
+      entries = await readdir(dir);
+    } catch {
+      return [];
+    }
+
+    const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
+    const plans: PlanFile[] = [];
+    for (const filename of mdFiles) {
+      try {
+        plans.push(await readPlanFile(repoPath, folder, filename));
+      } catch {
+        // skip unreadable files
+      }
+    }
+    return plans;
+  };
+
+  return {
+    open: await readFolder("open"),
+    done: await readFolder("done"),
+  };
+}
+
+export async function findPlanByFilename(
+  repoPath: string,
+  filename: string,
+): Promise<PlanFile | null> {
+  const plans = await listPlans(repoPath);
+  return (
+    plans.open.find((plan) => plan.filename === filename) ??
+    plans.done.find((plan) => plan.filename === filename) ??
+    null
+  );
+}
+
+export function watchPlans(
+  repoPath: string,
+  onChange: () => void,
+): FSWatcher {
+  const pattern = join(repoPath, ".shipper", "**", "*.md");
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const watcher = chokidar.watch(pattern, {
+    ignoreInitial: true,
+    awaitWriteFinish: { stabilityThreshold: 100 },
+  });
+
+  const debounced = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      onChange();
+    }, 200);
+  };
+
+  watcher.on("add", debounced);
+  watcher.on("change", debounced);
+  watcher.on("unlink", debounced);
+
+  return watcher;
+}

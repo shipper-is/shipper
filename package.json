@@ -1,0 +1,38 @@
+{
+  "name": "shipper",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "build": "bun build --compile src/index.ts --outfile dist/shipper --define __SHIPPER_VERSION__='\"0.1.0\"'",
+    "build:release": "bun run scripts/build-release.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.4",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.1",
+    "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.201",
+    "@opencode-ai/sdk": "^1.17.13",
+    "chokidar": "^5.0.0",
+    "commander": "^15.0.0",
+    "execa": "^9.6.1",
+    "ink": "^7.1.0",
+    "ink-select-input": "^6.2.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.2.7",
+    "react-devtools-core": "^7.0.1",
+    "zod": "^4.4.3"
+  }
+}
