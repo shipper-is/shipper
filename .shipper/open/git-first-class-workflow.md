@@ -3,6 +3,8 @@ type: plan
 branch: shipper/git-first-class-workflow
 base_branch: main
 started_at: "2026-07-05T08:35:00-05:00"
+phase_commits:
+  1: 11f6dc1
 ---
 
 # Git as a First-Class Citizen of the Shipper Framework
@@ -161,27 +163,36 @@ Console/orchestrator (plumbing + UI):
 
 - Extend `PlanMeta` in [src/core/plan-store.ts](/Users/matt/Documents/shipper/src/core/plan-store.ts) with `baseBranch: string | null`, `worktree: string | null`, and `phaseCommits: Record<number, string>` (empty object default). Update `emptyPlanMeta()` accordingly.
 - In `parseFrontmatter`, read `base_branch`, `worktree`, and `phase_commits`; normalize `phase_commits` keys to numbers whether the YAML parser returns number or string keys, and coerce values with the existing `asMetaString` style (skip non-string values).
-- [ ] Extend `PlanMeta`, `emptyPlanMeta`, and `parseFrontmatter` with the three new fields
-- [ ] Mirror the new fields on `PlanMetaDto` in [src/shared/protocol.ts](/Users/matt/Documents/shipper/src/shared/protocol.ts)
-- [ ] Add `parseFrontmatter` unit tests in [src/core/plan-store.test.ts](/Users/matt/Documents/shipper/src/core/plan-store.test.ts): all three new keys present, `phase_commits` with integer keys, missing keys default correctly, and the existing `.shipper/done/` fixture still parses
+- [x] Extend `PlanMeta`, `emptyPlanMeta`, and `parseFrontmatter` with the three new fields
+- [x] Mirror the new fields on `PlanMetaDto` in [src/shared/protocol.ts](/Users/matt/Documents/shipper/src/shared/protocol.ts)
+- [x] Add `parseFrontmatter` unit tests in [src/core/plan-store.test.ts](/Users/matt/Documents/shipper/src/core/plan-store.test.ts): all three new keys present, `phase_commits` with integer keys, missing keys default correctly, and the existing `.shipper/done/` fixture still parses
 
 ### Section 2.2: Worktree-aware listing
 
 - In `listPlans`, after reading the main `.shipper/open|done/` folders, scan `.shipper/worktrees/*/` one level deep; for each directory that contains a `.shipper/` folder, read its `open/` and `done/` plan files with the existing `readPlanFile` machinery (paths resolved against the worktree, not `repoPath`).
 - Dedup by filename per folder bucket: if the same filename exists in both the main checkout and a worktree, keep the worktree copy. A plan `open` in a worktree and `done` in main (or vice versa) is not deduped across buckets — worktree copy still wins by removing the main-checkout duplicate from whichever bucket it is in.
 - Add an `origin: "main" | "worktree"` field to `PlanFile` so tests and dedup logic are explicit.
-- [ ] Implement worktree scanning + filename dedup in `listPlans` (and therefore `findPlanByFilename`)
-- [ ] Add tests using temp directories (no real git needed — just the directory layout `.shipper/worktrees/<slug>/.shipper/open/x.md`): worktree plan appears, dedup prefers worktree copy, nested `.shipper/worktrees/` inside a worktree is not scanned
-- [ ] Verify `runBuildLoop`'s between-session re-reads (via `findPlanByFilename`) pick up worktree plan progress — covered implicitly by the tests above; note it in Completion Notes
+- [x] Implement worktree scanning + filename dedup in `listPlans` (and therefore `findPlanByFilename`)
+- [x] Add tests using temp directories (no real git needed — just the directory layout `.shipper/worktrees/<slug>/.shipper/open/x.md`): worktree plan appears, dedup prefers worktree copy, nested `.shipper/worktrees/` inside a worktree is not scanned
+- [x] Verify `runBuildLoop`'s between-session re-reads (via `findPlanByFilename`) pick up worktree plan progress — covered implicitly by the tests above; note it in Completion Notes
 
 ### Section 2.3: Watcher scope and path correctness
 
 - Replace the `watchPlans` glob in plan-store.ts with explicit patterns: `join(repoPath, ".shipper", "open", "*.md")`, `join(repoPath, ".shipper", "done", "*.md")`, `join(repoPath, ".shipper", "worktrees", "*", ".shipper", "open", "*.md")`, and the matching `done` pattern. Confirm chokidar does not traverse worktree checkouts outside those paths (use `ignored` if needed).
 - In [src/server/plans-watcher.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.ts), stop rebuilding paths: `loadPlanSummary` must read from `plan.path`, and `savePlanMarkdown` must resolve the target through the current snapshot's plan `path` (thread `path` onto `PlanSummary` in protocol.ts — it is server-internal data the web client can ignore, or re-resolve via `findPlanByFilename` at save time; prefer threading `path` for one lookup).
-- [ ] Narrow the `watchPlans` patterns and verify no worktree-checkout traversal
-- [ ] Fix `loadPlanSummary` and `savePlanMarkdown` to use the real plan path; update `PlanSummary`/protocol as needed
-- [ ] Extend [src/server/plans-watcher.test.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.test.ts) to cover saving/loading a worktree-located plan
-- [ ] Run `bun run typecheck` and `bun run test`
+- [x] Narrow the `watchPlans` patterns and verify no worktree-checkout traversal
+- [x] Fix `loadPlanSummary` and `savePlanMarkdown` to use the real plan path; update `PlanSummary`/protocol as needed
+- [x] Extend [src/server/plans-watcher.test.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.test.ts) to cover saving/loading a worktree-located plan
+- [x] Run `bun run typecheck` and `bun run test`
+
+### Completion Notes
+
+- Extended `PlanMeta` / `PlanMetaDto` with `baseBranch`, `worktree`, and `phaseCommits`; `parseFrontmatter` normalizes `phase_commits` keys to numbers and skips invalid entries.
+- `PlanFile` now carries `origin: "main" | "worktree"`; `listPlans` scans `.shipper/worktrees/*/.shipper/{open,done}` one level deep and dedupes by filename (worktree copy wins).
+- `watchPlans` uses four explicit globs instead of `.shipper/**/*.md`, avoiding recursion into worktree checkouts (e.g. `node_modules`).
+- `PlanSummary` threads `path`; `loadPlanSummary` and `savePlanMarkdown` read/write via that path so worktree plans edit correctly in the console.
+- `findPlanByFilename` inherits worktree awareness from `listPlans`, so `runBuildLoop` between-session re-reads will resolve worktree plans once Phase 3 forwards cwd.
+- 105 tests pass (`bun run typecheck` + `bun run test`).
 
 ## Phase 3: Orchestrator cwd forwarding
 

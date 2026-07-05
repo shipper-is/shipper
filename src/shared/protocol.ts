@@ -25,14 +25,18 @@ export type PlanPhaseDto = {
 export type PlanMetaDto = {
   type: "plan" | "spike";
   branch: string | null;
+  baseBranch: string | null;
+  worktree: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  phaseCommits: Record<number, string>;
   prUrl: string | null;
   prNumber: number | null;
 };
 
 export type PlanSummary = {
   filename: string;
+  path: string;
   folder: "open" | "done";
   title: string;
   progress: PlanProgressDto;

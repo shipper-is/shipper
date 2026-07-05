@@ -1,5 +1,5 @@
 import chokidar, { type FSWatcher } from "chokidar";
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 
@@ -43,8 +43,11 @@ export type PlanProgress = {
 export type PlanMeta = {
   type: "plan" | "spike";
   branch: string | null;
+  baseBranch: string | null;
+  worktree: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  phaseCommits: Record<number, string>;
   prUrl: string | null;
   prNumber: number | null;
 };
@@ -53,8 +56,11 @@ export function emptyPlanMeta(): PlanMeta {
   return {
     type: "plan",
     branch: null,
+    baseBranch: null,
+    worktree: null,
     startedAt: null,
     completedAt: null,
+    phaseCommits: {},
     prUrl: null,
     prNumber: null,
   };
@@ -77,6 +83,20 @@ function asMetaNumber(value: unknown): number | null {
     if (Number.isFinite(n)) return n;
   }
   return null;
+}
+
+function parsePhaseCommits(value: unknown): Record<number, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const result: Record<number, string> = {};
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    const phaseNum = Number(key);
+    if (!Number.isInteger(phaseNum) || phaseNum < 1) continue;
+    const sha = asMetaString(val);
+    if (sha) result[phaseNum] = sha;
+  }
+  return result;
 }
 
 export function parseFrontmatter(markdown: string): PlanMeta {
@@ -106,8 +126,11 @@ export function parseFrontmatter(markdown: string): PlanMeta {
     return {
       type: asPlanType(record.type),
       branch: asMetaString(record.branch),
+      baseBranch: asMetaString(record.base_branch),
+      worktree: asMetaString(record.worktree),
       startedAt: asMetaString(record.started_at),
       completedAt: asMetaString(record.completed_at),
+      phaseCommits: parsePhaseCommits(record.phase_commits),
       prUrl: asMetaString(record.pr_url),
       prNumber: asMetaNumber(record.pr_number),
     };
@@ -120,6 +143,7 @@ export type PlanFile = {
   filename: string;
   path: string;
   folder: "open" | "done";
+  origin: "main" | "worktree";
   title: string;
   progress: PlanProgress;
   parsed: ParsedPlan;
@@ -351,23 +375,99 @@ export async function ensureShipperDirs(repoPath: string): Promise<void> {
   await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
 }
 
-async function readPlanFile(
-  repoPath: string,
+async function readPlanFileAt(
+  path: string,
   folder: "open" | "done",
   filename: string,
+  origin: "main" | "worktree",
 ): Promise<PlanFile> {
-  const path = join(repoPath, ".shipper", folder, filename);
   const markdown = await readFile(path, "utf8");
   const parsed = parsePlan(markdown);
   return {
     filename,
     path,
     folder,
+    origin,
     title: parsed.title,
     progress: getPlanProgress(parsed),
     parsed,
     meta: parseFrontmatter(markdown),
   };
+}
+
+async function readFolderPlans(
+  shipperRoot: string,
+  folder: "open" | "done",
+  origin: "main" | "worktree",
+): Promise<PlanFile[]> {
+  const dir = join(shipperRoot, folder);
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return [];
+  }
+
+  const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
+  const plans: PlanFile[] = [];
+  for (const filename of mdFiles) {
+    try {
+      plans.push(
+        await readPlanFileAt(join(dir, filename), folder, filename, origin),
+      );
+    } catch {
+      // skip unreadable files
+    }
+  }
+  return plans;
+}
+
+/** Worktree copy wins when the same filename exists in main and a worktree. */
+function dedupePlansByFilename(plans: PlanFile[]): PlanFile[] {
+  const byFilename = new Map<string, PlanFile>();
+  for (const plan of plans) {
+    const existing = byFilename.get(plan.filename);
+    if (!existing) {
+      byFilename.set(plan.filename, plan);
+      continue;
+    }
+    if (plan.origin === "worktree" && existing.origin === "main") {
+      byFilename.set(plan.filename, plan);
+    }
+  }
+  return [...byFilename.values()].sort((a, b) =>
+    a.filename.localeCompare(b.filename),
+  );
+}
+
+async function listWorktreePlans(repoPath: string): Promise<{
+  open: PlanFile[];
+  done: PlanFile[];
+}> {
+  const worktreesDir = join(repoPath, ".shipper", "worktrees");
+  let entries: string[];
+  try {
+    entries = await readdir(worktreesDir);
+  } catch {
+    return { open: [], done: [] };
+  }
+
+  const open: PlanFile[] = [];
+  const done: PlanFile[] = [];
+
+  for (const entry of entries) {
+    const worktreeRoot = join(worktreesDir, entry);
+    const shipperRoot = join(worktreeRoot, ".shipper");
+    try {
+      await stat(shipperRoot);
+    } catch {
+      continue;
+    }
+    open.push(...(await readFolderPlans(shipperRoot, "open", "worktree")));
+    done.push(...(await readFolderPlans(shipperRoot, "done", "worktree")));
+  }
+
+  return { open, done };
 }
 
 export async function listPlans(repoPath: string): Promise<{
@@ -376,30 +476,14 @@ export async function listPlans(repoPath: string): Promise<{
 }> {
   await ensureShipperDirs(repoPath);
 
-  const readFolder = async (folder: "open" | "done"): Promise<PlanFile[]> => {
-    const dir = join(repoPath, ".shipper", folder);
-    let entries: string[];
-    try {
-      entries = await readdir(dir);
-    } catch {
-      return [];
-    }
-
-    const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
-    const plans: PlanFile[] = [];
-    for (const filename of mdFiles) {
-      try {
-        plans.push(await readPlanFile(repoPath, folder, filename));
-      } catch {
-        // skip unreadable files
-      }
-    }
-    return plans;
-  };
+  const mainShipper = join(repoPath, ".shipper");
+  const mainOpen = await readFolderPlans(mainShipper, "open", "main");
+  const mainDone = await readFolderPlans(mainShipper, "done", "main");
+  const worktreePlans = await listWorktreePlans(repoPath);
 
   return {
-    open: await readFolder("open"),
-    done: await readFolder("done"),
+    open: dedupePlansByFilename([...mainOpen, ...worktreePlans.open]),
+    done: dedupePlansByFilename([...mainDone, ...worktreePlans.done]),
   };
 }
 
@@ -419,10 +503,15 @@ export function watchPlans(
   repoPath: string,
   onChange: () => void,
 ): FSWatcher {
-  const pattern = join(repoPath, ".shipper", "**", "*.md");
+  const patterns = [
+    join(repoPath, ".shipper", "open", "*.md"),
+    join(repoPath, ".shipper", "done", "*.md"),
+    join(repoPath, ".shipper", "worktrees", "*", ".shipper", "open", "*.md"),
+    join(repoPath, ".shipper", "worktrees", "*", ".shipper", "done", "*.md"),
+  ];
   let timer: ReturnType<typeof setTimeout> | null = null;
 
-  const watcher = chokidar.watch(pattern, {
+  const watcher = chokidar.watch(patterns, {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 100 },
   });
