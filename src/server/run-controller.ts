@@ -11,8 +11,10 @@ import {
   runBuildLoop,
   runFollowUp,
   runPlanCreation,
+  runSpike,
   type BuildLoopResult,
   type PlanCreationResult,
+  type SpikeResult,
 } from "../core/orchestrator.ts";
 import { DEMO_SCRIPT, runDemoScript } from "../demo/script.ts";
 import { findPlanByFilename } from "../core/plan-store.ts";
@@ -36,17 +38,20 @@ export type OrchestratorFns = {
   runBuildLoop: typeof runBuildLoop;
   runPlanCreation: typeof runPlanCreation;
   runFollowUp: typeof runFollowUp;
+  runSpike: typeof runSpike;
 };
 
 const defaultOrchestrator: OrchestratorFns = {
   runBuildLoop,
   runPlanCreation,
   runFollowUp,
+  runSpike,
 };
 
 type PendingStart =
   | { kind: "build"; planFilename: string }
-  | { kind: "plan"; description: string };
+  | { kind: "plan"; description: string }
+  | { kind: "spike"; description: string };
 
 export type RunControllerDeps = {
   repoPath: string;
@@ -346,6 +351,31 @@ export function createRunController(deps: RunControllerDeps): RunController {
     clearRun();
   };
 
+  const finishSpike = (result: SpikeResult) => {
+    lastSessionId = result.lastSessionId ?? lastSessionId;
+    lastSkill = "spike";
+
+    if (result.status === "success") {
+      lastPlanFilename = result.filename;
+      const locationLabel =
+        result.location === "done" ? ".shipper/done/" : ".shipper/open/";
+      const locationNote =
+        result.location === "open"
+          ? "\nThe spike file was left in open/ (the agent did not move it to done/)."
+          : "";
+      appendNotice(`Spike complete — ${result.title}\nLocation: ${locationLabel}${locationNote}`);
+      deps.onBroadcast({
+        type: "spike-created",
+        filename: result.filename,
+        title: result.title,
+      });
+      deps.onPlanUpdate?.();
+    } else {
+      appendNotice(`Spike failed: ${result.message}`);
+    }
+    clearRun();
+  };
+
   const runBuild = async (planFilename: string, model: string) => {
     const agent = deps.getAgent();
     if (!agent) {
@@ -459,6 +489,56 @@ export function createRunController(deps: RunControllerDeps): RunController {
     finishPlan(result);
   };
 
+  const runSpikeRun = async (description: string, model: string) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    abortController = new AbortController();
+    chatEntries = [];
+    pendingQuestion = null;
+    modelPickRequest = null;
+    pendingStart = null;
+
+    runState = {
+      status: "running",
+      skill: "spike",
+      planFilename: null,
+      activePhaseNumber: null,
+      logPath: null,
+    };
+    broadcastRunState();
+    appendUserMessage(description.trim());
+
+    const result = await orchestrator.runSpike(
+      deps.repoPath,
+      agent,
+      description.trim(),
+      {
+        signal: abortController.signal,
+        onEvent: handleAgentEvent,
+        onSessionLog: (path) => setRunState({ logPath: path }),
+        onPlanUpdate: () => deps.onPlanUpdate?.(),
+        onQuestion: (question) =>
+          new Promise((resolve) => {
+            pendingQuestion = toProtocolQuestion(question);
+            questionResolver = resolve;
+            setRunState({ status: "waiting-answer" });
+            deps.onBroadcast({
+              type: "question-pending",
+              question: pendingQuestion,
+              runState: { ...runState },
+            });
+          }),
+      },
+      model,
+    );
+
+    finishSpike(result);
+  };
+
   const runFollowUpMessage = async (text: string) => {
     const agent = deps.getAgent();
     if (!agent) {
@@ -467,7 +547,12 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
 
     const skill = lastSkill ?? "build";
-    const skillName: SkillName = skill === "plan" ? "shipper-plan" : "shipper-build";
+    const skillName: SkillName =
+      skill === "plan"
+        ? "shipper-plan"
+        : skill === "spike"
+          ? "shipper-spike"
+          : "shipper-build";
     const model = await resolveDefaultModel(deps.repoPath, agent, skillName);
     if (!model) {
       appendNotice("Choose a default model in settings before sending follow-up messages.");
@@ -636,6 +721,33 @@ export function createRunController(deps: RunControllerDeps): RunController {
     await runPlan(trimmed, model);
   };
 
+  const startSpike = async (description: string) => {
+    if (isRunActive()) {
+      deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
+      return;
+    }
+
+    const trimmed = description.trim();
+    if (!trimmed) {
+      deps.onBroadcast({ type: "notice", text: "Enter a task description first." });
+      return;
+    }
+
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-spike");
+    if (!model) {
+      await requestModelPick("shipper-spike", { kind: "spike", description: trimmed });
+      return;
+    }
+
+    await runSpikeRun(trimmed, model);
+  };
+
   const selectModel = async (skill: SkillName, modelId: string) => {
     const agent = deps.getAgent();
     if (!agent) {
@@ -659,6 +771,8 @@ export function createRunController(deps: RunControllerDeps): RunController {
       await runBuild(pending.planFilename, modelId);
     } else if (pending.kind === "plan" && skill === "shipper-plan") {
       await runPlan(pending.description, modelId);
+    } else if (pending.kind === "spike" && skill === "shipper-spike") {
+      await runSpikeRun(pending.description, modelId);
     }
   };
 
@@ -765,6 +879,9 @@ export function createRunController(deps: RunControllerDeps): RunController {
         case "start-plan":
           void startPlan(msg.description);
           break;
+        case "start-spike":
+          void startSpike(msg.description);
+          break;
         case "stop-run":
           stop();
           break;
@@ -810,9 +927,10 @@ export async function enrichConfigInfo(
     return base;
   }
 
-  const [planModel, buildModel] = await Promise.all([
+  const [planModel, buildModel, spikeModel] = await Promise.all([
     resolveDefaultModel(repoPath, agent, "shipper-plan"),
     resolveDefaultModel(repoPath, agent, "shipper-build"),
+    resolveDefaultModel(repoPath, agent, "shipper-spike"),
   ]);
 
   return {
@@ -820,6 +938,7 @@ export async function enrichConfigInfo(
     models: {
       ...(planModel ? { "shipper-plan": planModel } : {}),
       ...(buildModel ? { "shipper-build": buildModel } : {}),
+      ...(spikeModel ? { "shipper-spike": spikeModel } : {}),
     },
   };
 }

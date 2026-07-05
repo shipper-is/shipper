@@ -5,7 +5,10 @@ import {
 } from "../agents/question-protocol.ts";
 import { skillPathForAgent } from "./skills.ts";
 
-function skillInstruction(agent: AgentKind, skillName: "shipper-plan" | "shipper-build"): string {
+function skillInstruction(
+  agent: AgentKind,
+  skillName: "shipper-plan" | "shipper-build" | "shipper-spike",
+): string {
   const path = skillPathForAgent(agent, skillName);
   return `Read and follow the skill at \`${path}\` in the target repository.`;
 }
@@ -23,6 +26,17 @@ export function buildPlanPrompt(userFeatureDescription: string, agentKind: Agent
     "",
     "Create a Shipper plan for the following feature or task:",
     userFeatureDescription,
+    "",
+    questionInstructions(agentKind),
+  ].join("\n");
+}
+
+export function buildSpikePrompt(description: string, agentKind: AgentKind): string {
+  return [
+    skillInstruction(agentKind, "shipper-spike"),
+    "",
+    "Run a Shipper Spike for the following feature or task:",
+    description,
     "",
     questionInstructions(agentKind),
   ].join("\n");

@@ -113,6 +113,7 @@ describe("createRunController", () => {
       ),
       runPlanCreation: vi.fn(),
       runFollowUp: vi.fn(),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -163,6 +164,7 @@ describe("createRunController", () => {
       }),
       runPlanCreation: vi.fn(),
       runFollowUp: vi.fn(),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -282,6 +284,7 @@ describe("createRunController", () => {
       }),
       runPlanCreation: vi.fn(),
       runFollowUp: vi.fn(),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({
@@ -341,6 +344,7 @@ describe("createRunController", () => {
         ok: true,
         lastSessionId: "cursor-session-2",
       })),
+      runSpike: vi.fn(),
     };
 
     const controller = createRunController({

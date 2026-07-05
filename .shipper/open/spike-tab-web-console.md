@@ -152,24 +152,31 @@ Tests:
 ### Section 1: Prompt and orchestrator
 
 - Overview: add the single-session spike flow next to `runPlanCreation`.
-- [ ] In [/Users/matt/Documents/shipper/src/core/prompts.ts](/Users/matt/Documents/shipper/src/core/prompts.ts), add `buildSpikePrompt(description, agentKind)` following the `buildPlanPrompt` shape: the `skillInstruction` line for `shipper-spike`, then "Run a Shipper Spike for the following feature or task:" plus the description, then `questionInstructions(agentKind)`.
-- [ ] In [/Users/matt/Documents/shipper/src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts), add `SpikeResult` (`{ status: "success"; filename: string; title: string; location: "open" | "done"; lastSessionId: string | null } | { status: "error"; message: string; lastSessionId?: string | null }`) and `runSpike(repoPath, agent, description, handlers, model?)`: snapshot filenames from BOTH `open` and `done` via `listPlans`, `installSkills`, run one `consumeAgentRun` session with `buildSpikePrompt` (create a `RunLogger` like `runPlanCreation` does), then re-list and find the new file in either folder. Success requires a new file; report `location` from the folder it ended in. If the run failed or no file appeared, return an error result (mirror the two error branches of `runPlanCreation`, lines 198–210).
+- [x] In [/Users/matt/Documents/shipper/src/core/prompts.ts](/Users/matt/Documents/shipper/src/core/prompts.ts), add `buildSpikePrompt(description, agentKind)` following the `buildPlanPrompt` shape: the `skillInstruction` line for `shipper-spike`, then "Run a Shipper Spike for the following feature or task:" plus the description, then `questionInstructions(agentKind)`.
+- [x] In [/Users/matt/Documents/shipper/src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts), add `SpikeResult` (`{ status: "success"; filename: string; title: string; location: "open" | "done"; lastSessionId: string | null } | { status: "error"; message: string; lastSessionId?: string | null }`) and `runSpike(repoPath, agent, description, handlers, model?)`: snapshot filenames from BOTH `open` and `done` via `listPlans`, `installSkills`, run one `consumeAgentRun` session with `buildSpikePrompt` (create a `RunLogger` like `runPlanCreation` does), then re-list and find the new file in either folder. Success requires a new file; report `location` from the folder it ended in. If the run failed or no file appeared, return an error result (mirror the two error branches of `runPlanCreation`, lines 198–210).
 
 ### Section 2: Model configuration
 
 - Overview: give `shipper-spike` its own default model.
-- [ ] Add `"shipper-spike": z.string().optional()` to `skillModelsSchema` in [/Users/matt/Documents/shipper/src/core/config.ts](/Users/matt/Documents/shipper/src/core/config.ts). `resolveDefaultModel` and `saveModelChoice` already key off `SkillName` and need no changes.
-- [ ] Extend `enrichConfigInfo` in [/Users/matt/Documents/shipper/src/server/run-controller.ts](/Users/matt/Documents/shipper/src/server/run-controller.ts) (lines 804–825) to resolve and include the `shipper-spike` model.
+- [x] Add `"shipper-spike": z.string().optional()` to `skillModelsSchema` in [/Users/matt/Documents/shipper/src/core/config.ts](/Users/matt/Documents/shipper/src/core/config.ts). `resolveDefaultModel` and `saveModelChoice` already key off `SkillName` and need no changes.
+- [x] Extend `enrichConfigInfo` in [/Users/matt/Documents/shipper/src/server/run-controller.ts](/Users/matt/Documents/shipper/src/server/run-controller.ts) (lines 804–825) to resolve and include the `shipper-spike` model.
 
 ### Section 3: Run controller wiring
 
 - Overview: mirror the plan-start flow in [/Users/matt/Documents/shipper/src/server/run-controller.ts](/Users/matt/Documents/shipper/src/server/run-controller.ts).
-- [ ] Add `runSpike` to `OrchestratorFns` and `defaultOrchestrator`, and `{ kind: "spike"; description: string }` to `PendingStart`.
-- [ ] Add `startSpike(description)`: guard `isRunActive()`, trim/validate the description, resolve the agent, `resolveDefaultModel(repoPath, agent, "shipper-spike")`, fall back to `requestModelPick("shipper-spike", { kind: "spike", description })`, else call the run function — a direct mirror of `startPlan` (lines 612–637).
-- [ ] Add the spike run function modeled on `runPlan` (lines 414–460): reset chat/question/pending state, set `runState` to `{ status: "running", skill: "spike", planFilename: null, activePhaseNumber: null, logPath: null }`, `appendUserMessage(description)`, call `orchestrator.runSpike` with `signal`, `onEvent`, `onQuestion`, plus `onSessionLog: (path) => setRunState({ logPath: path })` and `onPlanUpdate: () => deps.onPlanUpdate?.()` so the nav updates as the agent writes the spike file.
-- [ ] Add `finishSpike(result)`: set `lastSkill = "spike"`; on success set `lastPlanFilename`, append a notice such as "Spike complete — {title}" including the final location (mention when it was left in `open/`), broadcast `{ type: "spike-created", filename, title }`, and call `deps.onPlanUpdate?.()`; on error append "Spike failed: {message}". Always `clearRun()`.
-- [ ] Update `runFollowUpMessage` (line 470) so `lastSkill === "spike"` maps to the `"shipper-spike"` skill name for model resolution.
-- [ ] Update `selectModel` (lines 639–663) to resume `pending.kind === "spike"` when `skill === "shipper-spike"`, and add a `case "start-spike"` to `handleClientMessage`.
+- [x] Add `runSpike` to `OrchestratorFns` and `defaultOrchestrator`, and `{ kind: "spike"; description: string }` to `PendingStart`.
+- [x] Add `startSpike(description)`: guard `isRunActive()`, trim/validate the description, resolve the agent, `resolveDefaultModel(repoPath, agent, "shipper-spike")`, fall back to `requestModelPick("shipper-spike", { kind: "spike", description })`, else call the run function — a direct mirror of `startPlan` (lines 612–637).
+- [x] Add the spike run function modeled on `runPlan` (lines 414–460): reset chat/question/pending state, set `runState` to `{ status: "running", skill: "spike", planFilename: null, activePhaseNumber: null, logPath: null }`, `appendUserMessage(description)`, call `orchestrator.runSpike` with `signal`, `onEvent`, `onQuestion`, plus `onSessionLog: (path) => setRunState({ logPath: path })` and `onPlanUpdate: () => deps.onPlanUpdate?.()` so the nav updates as the agent writes the spike file.
+- [x] Add `finishSpike(result)`: set `lastSkill = "spike"`; on success set `lastPlanFilename`, append a notice such as "Spike complete — {title}" including the final location (mention when it was left in `open/`), broadcast `{ type: "spike-created", filename, title }`, and call `deps.onPlanUpdate?.()`; on error append "Spike failed: {message}". Always `clearRun()`.
+- [x] Update `runFollowUpMessage` (line 470) so `lastSkill === "spike"` maps to the `"shipper-spike"` skill name for model resolution.
+- [x] Update `selectModel` (lines 639–663) to resume `pending.kind === "spike"` when `skill === "shipper-spike"`, and add a `case "start-spike"` to `handleClientMessage`.
+
+### Completion Notes
+
+- `runSpike` uses `findNewPlan` to diff filenames across both `open/` and `done/` before and after the session; `SpikeHandlers` extends `AgentRunHandlers` with optional `onPlanUpdate`, called once after the agent session completes.
+- `finishSpike` broadcasts `spike-created` (not `plan-created`) and mentions when the file was left in `open/`.
+- `skillModelsSchema` already included `shipper-spike` from Phase 1; no config.ts changes in this phase.
+- Frontend UI for `start-spike` / `spike-created` is Phase 3; spike-specific tests are Phase 4.
 
 ## Phase 3
 
