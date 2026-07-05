@@ -37,13 +37,13 @@ export function TerminalPane({
 
     const terminal = new Terminal({
       cursorBlink: true,
-      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+      fontFamily: '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
       fontSize: 13,
       theme: {
-        background: "#0a0c10",
-        foreground: "#e6edf3",
-        cursor: "#e6edf3",
-        selectionBackground: "#264f78",
+        background: "#000000",
+        foreground: "#ffffff",
+        cursor: "#ffffff",
+        selectionBackground: "rgba(255, 255, 255, 0.25)",
       },
       scrollback: 5000,
     });
