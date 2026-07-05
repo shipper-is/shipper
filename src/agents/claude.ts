@@ -44,6 +44,10 @@ export class ClaudeAdapter implements AgentAdapter {
   private running = false;
   private toolCallCounter = 0;
 
+  get sessionId(): string | null {
+    return null;
+  }
+
   start(opts: AgentStartOptions): AsyncIterable<AgentEvent> {
     void this.run(opts);
     return this.iterate();

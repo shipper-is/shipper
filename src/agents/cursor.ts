@@ -30,6 +30,10 @@ export class CursorAdapter implements AgentAdapter {
   private stopped = false;
   private running = false;
 
+  get sessionId(): string | null {
+    return this.chatId;
+  }
+
   start(opts: AgentStartOptions): AsyncIterable<AgentEvent> {
     void this.run(opts);
     return this.iterate();
@@ -69,8 +73,12 @@ export class CursorAdapter implements AgentAdapter {
     this.running = true;
 
     try {
+      if (opts.resumeSessionId) {
+        this.chatId = opts.resumeSessionId;
+      }
+
       let prompt = opts.prompt;
-      let isResume = false;
+      let isResume = Boolean(opts.resumeSessionId);
 
       while (!this.stopped) {
         const completed = await this.spawnProcess(

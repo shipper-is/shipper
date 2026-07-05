@@ -49,7 +49,7 @@ function mockSubprocess(opts: {
 
 async function collectAdapterEvents(
   adapter: InstanceType<typeof CursorAdapter>,
-  opts: { cwd: string; prompt: string },
+  opts: { cwd: string; prompt: string; resumeSessionId?: string },
   onQuestion?: (question: AgentEvent & { type: "question" }) => Record<string, string | string[]>,
 ): Promise<AgentEvent[]> {
   const events: AgentEvent[] = [];
@@ -139,5 +139,34 @@ describe("CursorAdapter", () => {
     expect(events.some((e) => e.type === "question")).toBe(true);
     expect(events.some((e) => e.type === "turn-complete")).toBe(true);
     expect(events.some((e) => e.type === "done" && e.result === "Created a.ts")).toBe(true);
+  });
+
+  it("uses --resume on first spawn when resumeSessionId is provided", async () => {
+    const stdout = [
+      JSON.stringify({
+        type: "system",
+        subtype: "init",
+        session_id: "seeded-session",
+      }),
+      JSON.stringify({
+        type: "result",
+        result: "continued",
+      }),
+    ].join("\n");
+
+    mockExeca.mockReturnValue(mockSubprocess({ stdout, exitCode: 0 }));
+
+    const adapter = new CursorAdapter();
+    await collectAdapterEvents(adapter, {
+      cwd: "/tmp",
+      prompt: "follow up",
+      resumeSessionId: "existing-session",
+    });
+
+    expect(mockExeca).toHaveBeenCalledTimes(1);
+    const args = mockExeca.mock.calls[0]![1] as string[];
+    expect(args).toContain("--resume");
+    expect(args).toContain("existing-session");
+    expect(adapter.sessionId).toBe("seeded-session");
   });
 });

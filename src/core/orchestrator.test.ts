@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentAdapter, AgentEvent } from "../agents/types.ts";
-import { consumeAgentRun, runBuildLoop } from "./orchestrator.ts";
+import { consumeAgentRun, runBuildLoop, runFollowUp } from "./orchestrator.ts";
+import { appendPendingUserMessages, buildFollowUpPrompt } from "./prompts.ts";
 
 const mockCreateAdapter = vi.fn<(kind: string) => AgentAdapter>();
 vi.mock("../agents/index.ts", () => ({
@@ -18,8 +19,9 @@ vi.mock("./skills.ts", async (importOriginal) => {
   };
 });
 
-function mockAdapter(events: AgentEvent[]): AgentAdapter {
+function mockAdapter(events: AgentEvent[], sessionId: string | null = null): AgentAdapter {
   return {
+    sessionId,
     async *start() {
       for (const event of events) {
         yield event;
@@ -202,6 +204,7 @@ describe("runBuildLoop", () => {
     let call = 0;
 
     mockCreateAdapter.mockImplementation(() => ({
+      sessionId: null,
       async *start() {
         call++;
         if (call === 1) {
@@ -237,6 +240,7 @@ describe("runBuildLoop", () => {
     await writePlan(repoPath, SIMPLE_PLAN);
 
     mockCreateAdapter.mockImplementation(() => ({
+      sessionId: null,
       async *start() {
         await writePlan(repoPath, ALL_DONE_PLAN);
         yield { type: "done", result: "ok" };
@@ -281,6 +285,7 @@ describe("runBuildLoop", () => {
     let call = 0;
 
     mockCreateAdapter.mockImplementation(() => ({
+      sessionId: null,
       async *start() {
         call++;
         if (call === 2) {
@@ -315,6 +320,7 @@ ${tasks}
 
     let call = 0;
     mockCreateAdapter.mockImplementation(() => ({
+      sessionId: null,
       async *start() {
         call++;
         const checked = Array.from({ length: call }, (_, i) => `- [x] task ${i + 1}`).join("\n");
@@ -360,5 +366,68 @@ ${unchecked}
     if (result.status === "cancelled") {
       expect(result.sessionsUsed).toBe(0);
     }
+  });
+});
+
+describe("runFollowUp", () => {
+  let repoPath: string;
+
+  beforeEach(() => {
+    repoPath = mkdtempSync(join(tmpdir(), "shipper-followup-"));
+    mockCreateAdapter.mockReset();
+  });
+
+  it("passes resumeSessionId to the adapter for cursor", async () => {
+    let startOpts: { resumeSessionId?: string } | undefined;
+    mockCreateAdapter.mockImplementation(() => ({
+      sessionId: "new-session",
+      async *start(opts) {
+        startOpts = opts;
+        yield { type: "done", result: "ok" };
+      },
+      answer() {},
+      async stop() {},
+    }));
+
+    const result = await runFollowUp(
+      repoPath,
+      "cursor",
+      "please continue",
+      "resume-abc",
+      { onEvent: () => {}, onQuestion: async () => ({}) },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.lastSessionId).toBe("new-session");
+    expect(startOpts?.resumeSessionId).toBe("resume-abc");
+  });
+});
+
+describe("prompt helpers", () => {
+  it("appends pending user messages to build prompts", () => {
+    const prompt = appendPendingUserMessages("base prompt", ["fix tests", "update docs"]);
+    expect(prompt).toContain("Messages from the user since the last session:");
+    expect(prompt).toContain("- fix tests");
+    expect(prompt).toContain("- update docs");
+    expect(prompt.startsWith("base prompt")).toBe(true);
+  });
+
+  it("builds follow-up prompt with plan context when not resuming", () => {
+    const prompt = buildFollowUpPrompt("ship it", "cursor", {
+      planRelativePath: ".shipper/open/foo.md",
+      resuming: false,
+    });
+    expect(prompt).toContain("continues work on the plan");
+    expect(prompt).toContain(".shipper/open/foo.md");
+    expect(prompt).toContain("ship it");
+  });
+
+  it("omits plan context when resuming", () => {
+    const prompt = buildFollowUpPrompt("ship it", "cursor", {
+      planRelativePath: ".shipper/open/foo.md",
+      resuming: true,
+    });
+    expect(prompt).not.toContain("continues work on the plan");
+    expect(prompt).toContain("ship it");
   });
 });

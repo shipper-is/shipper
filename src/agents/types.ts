@@ -42,9 +42,11 @@ export type AgentStartOptions = {
   prompt: string;
   model?: string;
   rawLogger?: AgentRawLogger;
+  resumeSessionId?: string;
 };
 
 export interface AgentAdapter {
+  readonly sessionId: string | null;
   start(opts: AgentStartOptions): AsyncIterable<AgentEvent>;
   answer(questionId: string, answers: Record<string, string | string[]>): void;
   stop(): Promise<void>;
