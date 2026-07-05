@@ -94,22 +94,30 @@ Files to create (all inside `web/`):
 
 ### Section 1: Copy-install CTA component
 
-- [ ] Create `web/components/copy-install-command.tsx` as a client component (`"use client"`): renders the install command in a monospace, white-bordered, square block with a "Copy" button.
-- [ ] On click, call `navigator.clipboard.writeText(INSTALL_COMMAND)`, flip the button label to "Copied" for ~2 seconds, then revert. Handle the promise rejection silently (no error UI needed).
-- [ ] Style: inverted button (white background, black text) that swaps to outlined on hover; no rounded corners; command text selectable.
+- [x] Create `web/components/copy-install-command.tsx` as a client component (`"use client"`): renders the install command in a monospace, white-bordered, square block with a "Copy" button.
+- [x] On click, call `navigator.clipboard.writeText(INSTALL_COMMAND)`, flip the button label to "Copied" for ~2 seconds, then revert. Handle the promise rejection silently (no error UI needed).
+- [x] Style: inverted button (white background, black text) that swaps to outlined on hover; no rounded corners; command text selectable.
 
 ### Section 2: Hero section
 
-- [ ] Create `web/components/hero.tsx`: large bold headline pitching the core promise (e.g. "Plan it. Build it. Ship it." — anyone on the team ships confidently with AI agents), a subheadline summarizing Shipper in one sentence (from README line 3), the `CopyInstallCommand` CTA, and a secondary link to GitHub.
-- [ ] Include the ASCII TUI mock from README lines 26–36 in a bordered `<pre>` block beside or below the CTA as the product visual.
-- [ ] Add the one-line macOS note under the install block: installing via `curl | sh` avoids Gatekeeper quarantine on macOS.
+- [x] Create `web/components/hero.tsx`: large bold headline pitching the core promise (e.g. "Plan it. Build it. Ship it." — anyone on the team ships confidently with AI agents), a subheadline summarizing Shipper in one sentence (from README line 3), the `CopyInstallCommand` CTA, and a secondary link to GitHub.
+- [x] Include the ASCII TUI mock from README lines 26–36 in a bordered `<pre>` block beside or below the CTA as the product visual.
+- [x] Add the one-line macOS note under the install block: installing via `curl | sh` avoids Gatekeeper quarantine on macOS.
 
 ### Section 3: Audience and workflow sections
 
-- [ ] Create `web/components/personas.tsx` with three square, white-bordered cards — Developers ("stay in flow; plans are committed markdown, builds run phase-by-phase with your agent of choice"), Vibe-coders ("structure without ceremony; describe the feature, answer a few questions, watch it build"), Non-developers ("ship real changes; the plan/build loop asks clarifying questions and handles the code"). Ground every claim in README content; do not invent features.
-- [ ] Create `web/components/workflow.tsx` showing the two-step loop: 1. Plan — `shipper-plan` explores the codebase, asks clarifying questions, writes a phased markdown plan to `.shipper/open/`; 2. Build — `shipper-build` executes one phase per agent session until the plan lands in `.shipper/done/`. Mention agent-agnostic support (Claude Code, Cursor CLI, opencode) and that it ships as a single compiled binary with no runtime dependencies.
-- [ ] Create `web/components/footer.tsx`: repeat the install command (reuse `CopyInstallCommand`), GitHub link, and a plain-text "Shipper" wordmark. No nav menu needed.
-- [ ] Assemble all sections in `web/app/page.tsx` in order: hero, personas, workflow, footer, separated by `border-t border-white/20` dividers for the sharp editorial look.
+- [x] Create `web/components/personas.tsx` with three square, white-bordered cards — Developers ("stay in flow; plans are committed markdown, builds run phase-by-phase with your agent of choice"), Vibe-coders ("structure without ceremony; describe the feature, answer a few questions, watch it build"), Non-developers ("ship real changes; the plan/build loop asks clarifying questions and handles the code"). Ground every claim in README content; do not invent features.
+- [x] Create `web/components/workflow.tsx` showing the two-step loop: 1. Plan — `shipper-plan` explores the codebase, asks clarifying questions, writes a phased markdown plan to `.shipper/open/`; 2. Build — `shipper-build` executes one phase per agent session until the plan lands in `.shipper/done/`. Mention agent-agnostic support (Claude Code, Cursor CLI, opencode) and that it ships as a single compiled binary with no runtime dependencies.
+- [x] Create `web/components/footer.tsx`: repeat the install command (reuse `CopyInstallCommand`), GitHub link, and a plain-text "Shipper" wordmark. No nav menu needed.
+- [x] Assemble all sections in `web/app/page.tsx` in order: hero, personas, workflow, footer, separated by `border-t border-white/20` dividers for the sharp editorial look.
+
+#### Completion Notes (Phase 2)
+
+- Five section components under `web/components/`: `copy-install-command.tsx` (client), `hero.tsx`, `personas.tsx`, `workflow.tsx`, `footer.tsx`. All except the CTA are server components.
+- Hero uses a two-column grid on `lg` breakpoints (copy left, TUI mock right); stacks on smaller screens.
+- Copy button uses `aria-label` that updates on copy; GitHub links use `rel="noopener noreferrer"` and `target="_blank"`.
+- No `rounded-*` classes anywhere in `web/`. Palette is strictly black/white with opacity variants only.
+- `bun run build` passes. Responsive polish (mobile overflow, a11y audit) deferred to Phase 3.
 
 ## Phase 3: Polish and verification
 
