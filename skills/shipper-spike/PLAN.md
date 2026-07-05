@@ -12,4 +12,23 @@ At the end of these three steps you should have:
 - A good understanding of which parts of the codebase we need to reuse rather than build our own version
 - Some high level pitfalls to watch out for
 
+4. Write a lightweight spike file into `.shipper/open/` named after the spike (kebab-case). This file is the single source of truth for the spike's status. Format:
+
+```markdown
+---
+type: spike
+branch: shipper/my-spike-name
+started_at: "2026-07-04T22:15:00-05:00"
+---
+
+# Spike Title
+
+Short overview paragraph describing what this spike accomplishes.
+
+- [ ] First task
+- [ ] Second task
+```
+
+Use YAML frontmatter at the very top with `type: spike`, `branch` (current git branch), and `started_at` (quoted ISO 8601 timestamp). No `## Phase` headings are needed — use a flat `- [ ]` task checklist only.
+
 From here you will now move onto the BUILD.md step.

@@ -23,6 +23,7 @@ export type PlanPhaseDto = {
 };
 
 export type PlanMetaDto = {
+  type: "plan" | "spike";
   branch: string | null;
   startedAt: string | null;
   completedAt: string | null;
@@ -47,7 +48,7 @@ export type PlansSnapshot = {
 
 export type RunStatus = "idle" | "running" | "waiting-answer" | "stopping";
 
-export type SkillIndicator = "plan" | "build" | "ship" | null;
+export type SkillIndicator = "plan" | "build" | "ship" | "spike" | null;
 
 export type RunState = {
   status: RunStatus;
@@ -107,6 +108,7 @@ export type ConfigInfo = {
   models?: {
     "shipper-plan"?: string;
     "shipper-build"?: string;
+    "shipper-spike"?: string;
   };
 };
 
@@ -122,7 +124,7 @@ export type ModelFamilyDto = {
 };
 
 export type ModelPickRequest = {
-  skill: "shipper-plan" | "shipper-build";
+  skill: "shipper-plan" | "shipper-build" | "shipper-spike";
   families: ModelFamilyDto[];
 };
 
@@ -209,6 +211,12 @@ export type ServerPlanCreated = {
   title: string;
 };
 
+export type ServerSpikeCreated = {
+  type: "spike-created";
+  filename: string;
+  title: string;
+};
+
 /** Marker type — terminal output uses binary WebSocket frames, not JSON. */
 export type ServerTerminalData = {
   type: "terminal-data";
@@ -228,6 +236,7 @@ export type ServerMessage =
   | ServerNeedsModelPick
   | ServerModelPickCleared
   | ServerPlanCreated
+  | ServerSpikeCreated
   | ServerQueuedMessages;
 
 export type ClientStartBuild = {
@@ -237,6 +246,11 @@ export type ClientStartBuild = {
 
 export type ClientStartPlan = {
   type: "start-plan";
+  description: string;
+};
+
+export type ClientStartSpike = {
+  type: "start-spike";
   description: string;
 };
 
@@ -257,13 +271,13 @@ export type ClientSendMessage = {
 
 export type ClientSelectModel = {
   type: "select-model";
-  skill: "shipper-plan" | "shipper-build";
+  skill: "shipper-plan" | "shipper-build" | "shipper-spike";
   modelId: string;
 };
 
 export type ClientConfigureModel = {
   type: "configure-model";
-  skill: "shipper-plan" | "shipper-build";
+  skill: "shipper-plan" | "shipper-build" | "shipper-spike";
 };
 
 export type ClientCancelModelPick = {
@@ -303,6 +317,7 @@ export type ClientSavePlan = {
 export type ClientMessage =
   | ClientStartBuild
   | ClientStartPlan
+  | ClientStartSpike
   | ClientStopRun
   | ClientAnswerQuestion
   | ClientSendMessage
@@ -333,6 +348,10 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     type: z.literal("start-plan"),
     description: z.string(),
   }),
+  z.object({
+    type: z.literal("start-spike"),
+    description: z.string(),
+  }),
   z.object({ type: z.literal("stop-run") }),
   z.object({
     type: z.literal("answer-question"),
@@ -345,12 +364,12 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("select-model"),
-    skill: z.enum(["shipper-plan", "shipper-build"]),
+    skill: z.enum(["shipper-plan", "shipper-build", "shipper-spike"]),
     modelId: z.string().min(1),
   }),
   z.object({
     type: z.literal("configure-model"),
-    skill: z.enum(["shipper-plan", "shipper-build"]),
+    skill: z.enum(["shipper-plan", "shipper-build", "shipper-spike"]),
   }),
   z.object({ type: z.literal("cancel-model-pick") }),
   z.object({

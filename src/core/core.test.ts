@@ -69,7 +69,7 @@ describe("installSkills", () => {
     await installSkills(dir, "claude");
     const claudePath = join(dir, skillPathForAgent("claude", "shipper-plan"));
     const content = await readFile(claudePath, "utf8");
-    expect(content).toBe(SKILLS["shipper-plan"]);
+    expect(content).toBe(SKILLS["shipper-plan"][0].content);
   });
 
   it("is idempotent when content matches", async () => {
@@ -77,6 +77,6 @@ describe("installSkills", () => {
     await installSkills(dir, "cursor");
     await installSkills(dir, "cursor");
     const path = join(dir, skillPathForAgent("cursor", "shipper-build"));
-    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"]);
+    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"][0].content);
   });
 });
