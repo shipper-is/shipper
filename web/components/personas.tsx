@@ -7,12 +7,12 @@ const personas = [
   {
     title: "Vibe-coders",
     description:
-      "Structure without ceremony. Describe the feature, answer a few clarifying questions in the TUI, and watch Shipper build it phase by phase.",
+      "Structure without ceremony. Describe the feature, answer a few clarifying questions in the TUI, and watch Shipper build it phase by phase — then ship a reviewable PR.",
   },
   {
     title: "Non-developers",
     description:
-      "Ship real changes. The plan/build loop asks clarifying questions and handles the code — you focus on what to build, not how.",
+      "Ship real changes. The plan/build/ship loop asks clarifying questions and handles the code — you focus on what to build, not how.",
   },
 ] as const;
 
