@@ -3,6 +3,8 @@ type: plan
 branch: shipper/global-skills-install
 started_at: "2026-07-04T23:37:00-05:00"
 completed_at: "2026-07-05T00:06:00-05:00"
+pr_url: https://github.com/shipper-is/shipper/pull/10
+pr_number: 10
 ---
 
 # Global Skills Install
