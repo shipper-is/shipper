@@ -10,6 +10,7 @@ const agentKindSchema = z.enum(["claude", "cursor", "opencode"]);
 const skillModelsSchema = z.object({
   "shipper-plan": z.string().optional(),
   "shipper-build": z.string().optional(),
+  "shipper-ship": z.string().optional(),
 });
 
 const agentModelsSchema = z.object({

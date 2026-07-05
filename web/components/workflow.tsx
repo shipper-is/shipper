@@ -13,6 +13,13 @@ const steps = [
     description:
       "Executes one phase per agent session until the plan is complete, then moves it to .shipper/done/. Progress updates live as the agent checks boxes in the plan file.",
   },
+  {
+    number: "3",
+    title: "Ship",
+    skill: "shipper-ship",
+    description:
+      "Scaffolds a reviewable pull request from the completed plan — what changed, how to verify, test evidence, reuse receipts, and known risks. The agent creates the PR via gh.",
+  },
 ] as const;
 
 export function Workflow() {
@@ -23,12 +30,12 @@ export function Workflow() {
           How it works
         </h2>
         <p className="mt-4 max-w-2xl text-white/60">
-          A two-step loop: plan the feature, then build it phase by phase.
-          Agent-agnostic — works with Claude Code, Cursor CLI, and opencode.
-          Ships as a single compiled binary with no runtime dependencies.
+          A three-step loop: plan the feature, build it phase by phase, then ship a
+          reviewable PR. Agent-agnostic — works with Claude Code, Cursor CLI, and
+          opencode. Ships as a single compiled binary with no runtime dependencies.
         </p>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
           {steps.map((step) => (
             <article key={step.number} className="border border-white p-6">
               <div className="flex items-baseline gap-4">

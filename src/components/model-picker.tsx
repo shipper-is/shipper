@@ -22,6 +22,7 @@ import { SearchableList } from "./searchable-list.tsx";
 const SKILL_LABELS: Record<SkillName, string> = {
   "shipper-plan": "shipper-plan",
   "shipper-build": "shipper-build",
+  "shipper-ship": "shipper-ship",
 };
 
 type PickerStep = "family" | "context" | "effort" | "speed";

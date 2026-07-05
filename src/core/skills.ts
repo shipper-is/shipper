@@ -2,11 +2,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import planSkill from "../../skills/shipper-plan/SKILL.md" with { type: "text" };
 import buildSkill from "../../skills/shipper-build/SKILL.md" with { type: "text" };
+import shipSkill from "../../skills/shipper-ship/SKILL.md" with { type: "text" };
 import type { AgentKind } from "../agents/types.ts";
 
 const SKILLS = {
   "shipper-plan": planSkill,
   "shipper-build": buildSkill,
+  "shipper-ship": shipSkill,
 } as const;
 
 export type SkillName = keyof typeof SKILLS;

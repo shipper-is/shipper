@@ -10,8 +10,10 @@ import {
 import {
   runBuildLoop,
   runPlanCreation,
+  runShip,
   type BuildLoopResult,
   type PlanCreationResult,
+  type ShipResult,
 } from "../core/orchestrator.ts";
 import { findPlanByFilename } from "../core/plan-store.ts";
 import type { SkillName } from "../core/skills.ts";
@@ -32,15 +34,18 @@ export const CHAT_MAX_ENTRIES = 500;
 export type OrchestratorFns = {
   runBuildLoop: typeof runBuildLoop;
   runPlanCreation: typeof runPlanCreation;
+  runShip: typeof runShip;
 };
 
 const defaultOrchestrator: OrchestratorFns = {
   runBuildLoop,
   runPlanCreation,
+  runShip,
 };
 
 type PendingStart =
   | { kind: "build"; planFilename: string }
+  | { kind: "ship"; planFilename: string }
   | { kind: "plan"; description: string };
 
 export type RunControllerDeps = {
@@ -202,7 +207,12 @@ function buildSuccessNotice(
     );
   }
   lines.push(planFilename);
+  lines.push("Ship it now?");
   return lines.join("\n");
+}
+
+function shipSuccessNotice(planTitle: string): string {
+  return `Ship complete — ${planTitle}\nPR created. Check the agent output above for the link.`;
 }
 
 async function buildModelPickRequest(
@@ -379,6 +389,70 @@ export function createRunController(deps: RunControllerDeps): RunController {
     await finishBuild(result, planFilename, plan.title);
   };
 
+  const finishShip = (result: ShipResult, planTitle: string) => {
+    if (result.status === "success") {
+      appendNotice(shipSuccessNotice(planTitle));
+    } else if (result.status === "cancelled") {
+      appendNotice("Ship cancelled.");
+    } else {
+      appendNotice(`Ship failed: ${result.message}`);
+    }
+    clearRun();
+  };
+
+  const runShipSession = async (planFilename: string, model: string) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const plan = await findPlanByFilename(deps.repoPath, planFilename);
+    if (!plan) {
+      appendNotice("Plan file not found.");
+      return;
+    }
+
+    abortController = new AbortController();
+    chatEntries = [];
+    pendingQuestion = null;
+    modelPickRequest = null;
+    pendingStart = null;
+
+    runState = {
+      status: "running",
+      skill: "ship",
+      planFilename,
+      activePhaseNumber: null,
+      logPath: null,
+    };
+    broadcastRunState();
+
+    const result = await orchestrator.runShip(
+      deps.repoPath,
+      agent,
+      planFilename,
+      {
+        signal: abortController.signal,
+        onEvent: handleAgentEvent,
+        onQuestion: (question) =>
+          new Promise((resolve) => {
+            pendingQuestion = toProtocolQuestion(question);
+            questionResolver = resolve;
+            setRunState({ status: "waiting-answer" });
+            deps.onBroadcast({
+              type: "question-pending",
+              question: pendingQuestion,
+              runState: { ...runState },
+            });
+          }),
+      },
+      model,
+    );
+
+    finishShip(result, plan.title);
+  };
+
   const runPlan = async (description: string, model: string) => {
     const agent = deps.getAgent();
     if (!agent) {
@@ -466,6 +540,27 @@ export function createRunController(deps: RunControllerDeps): RunController {
     await runBuild(planFilename, model);
   };
 
+  const startShip = async (planFilename: string) => {
+    if (isRunActive()) {
+      deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
+      return;
+    }
+
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-ship");
+    if (!model) {
+      await requestModelPick("shipper-ship", { kind: "ship", planFilename });
+      return;
+    }
+
+    await runShipSession(planFilename, model);
+  };
+
   const startPlan = async (description: string) => {
     if (isRunActive()) {
       deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
@@ -511,6 +606,8 @@ export function createRunController(deps: RunControllerDeps): RunController {
 
     if (pending.kind === "build" && skill === "shipper-build") {
       await runBuild(pending.planFilename, modelId);
+    } else if (pending.kind === "ship" && skill === "shipper-ship") {
+      await runShipSession(pending.planFilename, modelId);
     } else if (pending.kind === "plan" && skill === "shipper-plan") {
       await runPlan(pending.description, modelId);
     }
@@ -557,6 +654,9 @@ export function createRunController(deps: RunControllerDeps): RunController {
         case "start-build":
           void startBuild(msg.planFilename);
           break;
+        case "start-ship":
+          void startShip(msg.planFilename);
+          break;
         case "start-plan":
           void startPlan(msg.description);
           break;
@@ -596,9 +696,10 @@ export async function enrichConfigInfo(
     return base;
   }
 
-  const [planModel, buildModel] = await Promise.all([
+  const [planModel, buildModel, shipModel] = await Promise.all([
     resolveDefaultModel(repoPath, agent, "shipper-plan"),
     resolveDefaultModel(repoPath, agent, "shipper-build"),
+    resolveDefaultModel(repoPath, agent, "shipper-ship"),
   ]);
 
   return {
@@ -606,6 +707,7 @@ export async function enrichConfigInfo(
     models: {
       ...(planModel ? { "shipper-plan": planModel } : {}),
       ...(buildModel ? { "shipper-build": buildModel } : {}),
+      ...(shipModel ? { "shipper-ship": shipModel } : {}),
     },
   };
 }
