@@ -3,6 +3,8 @@ type: plan
 branch: shipper/spike-tab-web-console
 started_at: "2026-07-04T22:58:00-05:00"
 completed_at: "2026-07-04T23:10:00-05:00"
+pr_url: https://github.com/shipper-is/shipper/pull/6
+pr_number: 6
 ---
 
 # Spike Tab in the Web Console
