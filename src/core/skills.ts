@@ -2,9 +2,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import planSkill from "../../skills/shipper-plan/SKILL.md" with { type: "text" };
 import buildSkill from "../../skills/shipper-build/SKILL.md" with { type: "text" };
+import buildPr from "../../skills/shipper-build/PR.md" with { type: "text" };
 import spikeSkill from "../../skills/shipper-spike/SKILL.md" with { type: "text" };
 import spikePlan from "../../skills/shipper-spike/PLAN.md" with { type: "text" };
 import spikeBuild from "../../skills/shipper-spike/BUILD.md" with { type: "text" };
+import shipSkill from "../../skills/shipper-ship/SKILL.md" with { type: "text" };
+import bugSkill from "../../skills/shipper-bug/SKILL.md" with { type: "text" };
+import bugCatalog from "../../skills/shipper-bug/CATALOG.md" with { type: "text" };
+import bugFix from "../../skills/shipper-bug/FIX.md" with { type: "text" };
 import type { AgentKind } from "../agents/types.ts";
 
 export type SkillFile = {
@@ -14,11 +19,20 @@ export type SkillFile = {
 
 const SKILLS = {
   "shipper-plan": [{ file: "SKILL.md", content: planSkill }],
-  "shipper-build": [{ file: "SKILL.md", content: buildSkill }],
+  "shipper-build": [
+    { file: "SKILL.md", content: buildSkill },
+    { file: "PR.md", content: buildPr },
+  ],
   "shipper-spike": [
     { file: "SKILL.md", content: spikeSkill },
     { file: "PLAN.md", content: spikePlan },
     { file: "BUILD.md", content: spikeBuild },
+  ],
+  "shipper-ship": [{ file: "SKILL.md", content: shipSkill }],
+  "shipper-bug": [
+    { file: "SKILL.md", content: bugSkill },
+    { file: "CATALOG.md", content: bugCatalog },
+    { file: "FIX.md", content: bugFix },
   ],
 } as const satisfies Record<string, readonly SkillFile[]>;
 

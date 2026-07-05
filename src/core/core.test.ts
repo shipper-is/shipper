@@ -91,6 +91,26 @@ describe("installSkills", () => {
       expect(await readFile(path, "utf8")).toBe(content);
     }
   });
+
+  it("writes shipper-ship SKILL.md for cursor", async () => {
+    dir = await mkdtemp(join(tmpdir(), "shipper-ship-skills-"));
+
+    await installSkills(dir, "cursor");
+
+    const path = join(dir, skillPathForAgent("cursor", "shipper-ship"));
+    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-ship"][0].content);
+  });
+
+  it("writes all three shipper-bug files for cursor", async () => {
+    dir = await mkdtemp(join(tmpdir(), "shipper-bug-skills-"));
+
+    await installSkills(dir, "cursor");
+
+    for (const { file, content } of SKILLS["shipper-bug"]) {
+      const path = join(dir, ".cursor", "skills", "shipper-bug", file);
+      expect(await readFile(path, "utf8")).toBe(content);
+    }
+  });
 });
 
 describe("buildSpikePrompt", () => {
