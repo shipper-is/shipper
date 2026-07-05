@@ -4,9 +4,11 @@ import { detectAgents } from "../agents/detect.ts";
 import {
   idleRunState,
   parseClientMessage,
+  type AgentQuestion,
   type ChatEntry,
   type ClientMessage,
   type ConfigInfo,
+  type ModelPickRequest,
   type PlansSnapshot,
   type RunState,
   type ServerMessage,
@@ -26,6 +28,8 @@ export type WsHubDeps = {
   getPlans: () => PlansSnapshot;
   getRunState: () => RunState;
   getChatEntries: () => ChatEntry[];
+  getPendingQuestion: () => AgentQuestion | null;
+  getModelPickRequest: () => ModelPickRequest | null;
   getConfigInfo: () => ConfigInfo;
   getTerminalState: () => TerminalState;
   handlers?: WsMessageHandlers;
@@ -51,7 +55,8 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     plans: deps.getPlans(),
     runState: deps.getRunState(),
     chatEntries: deps.getChatEntries(),
-    pendingQuestion: null,
+    pendingQuestion: deps.getPendingQuestion(),
+    modelPickRequest: deps.getModelPickRequest(),
     configInfo: deps.getConfigInfo(),
     terminalState: deps.getTerminalState(),
   });

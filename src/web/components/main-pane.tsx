@@ -1,59 +1,220 @@
 import { useState } from "react";
-import type { PlanSummary, RunState } from "../../shared/protocol.ts";
+import type { ClientMessage, PlanSummary, RunState, AgentQuestion, ChatEntry } from "../../shared/protocol.ts";
+import { ChatLog } from "./chat-log.tsx";
 import { PlanView } from "./plan-view.tsx";
+import { QuestionCard } from "./question-card.tsx";
 
 type MainPaneProps = {
   plan: PlanSummary | null;
   runState: RunState;
-  activePhaseNumber: number | null;
+  chatEntries: ChatEntry[];
+  pendingQuestion: AgentQuestion | null;
+  composingNewPlan: boolean;
+  onStartCompose: () => void;
+  onCancelCompose: () => void;
+  onStartPlan: (description: string) => void;
+  send: (msg: ClientMessage) => void;
+  createdPlanFilename: string | null;
+  onBuildCreatedPlan: () => void;
 };
 
-export function MainPane({ plan, runState, activePhaseNumber }: MainPaneProps) {
-  const [tab, setTab] = useState<"overview" | "raw">("overview");
+function isPlanComplete(plan: PlanSummary): boolean {
+  if (plan.folder === "done") {
+    return true;
+  }
+  if (plan.phases.length === 0) {
+    return false;
+  }
+  return plan.phases.every((phase) => phase.complete);
+}
 
-  if (!plan) {
+export function MainPane({
+  plan,
+  runState,
+  chatEntries,
+  pendingQuestion,
+  composingNewPlan,
+  onStartCompose,
+  onCancelCompose,
+  onStartPlan,
+  send,
+  createdPlanFilename,
+  onBuildCreatedPlan,
+}: MainPaneProps) {
+  const [tab, setTab] = useState<"overview" | "raw">("overview");
+  const [description, setDescription] = useState("");
+  const [confirmStop, setConfirmStop] = useState(false);
+
+  const isRunning =
+    runState.status === "running" ||
+    runState.status === "waiting-answer" ||
+    runState.status === "stopping";
+  const isIdle = runState.status === "idle";
+
+  if (composingNewPlan) {
     return (
-      <main className="main-pane empty-main">
-        <p>Select a plan from the left, or create a new one.</p>
+      <main className="main-pane compose-pane">
+        <header className="main-pane-header">
+          <div>
+            <h1>New plan</h1>
+            <p className="compose-subtitle">Describe the feature or task to plan.</p>
+          </div>
+        </header>
+        <textarea
+          className="compose-textarea"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="What should Shipper plan and build?"
+          rows={8}
+        />
+        <div className="compose-actions">
+          <button
+            type="button"
+            className="primary-button"
+            disabled={!description.trim() || !isIdle}
+            onClick={() => {
+              onStartPlan(description);
+              setDescription("");
+              onCancelCompose();
+            }}
+          >
+            Start planning
+          </button>
+          <button type="button" className="secondary-button" onClick={onCancelCompose}>
+            Cancel
+          </button>
+        </div>
       </main>
     );
   }
 
+  if (!plan && !isRunning) {
+    return (
+      <main className="main-pane empty-main">
+        <p>Select a plan from the left, or create a new one.</p>
+        <button type="button" className="primary-button" onClick={onStartCompose}>
+          New plan
+        </button>
+      </main>
+    );
+  }
+
+  const displayPlan = plan;
+  const showPlanDetails = displayPlan && isIdle;
+  const showChat = isRunning || chatEntries.length > 0 || pendingQuestion;
+  const planComplete = displayPlan ? isPlanComplete(displayPlan) : false;
+  const canBuild = showPlanDetails && displayPlan.folder === "open" && !planComplete;
+  const canShip = showPlanDetails && planComplete;
+
+  const runTitle =
+    runState.skill === "plan"
+      ? "Creating plan…"
+      : runState.skill === "ship"
+        ? "Shipping…"
+        : "Build in progress";
+
   return (
-    <main className="main-pane">
+    <main className="main-pane main-with-chat">
       <header className="main-pane-header">
         <div>
-          <h1>{plan.title}</h1>
-          <span className={`folder-badge folder-${plan.folder}`}>{plan.folder}</span>
+          <h1>{displayPlan?.title ?? runTitle}</h1>
+          {displayPlan && (
+            <span className={`folder-badge folder-${displayPlan.folder}`}>{displayPlan.folder}</span>
+          )}
         </div>
         <div className="main-pane-meta">
           <span className={`skill-pill skill-${runState.skill ?? "idle"}`}>
             {runState.skill ?? "idle"}
           </span>
+          {isRunning && runState.activePhaseNumber !== null && (
+            <span className="phase-progress-line">Phase {runState.activePhaseNumber}</span>
+          )}
+          {isRunning && (
+            <button
+              type="button"
+              className="danger-button"
+              onClick={() => {
+                if (confirmStop) {
+                  send({ type: "stop-run" });
+                  setConfirmStop(false);
+                } else {
+                  setConfirmStop(true);
+                }
+              }}
+            >
+              {confirmStop ? "Confirm stop" : "Stop"}
+            </button>
+          )}
+          {canBuild && (
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => send({ type: "start-build", planFilename: displayPlan.filename })}
+            >
+              Build
+            </button>
+          )}
+          {canShip && (
+            <button
+              type="button"
+              className="primary-button ship-button"
+              onClick={() => send({ type: "start-ship", planFilename: displayPlan.filename })}
+            >
+              Ship
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="main-tabs">
-        <button
-          type="button"
-          className={tab === "overview" ? "active" : ""}
-          onClick={() => setTab("overview")}
-        >
-          Overview
-        </button>
-        <button
-          type="button"
-          className={tab === "raw" ? "active" : ""}
-          onClick={() => setTab("raw")}
-        >
-          Raw markdown
-        </button>
-      </div>
+      {showPlanDetails && (
+        <div className="main-tabs">
+          <button
+            type="button"
+            className={tab === "overview" ? "active" : ""}
+            onClick={() => setTab("overview")}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            className={tab === "raw" ? "active" : ""}
+            onClick={() => setTab("raw")}
+          >
+            Raw markdown
+          </button>
+        </div>
+      )}
 
-      {tab === "overview" ? (
-        <PlanView plan={plan} activePhaseNumber={activePhaseNumber} />
-      ) : (
-        <pre className="raw-markdown">{plan.rawMarkdown}</pre>
+      {showPlanDetails && tab === "overview" && (
+        <PlanView plan={displayPlan} activePhaseNumber={runState.activePhaseNumber} />
+      )}
+
+      {showPlanDetails && tab === "raw" && (
+        <pre className="raw-markdown">{displayPlan.rawMarkdown}</pre>
+      )}
+
+      {showChat && (
+      <section className="chat-section">
+        <ChatLog entries={chatEntries} paused={Boolean(pendingQuestion)} />
+        {pendingQuestion && (
+          <QuestionCard
+            question={pendingQuestion}
+            onSubmit={(msg) => send(msg)}
+          />
+        )}
+        {createdPlanFilename && displayPlan?.filename === createdPlanFilename && isIdle && (
+          <div className="build-now-banner">
+            <span>Plan ready.</span>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={onBuildCreatedPlan}
+            >
+              Build it now
+            </button>
+          </div>
+        )}
+      </section>
       )}
     </main>
   );

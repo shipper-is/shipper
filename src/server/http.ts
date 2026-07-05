@@ -2,14 +2,18 @@ import type { Server } from "bun";
 import indexHtml from "../web/index.html";
 import { createPlansWatcher } from "./plans-watcher.ts";
 import {
+  createRunController,
+  enrichConfigInfo,
+  type RunController,
+} from "./run-controller.ts";
+import {
   buildConfigInfo,
   createWsHub,
   defaultTerminalState,
-  idleRunState,
   type WsClientData,
   type WsHub,
 } from "./ws-hub.ts";
-import type { PlansSnapshot, ServerMessage } from "../shared/protocol.ts";
+import type { ConfigInfo, PlansSnapshot, ServerMessage } from "../shared/protocol.ts";
 
 export type StartServerOptions = {
   port?: number;
@@ -21,6 +25,7 @@ export type StartedServer = {
   url: string;
   port: number;
   stop: () => Promise<void>;
+  runController: RunController;
 };
 
 const DEFAULT_PORT = 80;
@@ -76,11 +81,16 @@ export async function startServer(
   opts: StartServerOptions = {},
 ): Promise<StartedServer> {
   let plans: PlansSnapshot = { open: [], done: [] };
-  const configInfo = await buildConfigInfo(repoPath);
+  let configInfo: ConfigInfo = await enrichConfigInfo(repoPath, await buildConfigInfo(repoPath));
   const terminalState = defaultTerminalState();
 
   const broadcast = (msg: ServerMessage) => {
-    wsHub.broadcast(msg);
+    wsHubRef.current?.broadcast(msg);
+  };
+
+  const refreshConfigInfo = async (): Promise<ConfigInfo> => {
+    configInfo = await enrichConfigInfo(repoPath, await buildConfigInfo(repoPath));
+    return configInfo;
   };
 
   const plansWatcher = createPlansWatcher(repoPath, (updated) => {
@@ -88,10 +98,28 @@ export async function startServer(
     broadcast({ type: "plans-updated", plans: updated });
   });
 
+  const wsHubRef: { current: WsHub | null } = { current: null };
+
+  const runController = createRunController({
+    repoPath,
+    getAgent: () => configInfo.defaultAgent,
+    getConfigInfo: () => configInfo,
+    refreshConfigInfo,
+    onBroadcast: broadcast,
+    onPlanUpdate: () => {
+      void plansWatcher.refresh().then((updated) => {
+        plans = updated;
+        broadcast({ type: "plans-updated", plans: updated });
+      });
+    },
+  });
+
   const wsHub = createWsHub({
     getPlans: () => plans,
-    getRunState: () => idleRunState(),
-    getChatEntries: () => [],
+    getRunState: () => runController.getRunState(),
+    getChatEntries: () => runController.getChatEntries(),
+    getPendingQuestion: () => runController.getPendingQuestion(),
+    getModelPickRequest: () => runController.getModelPickRequest(),
     getConfigInfo: () => configInfo,
     getTerminalState: () => terminalState,
     handlers: {
@@ -104,10 +132,13 @@ export async function startServer(
               message: "Terminal support arrives in Phase 4.",
             },
           });
+          return;
         }
+        runController.handleClientMessage(msg);
       },
     },
   });
+  wsHubRef.current = wsHub;
 
   await plansWatcher.start();
   plans = plansWatcher.getPlans();
@@ -135,7 +166,9 @@ export async function startServer(
   return {
     url,
     port,
+    runController,
     stop: async () => {
+      runController.shutdown();
       await plansWatcher.stop();
       await server.stop(true);
     },

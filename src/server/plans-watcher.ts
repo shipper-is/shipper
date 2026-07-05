@@ -72,6 +72,7 @@ export type PlansWatcher = {
   getPlans: () => PlansSnapshot;
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  refresh: () => Promise<PlansSnapshot>;
 };
 
 export function createPlansWatcher(
@@ -99,6 +100,10 @@ export function createPlansWatcher(
 
   return {
     getPlans: () => current,
+    refresh: async () => {
+      await refresh();
+      return current;
+    },
     start: async () => {
       stopped = false;
       await refresh();

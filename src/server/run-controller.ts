@@ -1,0 +1,618 @@
+import type { AgentEvent, AgentKind, AgentQuestion } from "../agents/types.ts";
+import { groupModelFamilies } from "../agents/model-variants.ts";
+import { listModels } from "../agents/models.ts";
+import {
+  resolveDefaultModel,
+  saveModelChoice,
+  setProjectConfig,
+  type ProjectConfig,
+} from "../core/config.ts";
+import {
+  runBuildLoop,
+  runPlanCreation,
+  type BuildLoopResult,
+  type PlanCreationResult,
+} from "../core/orchestrator.ts";
+import { findPlanByFilename } from "../core/plan-store.ts";
+import type { SkillName } from "../core/skills.ts";
+import type {
+  AgentQuestion as ProtocolQuestion,
+  ChatEntry,
+  ClientMessage,
+  ConfigInfo,
+  ModelFamilyDto,
+  ModelPickRequest,
+  RunState,
+  ServerMessage,
+} from "../shared/protocol.ts";
+import { idleRunState } from "../shared/protocol.ts";
+
+export const CHAT_MAX_ENTRIES = 500;
+
+export type OrchestratorFns = {
+  runBuildLoop: typeof runBuildLoop;
+  runPlanCreation: typeof runPlanCreation;
+};
+
+const defaultOrchestrator: OrchestratorFns = {
+  runBuildLoop,
+  runPlanCreation,
+};
+
+type PendingStart =
+  | { kind: "build"; planFilename: string }
+  | { kind: "plan"; description: string };
+
+export type RunControllerDeps = {
+  repoPath: string;
+  getAgent: () => AgentKind | null;
+  getConfigInfo: () => ConfigInfo;
+  refreshConfigInfo: () => Promise<ConfigInfo>;
+  onBroadcast: (msg: ServerMessage) => void;
+  onPlanUpdate?: () => void;
+  orchestrator?: OrchestratorFns;
+};
+
+export type RunController = {
+  getRunState: () => RunState;
+  getChatEntries: () => ChatEntry[];
+  getPendingQuestion: () => ProtocolQuestion | null;
+  getModelPickRequest: () => ModelPickRequest | null;
+  handleClientMessage: (msg: ClientMessage) => void;
+  stopActiveRun: () => void;
+  shutdown: () => void;
+};
+
+function nextChatId(): string {
+  return crypto.randomUUID();
+}
+
+function toProtocolQuestion(question: AgentQuestion): ProtocolQuestion {
+  return {
+    id: question.id,
+    items: question.questions.map((item) => ({
+      prompt: item.prompt,
+      header: item.header,
+      allowMultiple: item.multiSelect,
+      options: item.options.map((opt, index) => ({
+        id: String(index),
+        label: opt.label,
+      })),
+    })),
+  };
+}
+
+export function applyAgentEvent(
+  entries: ChatEntry[],
+  event: AgentEvent,
+): { entries: ChatEntry[]; append?: ChatEntry; replaceLast?: ChatEntry } {
+  const now = Date.now();
+
+  switch (event.type) {
+    case "text": {
+      if (!event.text) {
+        return { entries };
+      }
+      const last = entries[entries.length - 1];
+      if (event.delta === true && last?.kind === "agent-text") {
+        const updated: ChatEntry = {
+          ...last,
+          text: last.text + event.text,
+          timestamp: now,
+        };
+        return {
+          entries: [...entries.slice(0, -1), updated],
+          replaceLast: updated,
+        };
+      }
+      const entry: ChatEntry = {
+        id: nextChatId(),
+        kind: "agent-text",
+        text: event.text,
+        timestamp: now,
+      };
+      return { entries: [...entries, entry], append: entry };
+    }
+    case "tool-start": {
+      const entry: ChatEntry = {
+        id: nextChatId(),
+        kind: "tool-start",
+        text: event.summary,
+        timestamp: now,
+        callId: event.callId,
+        toolName: event.name,
+        pending: true,
+      };
+      return { entries: [...entries, entry], append: entry };
+    }
+    case "tool-end": {
+      const index = entries.findIndex(
+        (entry) => entry.callId === event.callId && entry.kind === "tool-start",
+      );
+      const entry: ChatEntry = {
+        id: index >= 0 ? entries[index]!.id : nextChatId(),
+        kind: "tool-end",
+        text: event.summary,
+        timestamp: now,
+        callId: event.callId,
+        toolName: event.name,
+        pending: false,
+      };
+      if (index >= 0) {
+        const next = [...entries];
+        next[index] = {
+          ...entry,
+          text: `${event.summary}${event.resultSummary ? ` (${event.resultSummary})` : ""}`,
+        };
+        return { entries: next, replaceLast: next[index] };
+      }
+      return { entries: [...entries, entry], append: entry };
+    }
+    case "error": {
+      const entry: ChatEntry = {
+        id: nextChatId(),
+        kind: "error",
+        text: event.message,
+        timestamp: now,
+      };
+      return { entries: [...entries, entry], append: entry };
+    }
+    case "turn-complete": {
+      const entry: ChatEntry = {
+        id: nextChatId(),
+        kind: "turn",
+        text: "— turn complete —",
+        timestamp: now,
+      };
+      return { entries: [...entries, entry], append: entry };
+    }
+    case "done": {
+      const entry: ChatEntry = {
+        id: nextChatId(),
+        kind: "done",
+        text: event.result ?? "Done",
+        timestamp: now,
+      };
+      return { entries: [...entries, entry], append: entry };
+    }
+    case "question":
+      return { entries };
+    default:
+      return { entries };
+  }
+}
+
+function capEntries(entries: ChatEntry[]): ChatEntry[] {
+  return entries.slice(-CHAT_MAX_ENTRIES);
+}
+
+function buildSuccessNotice(
+  result: Extract<BuildLoopResult, { status: "success" }>,
+  planTitle: string,
+  planFilename: string,
+): string {
+  const lines = [
+    `Build complete — ${planTitle}`,
+    `Phases run: ${result.phasesRun} · Sessions: ${result.sessionsUsed}`,
+    `Location: ${result.planLocation === "done" ? ".shipper/done/" : ".shipper/open/"}`,
+  ];
+  if (result.leftInOpen) {
+    lines.push(
+      "All tasks are checked but the plan file was left in open/ (the agent did not move it to done/).",
+    );
+  }
+  lines.push(planFilename);
+  return lines.join("\n");
+}
+
+async function buildModelPickRequest(
+  agent: AgentKind,
+  skill: SkillName,
+): Promise<ModelPickRequest> {
+  const models = await listModels(agent);
+  const families: ModelFamilyDto[] = groupModelFamilies(models).map((family) => ({
+    id: family.id,
+    label: family.label,
+    variants: family.variants.map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+    })),
+  }));
+  return { skill, families };
+}
+
+export function createRunController(deps: RunControllerDeps): RunController {
+  const orchestrator = deps.orchestrator ?? defaultOrchestrator;
+
+  let runState: RunState = idleRunState();
+  let chatEntries: ChatEntry[] = [];
+  let pendingQuestion: ProtocolQuestion | null = null;
+  let modelPickRequest: ModelPickRequest | null = null;
+  let pendingStart: PendingStart | null = null;
+
+  let questionResolver: ((answers: Record<string, string | string[]>) => void) | null =
+    null;
+  let abortController: AbortController | null = null;
+
+  const broadcastRunState = () => {
+    deps.onBroadcast({ type: "run-state", runState: { ...runState } });
+  };
+
+  const setRunState = (patch: Partial<RunState>) => {
+    runState = { ...runState, ...patch };
+    broadcastRunState();
+  };
+
+  const appendNotice = (text: string) => {
+    const entry: ChatEntry = {
+      id: nextChatId(),
+      kind: "notice",
+      text,
+      timestamp: Date.now(),
+    };
+    chatEntries = capEntries([...chatEntries, entry]);
+    deps.onBroadcast({ type: "chat-append", entry });
+  };
+
+  const appendUserMessage = (text: string) => {
+    const entry: ChatEntry = {
+      id: nextChatId(),
+      kind: "user-message",
+      text,
+      timestamp: Date.now(),
+    };
+    chatEntries = capEntries([...chatEntries, entry]);
+    deps.onBroadcast({ type: "chat-append", entry });
+  };
+
+  const handleAgentEvent = (event: AgentEvent) => {
+    const result = applyAgentEvent(chatEntries, event);
+    chatEntries = capEntries(result.entries);
+    if (result.replaceLast) {
+      deps.onBroadcast({ type: "chat-replace-last", entry: result.replaceLast });
+    } else if (result.append) {
+      deps.onBroadcast({ type: "chat-append", entry: result.append });
+    }
+  };
+
+  const isRunActive = () =>
+    runState.status === "running" ||
+    runState.status === "waiting-answer" ||
+    runState.status === "stopping";
+
+  const clearRun = () => {
+    abortController = null;
+    questionResolver = null;
+    pendingQuestion = null;
+    pendingStart = null;
+    modelPickRequest = null;
+    runState = idleRunState();
+    broadcastRunState();
+  };
+
+  const finishBuild = async (
+    result: BuildLoopResult,
+    planFilename: string,
+    planTitle: string,
+  ) => {
+    if (result.status === "success") {
+      appendNotice(buildSuccessNotice(result, planTitle, planFilename));
+    } else if (result.status === "cancelled") {
+      appendNotice("Build cancelled.");
+    } else {
+      appendNotice(`Build failed: ${result.message}`);
+    }
+    deps.onPlanUpdate?.();
+    clearRun();
+  };
+
+  const finishPlan = (result: PlanCreationResult) => {
+    if (result.status === "success") {
+      appendNotice(
+        `Plan created — ${result.plan.title}\n${result.plan.filename}\nBuild it now?`,
+      );
+      deps.onBroadcast({
+        type: "plan-created",
+        filename: result.plan.filename,
+        title: result.plan.title,
+      });
+      deps.onPlanUpdate?.();
+    } else {
+      appendNotice(`Plan creation failed: ${result.message}`);
+    }
+    clearRun();
+  };
+
+  const runBuild = async (planFilename: string, model: string) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const plan = await findPlanByFilename(deps.repoPath, planFilename);
+    if (!plan) {
+      appendNotice("Plan file not found.");
+      return;
+    }
+
+    abortController = new AbortController();
+    chatEntries = [];
+    pendingQuestion = null;
+    modelPickRequest = null;
+    pendingStart = null;
+
+    runState = {
+      status: "running",
+      skill: "build",
+      planFilename,
+      activePhaseNumber: null,
+      logPath: null,
+    };
+    broadcastRunState();
+
+    const result = await orchestrator.runBuildLoop(
+      deps.repoPath,
+      agent,
+      planFilename,
+      {
+        signal: abortController.signal,
+        onSessionLog: (path) => setRunState({ logPath: path }),
+        onEvent: handleAgentEvent,
+        onQuestion: (question) =>
+          new Promise((resolve) => {
+            pendingQuestion = toProtocolQuestion(question);
+            questionResolver = resolve;
+            setRunState({ status: "waiting-answer" });
+            deps.onBroadcast({
+              type: "question-pending",
+              question: pendingQuestion,
+              runState: { ...runState },
+            });
+          }),
+        onPhaseStart: (phaseNumber) => setRunState({ activePhaseNumber: phaseNumber }),
+        onPlanUpdate: () => deps.onPlanUpdate?.(),
+      },
+      model,
+    );
+
+    await finishBuild(result, planFilename, plan.title);
+  };
+
+  const runPlan = async (description: string, model: string) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    abortController = new AbortController();
+    chatEntries = [];
+    pendingQuestion = null;
+    modelPickRequest = null;
+    pendingStart = null;
+
+    runState = {
+      status: "running",
+      skill: "plan",
+      planFilename: null,
+      activePhaseNumber: null,
+      logPath: null,
+    };
+    broadcastRunState();
+    appendUserMessage(description.trim());
+
+    const result = await orchestrator.runPlanCreation(
+      deps.repoPath,
+      agent,
+      description.trim(),
+      {
+        signal: abortController.signal,
+        onEvent: handleAgentEvent,
+        onQuestion: (question) =>
+          new Promise((resolve) => {
+            pendingQuestion = toProtocolQuestion(question);
+            questionResolver = resolve;
+            setRunState({ status: "waiting-answer" });
+            deps.onBroadcast({
+              type: "question-pending",
+              question: pendingQuestion,
+              runState: { ...runState },
+            });
+          }),
+      },
+      model,
+    );
+
+    finishPlan(result);
+  };
+
+  const requestModelPick = async (skill: SkillName, pending: PendingStart) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    pendingStart = pending;
+    try {
+      modelPickRequest = await buildModelPickRequest(agent, skill);
+      deps.onBroadcast({ type: "needs-model-pick", modelPickRequest });
+    } catch (error) {
+      pendingStart = null;
+      const message = error instanceof Error ? error.message : String(error);
+      appendNotice(`Failed to load models: ${message}`);
+    }
+  };
+
+  const startBuild = async (planFilename: string) => {
+    if (isRunActive()) {
+      deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
+      return;
+    }
+
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-build");
+    if (!model) {
+      await requestModelPick("shipper-build", { kind: "build", planFilename });
+      return;
+    }
+
+    await runBuild(planFilename, model);
+  };
+
+  const startPlan = async (description: string) => {
+    if (isRunActive()) {
+      deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
+      return;
+    }
+
+    const trimmed = description.trim();
+    if (!trimmed) {
+      deps.onBroadcast({ type: "notice", text: "Enter a feature description first." });
+      return;
+    }
+
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-plan");
+    if (!model) {
+      await requestModelPick("shipper-plan", { kind: "plan", description: trimmed });
+      return;
+    }
+
+    await runPlan(trimmed, model);
+  };
+
+  const selectModel = async (skill: SkillName, modelId: string) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    await saveModelChoice(deps.repoPath, agent, skill, modelId);
+    modelPickRequest = null;
+
+    const pending = pendingStart;
+    pendingStart = null;
+    if (!pending) {
+      return;
+    }
+
+    if (pending.kind === "build" && skill === "shipper-build") {
+      await runBuild(pending.planFilename, modelId);
+    } else if (pending.kind === "plan" && skill === "shipper-plan") {
+      await runPlan(pending.description, modelId);
+    }
+  };
+
+  const stop = () => {
+    if (!isRunActive()) {
+      return;
+    }
+    setRunState({ status: "stopping" });
+    abortController?.abort();
+  };
+
+  const answerQuestion = (questionId: string, answers: Record<string, string | string[]>) => {
+    if (!pendingQuestion || pendingQuestion.id !== questionId || !questionResolver) {
+      return;
+    }
+
+    questionResolver(answers);
+    questionResolver = null;
+    pendingQuestion = null;
+    setRunState({ status: "running" });
+    deps.onBroadcast({ type: "question-cleared" });
+  };
+
+  const setAgent = async (agent: AgentKind) => {
+    await setProjectConfig(deps.repoPath, { agent });
+    const configInfo = await deps.refreshConfigInfo();
+    deps.onBroadcast({ type: "config-info", configInfo });
+  };
+
+  const rescanAgents = async () => {
+    const configInfo = await deps.refreshConfigInfo();
+    deps.onBroadcast({ type: "config-info", configInfo });
+  };
+
+  return {
+    getRunState: () => runState,
+    getChatEntries: () => chatEntries,
+    getPendingQuestion: () => pendingQuestion,
+    getModelPickRequest: () => modelPickRequest,
+    handleClientMessage(msg: ClientMessage) {
+      switch (msg.type) {
+        case "start-build":
+          void startBuild(msg.planFilename);
+          break;
+        case "start-plan":
+          void startPlan(msg.description);
+          break;
+        case "stop-run":
+          stop();
+          break;
+        case "answer-question":
+          answerQuestion(msg.questionId, msg.answers);
+          break;
+        case "select-model":
+          void selectModel(msg.skill, msg.modelId);
+          break;
+        case "set-agent":
+          void setAgent(msg.agent);
+          break;
+        case "rescan-agents":
+          void rescanAgents();
+          break;
+        case "send-message":
+          // Phase 3
+          break;
+        default:
+          break;
+      }
+    },
+    stopActiveRun: stop,
+    shutdown: stop,
+  };
+}
+
+export async function enrichConfigInfo(
+  repoPath: string,
+  base: ConfigInfo,
+): Promise<ConfigInfo> {
+  const agent = base.defaultAgent;
+  if (!agent) {
+    return base;
+  }
+
+  const [planModel, buildModel] = await Promise.all([
+    resolveDefaultModel(repoPath, agent, "shipper-plan"),
+    resolveDefaultModel(repoPath, agent, "shipper-build"),
+  ]);
+
+  return {
+    ...base,
+    models: {
+      ...(planModel ? { "shipper-plan": planModel } : {}),
+      ...(buildModel ? { "shipper-build": buildModel } : {}),
+    },
+  };
+}
+
+export async function patchProjectConfig(
+  repoPath: string,
+  patch: Partial<ProjectConfig>,
+): Promise<void> {
+  await setProjectConfig(repoPath, patch);
+}

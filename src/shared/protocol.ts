@@ -75,6 +75,7 @@ export type AgentQuestionOption = {
 
 export type AgentQuestionItem = {
   prompt: string;
+  header?: string;
   options: AgentQuestionOption[];
   allowMultiple?: boolean;
 };
@@ -94,6 +95,27 @@ export type ConfigInfo = {
   repoPath: string;
   defaultAgent: "claude" | "cursor" | "opencode" | null;
   detectedAgents: DetectedAgent[];
+  models?: {
+    "shipper-plan"?: string;
+    "shipper-build"?: string;
+    "shipper-ship"?: string;
+  };
+};
+
+export type ModelVariantDto = {
+  id: string;
+  label: string;
+};
+
+export type ModelFamilyDto = {
+  id: string;
+  label: string;
+  variants: ModelVariantDto[];
+};
+
+export type ModelPickRequest = {
+  skill: "shipper-plan" | "shipper-build" | "shipper-ship";
+  families: ModelFamilyDto[];
 };
 
 export type TerminalState = {
@@ -108,6 +130,7 @@ export type ServerSnapshot = {
   runState: RunState;
   chatEntries: ChatEntry[];
   pendingQuestion: AgentQuestion | null;
+  modelPickRequest: ModelPickRequest | null;
   configInfo: ConfigInfo;
   terminalState: TerminalState;
 };
@@ -157,6 +180,17 @@ export type ServerConfigInfo = {
   configInfo: ConfigInfo;
 };
 
+export type ServerNeedsModelPick = {
+  type: "needs-model-pick";
+  modelPickRequest: ModelPickRequest;
+};
+
+export type ServerPlanCreated = {
+  type: "plan-created";
+  filename: string;
+  title: string;
+};
+
 /** Marker type — terminal output uses binary WebSocket frames, not JSON. */
 export type ServerTerminalData = {
   type: "terminal-data";
@@ -172,10 +206,17 @@ export type ServerMessage =
   | ServerQuestionCleared
   | ServerTerminalState
   | ServerNotice
-  | ServerConfigInfo;
+  | ServerConfigInfo
+  | ServerNeedsModelPick
+  | ServerPlanCreated;
 
 export type ClientStartBuild = {
   type: "start-build";
+  planFilename: string;
+};
+
+export type ClientStartShip = {
+  type: "start-ship";
   planFilename: string;
 };
 
@@ -201,13 +242,17 @@ export type ClientSendMessage = {
 
 export type ClientSelectModel = {
   type: "select-model";
-  skill: "shipper-plan" | "shipper-build";
+  skill: "shipper-plan" | "shipper-build" | "shipper-ship";
   modelId: string;
 };
 
 export type ClientSetAgent = {
   type: "set-agent";
   agent: "claude" | "cursor" | "opencode";
+};
+
+export type ClientRescanAgents = {
+  type: "rescan-agents";
 };
 
 export type ClientTerminalInput = {
@@ -227,12 +272,14 @@ export type ClientTerminalOpen = {
 
 export type ClientMessage =
   | ClientStartBuild
+  | ClientStartShip
   | ClientStartPlan
   | ClientStopRun
   | ClientAnswerQuestion
   | ClientSendMessage
   | ClientSelectModel
   | ClientSetAgent
+  | ClientRescanAgents
   | ClientTerminalInput
   | ClientTerminalResize
   | ClientTerminalOpen;
@@ -251,6 +298,10 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     planFilename: z.string().min(1),
   }),
   z.object({
+    type: z.literal("start-ship"),
+    planFilename: z.string().min(1),
+  }),
+  z.object({
     type: z.literal("start-plan"),
     description: z.string(),
   }),
@@ -266,13 +317,14 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("select-model"),
-    skill: z.enum(["shipper-plan", "shipper-build"]),
+    skill: z.enum(["shipper-plan", "shipper-build", "shipper-ship"]),
     modelId: z.string().min(1),
   }),
   z.object({
     type: z.literal("set-agent"),
     agent: z.enum(["claude", "cursor", "opencode"]),
   }),
+  z.object({ type: z.literal("rescan-agents") }),
   z.object({
     type: z.literal("terminal-input"),
     data: z.string(),
