@@ -1,4 +1,5 @@
 import chokidar, { type FSWatcher } from "chokidar";
+import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
@@ -149,6 +150,19 @@ export type PlanFile = {
   parsed: ParsedPlan;
   meta: PlanMeta;
 };
+
+/** Session cwd for agent runs: worktree path when set and present, else main repo. */
+export function resolvePlanSessionCwd(repoPath: string, plan: PlanFile): string {
+  const worktree = plan.meta.worktree;
+  if (!worktree) {
+    return repoPath;
+  }
+  const worktreePath = join(repoPath, worktree);
+  if (existsSync(worktreePath)) {
+    return worktreePath;
+  }
+  return repoPath;
+}
 
 const PHASE_RE = /^## Phase (\d+)(?::\s*(.*))?$/;
 const SECTION_RE = /^### (.+)$/;

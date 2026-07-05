@@ -10,6 +10,8 @@ import {
   listPlans,
   parseFrontmatter,
   parsePlan,
+  resolvePlanSessionCwd,
+  type PlanFile,
 } from "./plan-store.ts";
 
 const fixturePath = join(
@@ -418,5 +420,44 @@ worktree: .shipper/worktrees/dup-plan
     expect(plan!.path).toBe(join(worktreeOpen, "find-me.md"));
 
     await rm(repoPath, { recursive: true, force: true });
+  });
+});
+
+describe("resolvePlanSessionCwd", () => {
+  const repoPath = "/repo/main";
+
+  function planWithWorktree(worktree: string | null): PlanFile {
+    return {
+      filename: "my-plan.md",
+      path: join(repoPath, ".shipper", "open", "my-plan.md"),
+      folder: "open",
+      origin: "main",
+      title: "My Plan",
+      progress: { totalChecked: 0, totalUnchecked: 1, currentPhase: 1, phaseCount: 1 },
+      parsed: { title: "My Plan", phases: [], totalChecked: 0, totalUnchecked: 0 },
+      meta: { ...emptyPlanMeta(), worktree },
+    };
+  }
+
+  it("returns repoPath when worktree is unset", () => {
+    expect(resolvePlanSessionCwd(repoPath, planWithWorktree(null))).toBe(repoPath);
+  });
+
+  it("returns the worktree path when worktree is set and exists", async () => {
+    const repoPath = await mkdtemp(join(tmpdir(), "shipper-cwd-"));
+    const worktreeRel = ".shipper/worktrees/my-plan";
+    await mkdir(join(repoPath, worktreeRel), { recursive: true });
+
+    expect(resolvePlanSessionCwd(repoPath, planWithWorktree(worktreeRel))).toBe(
+      join(repoPath, worktreeRel),
+    );
+
+    await rm(repoPath, { recursive: true, force: true });
+  });
+
+  it("falls back to repoPath when worktree is set but missing", () => {
+    expect(
+      resolvePlanSessionCwd(repoPath, planWithWorktree(".shipper/worktrees/gone")),
+    ).toBe(repoPath);
   });
 });

@@ -5,6 +5,7 @@ base_branch: main
 started_at: "2026-07-05T08:35:00-05:00"
 phase_commits:
   1: 11f6dc1
+  2: 96ea099
 ---
 
 # Git as a First-Class Citizen of the Shipper Framework
@@ -205,10 +206,19 @@ Console/orchestrator (plumbing + UI):
 - In `runBuildLoop`, resolve the cwd from the freshly-read plan on every loop iteration (the worktree can appear after phase 1 creates it, and disappear after the final phase removes it) and pass it to `adapter.start` instead of `repoPath`.
 - In `runFollowUp`, when `options.planFilename` resolves to a plan, apply the same resolution. Follow-ups resumed by session id (`resumeSessionId`) should also resolve the plan when a filename is available; when no plan is known, keep `repoPath`.
 - `runSpike` and `runPlanCreation` intentionally keep `cwd: repoPath` — the spike agent creates and enters the worktree itself mid-run, and planning never uses one.
-- [ ] Add the cwd resolution helper with a unit test (worktree set + exists, set + missing, unset)
-- [ ] Thread resolved cwd through `runBuildLoop` per-iteration and `runFollowUp`
-- [ ] Update/extend [src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts) to assert the cwd passed to the adapter for a worktree plan
-- [ ] Run `bun run typecheck` and `bun run test`
+- [x] Add the cwd resolution helper with a unit test (worktree set + exists, set + missing, unset)
+- [x] Thread resolved cwd through `runBuildLoop` per-iteration and `runFollowUp`
+- [x] Update/extend [src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts) to assert the cwd passed to the adapter for a worktree plan
+- [x] Run `bun run typecheck` and `bun run test`
+
+### Completion Notes
+
+- Added `resolvePlanSessionCwd` in `plan-store.ts`: returns `join(repoPath, meta.worktree)` when the worktree path exists on disk, otherwise `repoPath`. No git commands.
+- `runBuildLoop` resolves cwd from the freshly-read plan on every iteration before `adapter.start`.
+- `runFollowUp` resolves cwd whenever `planFilename` is provided (including when resuming by session id); falls back to `repoPath` when no plan is known.
+- `runSpike` and `runPlanCreation` unchanged — spikes create worktrees mid-run; planning never uses one.
+- Five new tests: three for the helper, one build-loop cwd assertion, one follow-up cwd assertion with resume + planFilename.
+- 110 tests pass (`bun run typecheck` + `bun run test`).
 
 ## Phase 4: Console UI for git state
 

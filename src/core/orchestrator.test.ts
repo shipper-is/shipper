@@ -367,6 +367,38 @@ ${unchecked}
       expect(result.sessionsUsed).toBe(0);
     }
   });
+
+  it("passes the worktree path as cwd when the plan has a live worktree", async () => {
+    const worktreeRel = ".shipper/worktrees/test-plan";
+    const worktreePath = join(repoPath, worktreeRel);
+    const worktreeOpen = join(worktreePath, ".shipper", "open");
+    await mkdir(worktreeOpen, { recursive: true });
+
+    const planWithWorktree = `---
+type: plan
+worktree: ${worktreeRel}
+---
+${SIMPLE_PLAN}`;
+    await writeFile(join(worktreeOpen, "test-plan.md"), planWithWorktree, "utf8");
+
+    let sessionCwd: string | undefined;
+    mockCreateAdapter.mockImplementation(() => ({
+      sessionId: null,
+      async *start(opts) {
+        sessionCwd = opts.cwd;
+        yield { type: "done", result: "ok" };
+      },
+      answer() {},
+      async stop() {},
+    }));
+
+    await runBuildLoop(repoPath, "cursor", "test-plan.md", {
+      onEvent: () => {},
+      onQuestion: async () => ({}),
+    });
+
+    expect(sessionCwd).toBe(worktreePath);
+  });
 });
 
 describe("runFollowUp", () => {
@@ -400,6 +432,45 @@ describe("runFollowUp", () => {
     expect(result.ok).toBe(true);
     expect(result.lastSessionId).toBe("new-session");
     expect(startOpts?.resumeSessionId).toBe("resume-abc");
+  });
+
+  it("uses the worktree cwd when planFilename resolves to a worktree plan", async () => {
+    const worktreeRel = ".shipper/worktrees/follow-up";
+    const worktreePath = join(repoPath, worktreeRel);
+    const worktreeOpen = join(worktreePath, ".shipper", "open");
+    await mkdir(worktreeOpen, { recursive: true });
+    await writeFile(
+      join(worktreeOpen, "follow-up.md"),
+      `---
+type: plan
+worktree: ${worktreeRel}
+---
+# Follow Up Plan
+`,
+      "utf8",
+    );
+
+    let sessionCwd: string | undefined;
+    mockCreateAdapter.mockImplementation(() => ({
+      sessionId: "follow-session",
+      async *start(opts) {
+        sessionCwd = opts.cwd;
+        yield { type: "done", result: "ok" };
+      },
+      answer() {},
+      async stop() {},
+    }));
+
+    await runFollowUp(
+      repoPath,
+      "cursor",
+      "keep going",
+      "resume-xyz",
+      { onEvent: () => {}, onQuestion: async () => ({}) },
+      { planFilename: "follow-up.md" },
+    );
+
+    expect(sessionCwd).toBe(worktreePath);
   });
 });
 
