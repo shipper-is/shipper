@@ -126,12 +126,20 @@ Files to create (all inside `web/`):
 
 ### Section 1: Responsive and accessibility pass
 
-- [ ] Verify the layout works at mobile widths (stack persona cards, wrap the install command with horizontal scroll on the `<pre>`/code block rather than overflow).
-- [ ] Ensure the copy button is a real `<button>` with an accessible label, and the GitHub link has `rel="noopener noreferrer"` with `target="_blank"`.
-- [ ] Confirm no `rounded-*` classes and no colors outside black/white/opacity variants anywhere in `web/`.
+- [x] Verify the layout works at mobile widths (stack persona cards, wrap the install command with horizontal scroll on the `<pre>`/code block rather than overflow).
+- [x] Ensure the copy button is a real `<button>` with an accessible label, and the GitHub link has `rel="noopener noreferrer"` with `target="_blank"`.
+- [x] Confirm no `rounded-*` classes and no colors outside black/white/opacity variants anywhere in `web/`.
 
 ### Section 2: Build verification and docs
 
-- [ ] Run `bun run build` in `web/` and fix any type or build errors.
-- [ ] Create a short `web/README.md`: how to run locally with Bun, and a note that Vercel deployment requires setting the project Root Directory to `web/`.
-- [ ] Manually verify in the browser: copy button copies the exact string from `web/lib/constants.ts`, GitHub link opens the repo, page renders correctly in light-mode browsers (the page forces black regardless of `prefers-color-scheme`).
+- [x] Run `bun run build` in `web/` and fix any type or build errors.
+- [x] Create a short `web/README.md`: how to run locally with Bun, and a note that Vercel deployment requires setting the project Root Directory to `web/`.
+- [x] Manually verify in the browser: copy button copies the exact string from `web/lib/constants.ts`, GitHub link opens the repo, page renders correctly in light-mode browsers (the page forces black regardless of `prefers-color-scheme`).
+
+#### Completion Notes (Phase 3)
+
+- Install command `<pre>` uses `whitespace-pre` + `overflow-x-auto` (not `break-all`) so mobile scrolls horizontally instead of overflowing.
+- `color-scheme: dark` on `html` keeps browser chrome consistent when the OS is in light mode; body stays `#000` / `#fff`.
+- `turbopack.root` set in `next.config.ts` to silence the multiple-lockfile warning from Phase 1.
+- `web/README.md` documents `bun run dev` and Vercel Root Directory = `web/`.
+- `bun run build` passes. Browser smoke test: copy CTA, GitHub links, mobile layout at 375px width.

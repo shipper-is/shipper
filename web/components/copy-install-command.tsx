@@ -19,7 +19,7 @@ export function CopyInstallCommand() {
   return (
     <div className="border border-white">
       <div className="flex flex-col sm:flex-row sm:items-stretch">
-        <pre className="font-mono flex-1 overflow-x-auto p-4 text-sm leading-relaxed whitespace-pre-wrap break-all select-text sm:text-base">
+        <pre className="font-mono min-w-0 flex-1 overflow-x-auto p-4 text-sm leading-relaxed whitespace-pre select-text sm:text-base">
           {INSTALL_COMMAND}
         </pre>
         <button
