@@ -9,9 +9,9 @@ The user will direct you to which plan they are wanting you to work against. If 
 
 Once it is determined which Phase you'll be working on your job is to read over the entire plan file (especially the beginning where it gives the overview, related files, existing code to utilize, codebase conventions to follow, and gotchas) and then read over what has already been implemented (if previous engineers have left notes in the plan file) and then read over the phase you'll be implementing.
 
-You should quickly check to see if a git repo is initialized in this directory. If it is you should make sure you're on a feature branch following this naming convention "shipper/<name-of-the-feature>". Each Phase of the Shipper plan should get its own commit on this branch so that it is easy to track, revert, and publish our changes.
+Before starting a phase, read and follow [./GIT.md](./GIT.md) for branching, worktrees, commits, frontmatter, and cleanup. If a git repo is initialized, execute that workflow in full before writing application code.
 
-When you begin executing a Phase, ensure the plan file has a YAML frontmatter block at the very top of the file (before the `#` title). If `branch` or `started_at` are not already set, add them: `branch` is the current git branch name, and `started_at` is the current time as a quoted ISO 8601 timestamp (e.g. `"2026-07-04T22:15:00-05:00"`). Never overwrite `branch` or `started_at` if they already exist — later phases will see frontmatter from earlier phases and must leave those values unchanged. Preserve any existing `type` key in the frontmatter (do not remove or change it).
+When you begin executing a Phase, ensure the plan file has a YAML frontmatter block at the very top of the file (before the `#` title). Preserve any existing `type` key in the frontmatter (do not remove or change it). For all other frontmatter keys (`branch`, `base_branch`, `worktree`, `started_at`, `completed_at`, `phase_commits`, `pr_url`, `pr_number`), follow GIT.md: set them when instructed, never overwrite keys that earlier phases already set.
 
 From there do your own context gathering/research from the codebase to gain a better understanding of what you'll be needing to do in the execution of the Phase you've been assigned to.
 
@@ -25,17 +25,6 @@ Once you've completed your Phase execution then you'll make sure all items are c
 
 Leave behind a concise "Completion Notes" section at the end of the Phase with important details that future engineers should be keenly aware of when implementing future Phases.
 
-If you have completed the last Phase of the plan and the plan is complete, set `completed_at` in the plan file's YAML frontmatter to the current time as a quoted ISO 8601 timestamp, then move the plan markdown file from the "open" to "done" folders.
+If you have completed the last Phase of the plan and the plan is complete, follow GIT.md for `completed_at`, moving the plan to `done/`, the final commit, and worktree cleanup.
 
-The plan frontmatter block looks like this (all keys are optional; `pr_url` and `pr_number` are added later by the shipper-ship skill after the PR is created):
-
-```yaml
----
-type: plan
-branch: shipper/plan-completion-metadata
-started_at: "2026-07-04T22:15:00-05:00"
-completed_at: "2026-07-05T01:40:00-05:00"
-pr_url: https://github.com/owner/repo/pull/123
-pr_number: 123
----
-```
+Use the related [./GIT.md](./GIT.md) reference file for the full git workflow and frontmatter specification.

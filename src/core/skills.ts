@@ -3,14 +3,18 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import planSkill from "../../skills/shipper-plan/SKILL.md" with { type: "text" };
 import buildSkill from "../../skills/shipper-build/SKILL.md" with { type: "text" };
+import buildGit from "../../skills/shipper-build/GIT.md" with { type: "text" };
 import buildPr from "../../skills/shipper-build/PR.md" with { type: "text" };
 import spikeSkill from "../../skills/shipper-spike/SKILL.md" with { type: "text" };
 import spikePlan from "../../skills/shipper-spike/PLAN.md" with { type: "text" };
 import spikeBuild from "../../skills/shipper-spike/BUILD.md" with { type: "text" };
+import spikeGit from "../../skills/shipper-spike/GIT.md" with { type: "text" };
 import shipSkill from "../../skills/shipper-ship/SKILL.md" with { type: "text" };
+import shipGit from "../../skills/shipper-ship/GIT.md" with { type: "text" };
 import bugSkill from "../../skills/shipper-bug/SKILL.md" with { type: "text" };
 import bugCatalog from "../../skills/shipper-bug/CATALOG.md" with { type: "text" };
 import bugFix from "../../skills/shipper-bug/FIX.md" with { type: "text" };
+import bugGit from "../../skills/shipper-bug/GIT.md" with { type: "text" };
 import type { AgentKind } from "../agents/types.ts";
 
 export type SkillFile = {
@@ -22,18 +26,24 @@ const SKILLS = {
   "shipper-plan": [{ file: "SKILL.md", content: planSkill }],
   "shipper-build": [
     { file: "SKILL.md", content: buildSkill },
+    { file: "GIT.md", content: buildGit },
     { file: "PR.md", content: buildPr },
   ],
   "shipper-spike": [
     { file: "SKILL.md", content: spikeSkill },
     { file: "PLAN.md", content: spikePlan },
     { file: "BUILD.md", content: spikeBuild },
+    { file: "GIT.md", content: spikeGit },
   ],
-  "shipper-ship": [{ file: "SKILL.md", content: shipSkill }],
+  "shipper-ship": [
+    { file: "SKILL.md", content: shipSkill },
+    { file: "GIT.md", content: shipGit },
+  ],
   "shipper-bug": [
     { file: "SKILL.md", content: bugSkill },
     { file: "CATALOG.md", content: bugCatalog },
     { file: "FIX.md", content: bugFix },
+    { file: "GIT.md", content: bugGit },
   ],
 } as const satisfies Record<string, readonly SkillFile[]>;
 

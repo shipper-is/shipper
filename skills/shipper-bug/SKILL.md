@@ -20,4 +20,4 @@ This skill has two entry points:
 
 Scope rule: this skill only carries a bug through to a fix when the fix fits a single phase of work. If diagnosis reveals a design flaw that requires multi-phase work, stop after the Root Cause section is written and prompt the user to run the shipper-plan skill, using the completed diagnosis as the plan's starting context. The diagnosis is never wasted work.
 
-Use the related ./CATALOG.md and ./FIX.md reference files for the detailed process you should follow in each half of this skill.
+Use the related ./CATALOG.md, ./FIX.md, and ./GIT.md reference files for the detailed process you should follow in each half of this skill.
