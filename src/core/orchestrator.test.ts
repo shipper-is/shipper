@@ -15,7 +15,7 @@ vi.mock("./skills.ts", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./skills.ts")>();
   return {
     ...actual,
-    installSkills: vi.fn().mockResolvedValue(undefined),
+    installSkillsGlobally: vi.fn().mockResolvedValue([]),
   };
 });
 

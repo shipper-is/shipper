@@ -3,13 +3,13 @@ import {
   QUESTION_PROTOCOL_PREAMBLE,
   claudeQuestionPreamble,
 } from "../agents/question-protocol.ts";
-import { skillPathForAgent } from "./skills.ts";
+import { globalSkillPath } from "./skills.ts";
 
 function skillInstruction(
   agent: AgentKind,
   skillName: "shipper-plan" | "shipper-build" | "shipper-spike",
 ): string {
-  const path = skillPathForAgent(agent, skillName);
+  const path = globalSkillPath(agent, skillName);
   return `Read and follow the skill at \`${path}\` in the target repository.`;
 }
 

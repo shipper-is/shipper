@@ -18,7 +18,7 @@ import {
 } from "../core/orchestrator.ts";
 import { DEMO_SCRIPT, runDemoScript } from "../demo/script.ts";
 import { findPlanByFilename } from "../core/plan-store.ts";
-import type { SkillName } from "../core/skills.ts";
+import type { OrchestratedSkillName } from "../core/skills.ts";
 import type {
   AgentQuestion as ProtocolQuestion,
   ChatEntry,
@@ -219,7 +219,7 @@ function buildSuccessNotice(
 
 async function buildModelPickRequest(
   agent: AgentKind,
-  skill: SkillName,
+  skill: OrchestratedSkillName,
 ): Promise<ModelPickRequest> {
   const models = await listModels(agent);
   const families: ModelFamilyDto[] = groupModelFamilies(models).map((family) => ({
@@ -547,7 +547,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
 
     const skill = lastSkill ?? "build";
-    const skillName: SkillName =
+    const skillName: OrchestratedSkillName =
       skill === "plan"
         ? "shipper-plan"
         : skill === "spike"
@@ -633,7 +633,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     void runFollowUpMessage(trimmed);
   };
 
-  const requestModelPick = async (skill: SkillName, pending: PendingStart) => {
+  const requestModelPick = async (skill: OrchestratedSkillName, pending: PendingStart) => {
     const agent = deps.getAgent();
     if (!agent) {
       appendNotice("No agent configured. Open settings to choose one.");
@@ -651,7 +651,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
   };
 
-  const configureModel = async (skill: SkillName) => {
+  const configureModel = async (skill: OrchestratedSkillName) => {
     const agent = deps.getAgent();
     if (!agent) {
       appendNotice("No agent configured. Open settings to choose one.");
@@ -748,7 +748,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     await runSpikeRun(trimmed, model);
   };
 
-  const selectModel = async (skill: SkillName, modelId: string) => {
+  const selectModel = async (skill: OrchestratedSkillName, modelId: string) => {
     const agent = deps.getAgent();
     if (!agent) {
       appendNotice("No agent configured. Open settings to choose one.");

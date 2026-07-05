@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import planSkill from "../../skills/shipper-plan/SKILL.md" with { type: "text" };
 import buildSkill from "../../skills/shipper-build/SKILL.md" with { type: "text" };
@@ -38,9 +39,33 @@ const SKILLS = {
 
 export type SkillName = keyof typeof SKILLS;
 
+export type OrchestratedSkillName = "shipper-plan" | "shipper-build" | "shipper-spike";
+
 export const SKILL_NAMES = Object.keys(SKILLS) as SkillName[];
 
-function skillDirForAgent(agent: AgentKind, name: SkillName): string {
+export type InstallSummary = {
+  agent: AgentKind;
+  root: string;
+};
+
+export function globalSkillsRoot(agent: AgentKind): string {
+  switch (agent) {
+    case "claude":
+      return join(homedir(), ".claude", "skills");
+    case "cursor":
+      return join(homedir(), ".cursor", "skills");
+    case "opencode": {
+      const configHome = process.env["XDG_CONFIG_HOME"] ?? join(homedir(), ".config");
+      return join(configHome, "opencode", "skills");
+    }
+  }
+}
+
+export function globalSkillPath(agent: AgentKind, name: SkillName): string {
+  return join(globalSkillsRoot(agent), name, "SKILL.md");
+}
+
+function repoSkillDirForAgent(agent: AgentKind, name: SkillName): string {
   switch (agent) {
     case "claude":
       return join(".claude", "skills", name);
@@ -51,20 +76,11 @@ function skillDirForAgent(agent: AgentKind, name: SkillName): string {
   }
 }
 
-function skillPathForAgent(agent: AgentKind, name: SkillName): string {
-  return join(skillDirForAgent(agent, name), "SKILL.md");
-}
-
-async function writeSkillIfChanged(
-  targetRepo: string,
-  relativePath: string,
-  content: string,
-): Promise<void> {
-  const fullPath = join(targetRepo, relativePath);
-  await mkdir(dirname(fullPath), { recursive: true });
+async function writeSkillIfChanged(absolutePath: string, content: string): Promise<void> {
+  await mkdir(dirname(absolutePath), { recursive: true });
 
   try {
-    const existing = await readFile(fullPath, "utf8");
+    const existing = await readFile(absolutePath, "utf8");
     if (existing === content) {
       return;
     }
@@ -72,16 +88,34 @@ async function writeSkillIfChanged(
     // file missing — write it
   }
 
-  await writeFile(fullPath, content, "utf8");
+  await writeFile(absolutePath, content, "utf8");
 }
 
-export async function installSkills(targetRepo: string, agent: AgentKind): Promise<void> {
-  for (const name of Object.keys(SKILLS) as SkillName[]) {
-    for (const { file, content } of SKILLS[name]) {
-      const relativePath = join(skillDirForAgent(agent, name), file);
-      await writeSkillIfChanged(targetRepo, relativePath, content);
+export async function installSkillsGlobally(agents: AgentKind[]): Promise<InstallSummary[]> {
+  const summaries: InstallSummary[] = [];
+
+  for (const agent of agents) {
+    const root = globalSkillsRoot(agent);
+    for (const name of SKILL_NAMES) {
+      for (const { file, content } of SKILLS[name]) {
+        const absolutePath = join(root, name, file);
+        await writeSkillIfChanged(absolutePath, content);
+      }
+    }
+    summaries.push({ agent, root });
+  }
+
+  return summaries;
+}
+
+export async function removeRepoSkills(targetRepo: string): Promise<void> {
+  const agents: AgentKind[] = ["claude", "cursor", "opencode"];
+  for (const name of SKILL_NAMES) {
+    for (const agent of agents) {
+      const path = join(targetRepo, repoSkillDirForAgent(agent, name));
+      await rm(path, { recursive: true, force: true });
     }
   }
 }
 
-export { SKILLS, skillPathForAgent };
+export { SKILLS };

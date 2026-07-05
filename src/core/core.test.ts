@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   getProjectConfig,
   resolveDefaultModel,
@@ -9,7 +9,12 @@ import {
   setProjectConfig,
 } from "./config.ts";
 import { buildSpikePrompt } from "./prompts.ts";
-import { installSkills, SKILLS, skillPathForAgent } from "./skills.ts";
+import {
+  SKILLS,
+  globalSkillPath,
+  installSkillsGlobally,
+  removeRepoSkills,
+} from "./skills.ts";
 
 describe("config", () => {
   it("returns empty config for unknown projects", async () => {
@@ -57,67 +62,135 @@ describe("model config", () => {
   });
 });
 
-describe("installSkills", () => {
-  let dir: string;
+describe("installSkillsGlobally", () => {
+  let homeDir: string;
+  let previousHome: string | undefined;
+  let previousXdg: string | undefined;
+
+  beforeEach(async () => {
+    previousHome = process.env["HOME"];
+    previousXdg = process.env["XDG_CONFIG_HOME"];
+    homeDir = await mkdtemp(join(tmpdir(), "shipper-home-"));
+    process.env["HOME"] = homeDir;
+    delete process.env["XDG_CONFIG_HOME"];
+  });
 
   afterEach(async () => {
-    if (dir) await rm(dir, { recursive: true, force: true });
+    if (previousHome === undefined) {
+      delete process.env["HOME"];
+    } else {
+      process.env["HOME"] = previousHome;
+    }
+    if (previousXdg === undefined) {
+      delete process.env["XDG_CONFIG_HOME"];
+    } else {
+      process.env["XDG_CONFIG_HOME"] = previousXdg;
+    }
+    if (homeDir) await rm(homeDir, { recursive: true, force: true });
   });
 
-  it("writes embedded skills for each agent kind", async () => {
-    dir = await mkdtemp(join(tmpdir(), "shipper-skills-"));
+  it("writes all five skills with all files under the claude global directory", async () => {
+    const summaries = await installSkillsGlobally(["claude"]);
+    expect(summaries).toEqual([{ agent: "claude", root: join(homeDir, ".claude", "skills") }]);
 
-    await installSkills(dir, "claude");
-    const claudePath = join(dir, skillPathForAgent("claude", "shipper-plan"));
-    const content = await readFile(claudePath, "utf8");
-    expect(content).toBe(SKILLS["shipper-plan"][0].content);
+    for (const name of Object.keys(SKILLS) as (keyof typeof SKILLS)[]) {
+      for (const { file, content } of SKILLS[name]) {
+        const path = join(homeDir, ".claude", "skills", name, file);
+        expect(await readFile(path, "utf8")).toBe(content);
+      }
+    }
   });
 
-  it("is idempotent when content matches", async () => {
-    dir = await mkdtemp(join(tmpdir(), "shipper-skills-"));
-    await installSkills(dir, "cursor");
-    await installSkills(dir, "cursor");
-    const path = join(dir, skillPathForAgent("cursor", "shipper-build"));
+  it("writes opencode skills under .config/opencode/skills by default", async () => {
+    await installSkillsGlobally(["opencode"]);
+
+    for (const { file, content } of SKILLS["shipper-plan"]) {
+      const path = join(homeDir, ".config", "opencode", "skills", "shipper-plan", file);
+      expect(await readFile(path, "utf8")).toBe(content);
+    }
+  });
+
+  it("respects XDG_CONFIG_HOME for opencode", async () => {
+    const xdgHome = await mkdtemp(join(tmpdir(), "shipper-xdg-"));
+    process.env["XDG_CONFIG_HOME"] = xdgHome;
+
+    await installSkillsGlobally(["opencode"]);
+
+    const path = join(xdgHome, "opencode", "skills", "shipper-build", "SKILL.md");
+    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"][0].content);
+
+    await rm(xdgHome, { recursive: true, force: true });
+  });
+
+  it("is idempotent and overwrites edited files back to embedded content", async () => {
+    await installSkillsGlobally(["cursor"]);
+    await installSkillsGlobally(["cursor"]);
+
+    const path = join(homeDir, ".cursor", "skills", "shipper-build", "SKILL.md");
+    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"][0].content);
+
+    await writeFile(path, "stale content", "utf8");
+    await installSkillsGlobally(["cursor"]);
     expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"][0].content);
   });
+});
 
-  it("writes all three shipper-spike files for cursor", async () => {
-    dir = await mkdtemp(join(tmpdir(), "shipper-spike-skills-"));
+describe("removeRepoSkills", () => {
+  let repoDir: string;
 
-    await installSkills(dir, "cursor");
-
-    for (const { file, content } of SKILLS["shipper-spike"]) {
-      const path = join(dir, ".cursor", "skills", "shipper-spike", file);
-      expect(await readFile(path, "utf8")).toBe(content);
-    }
+  afterEach(async () => {
+    if (repoDir) await rm(repoDir, { recursive: true, force: true });
   });
 
-  it("writes shipper-ship SKILL.md for cursor", async () => {
-    dir = await mkdtemp(join(tmpdir(), "shipper-ship-skills-"));
+  it("deletes shipper-owned skill dirs but leaves unrelated skills untouched", async () => {
+    repoDir = await mkdtemp(join(tmpdir(), "shipper-repo-cleanup-"));
 
-    await installSkills(dir, "cursor");
+    const shipperPlan = join(repoDir, ".cursor", "skills", "shipper-plan");
+    const customSkill = join(repoDir, ".cursor", "skills", "my-custom-skill");
+    const claudeShipper = join(repoDir, ".claude", "skills", "shipper-build");
+    const opencodeShipper = join(repoDir, ".opencode", "skill", "shipper-spike");
 
-    const path = join(dir, skillPathForAgent("cursor", "shipper-ship"));
-    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-ship"][0].content);
-  });
+    await mkdir(shipperPlan, { recursive: true });
+    await writeFile(join(shipperPlan, "SKILL.md"), "old", "utf8");
+    await mkdir(customSkill, { recursive: true });
+    await writeFile(join(customSkill, "SKILL.md"), "keep me", "utf8");
+    await mkdir(claudeShipper, { recursive: true });
+    await writeFile(join(claudeShipper, "SKILL.md"), "old", "utf8");
+    await mkdir(opencodeShipper, { recursive: true });
+    await writeFile(join(opencodeShipper, "SKILL.md"), "old", "utf8");
 
-  it("writes all three shipper-bug files for cursor", async () => {
-    dir = await mkdtemp(join(tmpdir(), "shipper-bug-skills-"));
+    await removeRepoSkills(repoDir);
 
-    await installSkills(dir, "cursor");
-
-    for (const { file, content } of SKILLS["shipper-bug"]) {
-      const path = join(dir, ".cursor", "skills", "shipper-bug", file);
-      expect(await readFile(path, "utf8")).toBe(content);
-    }
+    await expect(readFile(join(shipperPlan, "SKILL.md"), "utf8")).rejects.toThrow();
+    await expect(readFile(join(claudeShipper, "SKILL.md"), "utf8")).rejects.toThrow();
+    await expect(readFile(join(opencodeShipper, "SKILL.md"), "utf8")).rejects.toThrow();
+    expect(await readFile(join(customSkill, "SKILL.md"), "utf8")).toBe("keep me");
   });
 });
 
 describe("buildSpikePrompt", () => {
+  let homeDir: string;
+  let previousHome: string | undefined;
+
+  beforeEach(async () => {
+    previousHome = process.env["HOME"];
+    homeDir = await mkdtemp(join(tmpdir(), "shipper-prompt-home-"));
+    process.env["HOME"] = homeDir;
+  });
+
+  afterEach(async () => {
+    if (previousHome === undefined) {
+      delete process.env["HOME"];
+    } else {
+      process.env["HOME"] = previousHome;
+    }
+    if (homeDir) await rm(homeDir, { recursive: true, force: true });
+  });
+
   it("references the shipper-spike SKILL.md path and includes the description", () => {
     const description = "Add dark mode toggle";
     const prompt = buildSpikePrompt(description, "cursor");
-    expect(prompt).toContain(skillPathForAgent("cursor", "shipper-spike"));
+    expect(prompt).toContain(globalSkillPath("cursor", "shipper-spike"));
     expect(prompt).toContain(description);
     expect(prompt).toContain("Run a Shipper Spike");
   });
