@@ -9,6 +9,8 @@ phase_commits:
   3: 453084b
   4: 2c67831
 completed_at: "2026-07-05T08:48:00-05:00"
+pr_url: https://github.com/shipper-is/shipper/pull/12
+pr_number: 12
 ---
 
 # Git as a First-Class Citizen of the Shipper Framework
