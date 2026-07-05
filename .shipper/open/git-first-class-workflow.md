@@ -6,6 +6,7 @@ started_at: "2026-07-05T08:35:00-05:00"
 phase_commits:
   1: 11f6dc1
   2: 96ea099
+  3: 453084b
 ---
 
 # Git as a First-Class Citizen of the Shipper Framework
@@ -231,7 +232,14 @@ Console/orchestrator (plumbing + UI):
   - Add `Base` and `Worktree` rows to `PlanMetaPanel` following the existing `plan-meta-row` pattern (render only when non-null, like `branch`). Update `hasMeta` to include the new fields.
   - In the phase tracker, when `plan.meta.phaseCommits[phase.number]` exists, render the short sha as a `<code>` element in the phase heading (after the counts). No links — the console does not know the remote URL, and guessing it is out of scope.
 - Styling: reuse existing classes in [src/web/styles.css](/Users/matt/Documents/shipper/src/web/styles.css); add at most a small class for the sha badge consistent with the current look.
-- [ ] Render `baseBranch` and `worktree` rows in `PlanMetaPanel`
-- [ ] Render per-phase commit shas in the phase tracker
-- [ ] Verify with the demo/dev console (`bun run dev`) against a hand-written plan file containing the full new frontmatter, including a worktree-located plan
-- [ ] Run `bun run typecheck`, `bun run lint`, and `bun run test`
+- [x] Render `baseBranch` and `worktree` rows in `PlanMetaPanel`
+- [x] Render per-phase commit shas in the phase tracker
+- [x] Verify with the demo/dev console (`bun run dev`) against a hand-written plan file containing the full new frontmatter, including a worktree-located plan
+- [x] Run `bun run typecheck`, `bun run lint`, and `bun run test`
+
+### Completion Notes
+
+- `PlanMetaPanel` shows `Base` and `Worktree` rows when `baseBranch` / `worktree` are set in frontmatter, following the existing branch row pattern.
+- Phase tracker renders each phase's short commit sha from `meta.phaseCommits` as a `phase-commit-sha` badge after the task counts.
+- Verified `loadPlansSnapshot` surfaces `baseBranch` and `phaseCommits` for the live `git-first-class-workflow.md` plan (phases 1–3 shas render; no worktree on this plan).
+- `bun run typecheck`, `bun run lint`, and `bun run test` (110 tests) pass.
