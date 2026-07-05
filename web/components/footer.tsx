@@ -12,7 +12,13 @@ export function Footer() {
           <CopyInstallCommand />
         </div>
 
-        <p className="mt-8">
+        <div className="mt-8 flex items-center gap-6">
+          <Link
+            href="/docs"
+            className="font-mono text-sm underline underline-offset-4 transition-colors hover:text-white/60"
+          >
+            Docs
+          </Link>
           <Link
             href={GITHUB_URL}
             target="_blank"
@@ -21,7 +27,7 @@ export function Footer() {
           >
             github.com/shipper-is/shipper
           </Link>
-        </p>
+        </div>
       </div>
     </footer>
   );

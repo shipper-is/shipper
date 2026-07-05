@@ -2,6 +2,7 @@
 type: plan
 branch: shipper/marketing-docs-pages
 started_at: "2026-07-04T23:36:00-05:00"
+completed_at: "2026-07-04T23:55:00-05:00"
 ---
 
 # Marketing Docs Pages + Bundle All Five Skills
@@ -137,10 +138,15 @@ Marketing site:
 
 ### Section 1: Hero and footer links
 
-- [ ] In [web/components/hero.tsx](/Users/matt/Documents/shipper/web/components/hero.tsx) (read the current working-tree version first — it has uncommitted edits), add a "Docs" link alongside the existing "View on GitHub" link, using `next/link` to `/docs` and the same mono underline classes. Place both links in a single row (e.g. a flex container with a gap) rather than stacking paragraphs.
-- [ ] In [web/components/footer.tsx](/Users/matt/Documents/shipper/web/components/footer.tsx), add a "Docs" link to `/docs` next to the GitHub link, same styling.
+- [x] In [web/components/hero.tsx](/Users/matt/Documents/shipper/web/components/hero.tsx) (read the current working-tree version first — it has uncommitted edits), add a "Docs" link alongside the existing "View on GitHub" link, using `next/link` to `/docs` and the same mono underline classes. Place both links in a single row (e.g. a flex container with a gap) rather than stacking paragraphs.
+- [x] In [web/components/footer.tsx](/Users/matt/Documents/shipper/web/components/footer.tsx), add a "Docs" link to `/docs` next to the GitHub link, same styling.
 
 ### Section 2: Verification
 
-- [ ] Run `bun run build` inside `web/` and confirm it succeeds with the three new routes statically generated.
-- [ ] Run `bun run dev` inside `web/` and manually spot-check `/`, `/docs`, `/docs/console`, and `/docs/skills` render correctly with the black/white styling and working links.
+- [x] Run `bun run build` inside `web/` and confirm it succeeds with the three new routes statically generated.
+- [x] Run `bun run dev` inside `web/` and manually spot-check `/`, `/docs`, `/docs/console`, and `/docs/skills` render correctly with the black/white styling and working links.
+
+#### Completion Notes
+
+- Hero and footer now expose `/docs` in a horizontal flex row (`gap-6`) beside the existing GitHub links; Docs uses internal `next/link`, GitHub stays external.
+- `bun run build` in `web/` passes with all seven routes statically generated (`/`, `/docs`, `/docs/console`, `/docs/skills`, plus `_not-found`).
