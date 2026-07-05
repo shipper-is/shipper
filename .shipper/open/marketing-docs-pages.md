@@ -99,12 +99,12 @@ Marketing site:
 
 ### Section 1: Docs index and shared chrome
 
-- [ ] Create `web/app/docs/layout.tsx` — a thin wrapper that renders a small top strip inside the standard section padding: a link back to `/` ("Shipper" wordmark or "← Home") and inline links to `/docs/console` and `/docs/skills` using the standard mono underline link style. Keep it minimal; this is not a full nav bar.
-- [ ] Create `web/app/docs/page.tsx` — heading ("Docs"), one sentence framing the two ways to use Shipper, and two `border border-white p-6` cards linking to `/docs/console` ("Use the web console") and `/docs/skills` ("Use the skills directly"). Export `metadata` with an appropriate title.
+- [x] Create `web/app/docs/layout.tsx` — a thin wrapper that renders a small top strip inside the standard section padding: a link back to `/` ("Shipper" wordmark or "← Home") and inline links to `/docs/console` and `/docs/skills` using the standard mono underline link style. Keep it minimal; this is not a full nav bar.
+- [x] Create `web/app/docs/page.tsx` — heading ("Docs"), one sentence framing the two ways to use Shipper, and two `border border-white p-6` cards linking to `/docs/console` ("Use the web console") and `/docs/skills` ("Use the skills directly"). Export `metadata` with an appropriate title.
 
 ### Section 2: Console docs page
 
-- [ ] Create `web/app/docs/console/page.tsx` with `metadata` and this super-simple structure, sourcing copy from [README.md](/Users/matt/Documents/shipper/README.md):
+- [x] Create `web/app/docs/console/page.tsx` with `metadata` and this super-simple structure, sourcing copy from [README.md](/Users/matt/Documents/shipper/README.md):
   - **Install** — reuse the `CopyInstallCommand` component.
   - **Run** — `shipper` in your repo opens `http://shipper.localhost`; first run picks your agent (Claude Code, Cursor CLI, or opencode) and auto-installs all five skills into the repo.
   - **Plan** — press `n`, describe the feature, answer clarifying questions; a plan lands in `.shipper/open/`.
@@ -114,7 +114,7 @@ Marketing site:
 
 ### Section 3: Skills docs page
 
-- [ ] Create `web/app/docs/skills/page.tsx` with `metadata` and this structure:
+- [x] Create `web/app/docs/skills/page.tsx` with `metadata` and this structure:
   - One-paragraph framing: every skill the console uses is a plain agent skill installed in your repo — you can invoke them directly from Claude Code, Cursor, or opencode without running the console.
   - Where they live: installed automatically on first `shipper` run into `.claude/skills/`, `.cursor/skills/`, or `.opencode/skill/`.
   - Five skill cards (reuse the workflow card style) each with the mono skill name, a one-liner (adapt from [web/components/workflow.tsx](/Users/matt/Documents/shipper/web/components/workflow.tsx) and each skill's frontmatter description), and an example invocation, e.g. "use shipper-plan to plan &lt;feature&gt;":
@@ -124,6 +124,11 @@ Marketing site:
     - `shipper-ship` — turn a completed plan into a reviewable PR via `gh`.
     - `shipper-bug` — evidence-first bug catalog and fix workflow in `.shipper/bugs/`.
   - A short closing note that plans are committed markdown, so console users and direct-skill users see the same `.shipper/` files.
+
+#### Completion Notes
+
+- Four new routes under `web/app/docs/`: shared layout with minimal nav, index with two link cards, console walkthrough (numbered steps + `CopyInstallCommand`), and skills page (five cards in a 2-column grid).
+- `bun run build` in `web/` passes; all three docs routes statically generated. Hero/footer Docs links are Phase 3.
 
 ## Phase 3: Link the docs from the existing site
 
