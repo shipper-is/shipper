@@ -11,6 +11,8 @@ Once it is determined which Phase you'll be working on your job is to read over 
 
 You should quickly check to see if a git repo is initialized in this directory. If it is you should make sure you're on a feature branch following this naming convention "shipper/<name-of-the-feature>". Each Phase of the Shipper plan should get its own commit on this branch so that it is easy to track, revert, and publish our changes.
 
+When you begin executing a Phase, ensure the plan file has a YAML frontmatter block at the very top of the file (before the `#` title). If `branch` or `started_at` are not already set, add them: `branch` is the current git branch name, and `started_at` is the current time as a quoted ISO 8601 timestamp (e.g. `"2026-07-04T22:15:00-05:00"`). Never overwrite `branch` or `started_at` if they already exist — later phases will see frontmatter from earlier phases and must leave those values unchanged.
+
 From there do your own context gathering/research from the codebase to gain a better understanding of what you'll be needing to do in the execution of the Phase you've been assigned to.
 
 If you need any further clarifications from the user you can use the tool you have to ask the user a question again to gather that information from the user.
@@ -23,4 +25,16 @@ Once you've completed your Phase execution then you'll make sure all items are c
 
 Leave behind a concise "Completion Notes" section at the end of the Phase with important details that future engineers should be keenly aware of when implementing future Phases.
 
-If you have completed the last Phase of the plan and the plan is complete you should move the plan markdown file from the "open" to "done" folders.
+If you have completed the last Phase of the plan and the plan is complete, set `completed_at` in the plan file's YAML frontmatter to the current time as a quoted ISO 8601 timestamp, then move the plan markdown file from the "open" to "done" folders.
+
+The plan frontmatter block looks like this (all keys are optional; `pr_url` and `pr_number` are added later by the shipper-ship skill after the PR is created):
+
+```yaml
+---
+branch: shipper/plan-completion-metadata
+started_at: "2026-07-04T22:15:00-05:00"
+completed_at: "2026-07-05T01:40:00-05:00"
+pr_url: https://github.com/owner/repo/pull/123
+pr_number: 123
+---
+```

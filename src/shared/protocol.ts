@@ -22,6 +22,14 @@ export type PlanPhaseDto = {
   sections: PlanPhaseSectionDto[];
 };
 
+export type PlanMetaDto = {
+  branch: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  prUrl: string | null;
+  prNumber: number | null;
+};
+
 export type PlanSummary = {
   filename: string;
   folder: "open" | "done";
@@ -29,6 +37,7 @@ export type PlanSummary = {
   progress: PlanProgressDto;
   phases: PlanPhaseDto[];
   rawMarkdown: string;
+  meta: PlanMetaDto;
 };
 
 export type PlansSnapshot = {
@@ -285,6 +294,12 @@ export type ClientTerminalOpen = {
   type: "terminal-open";
 };
 
+export type ClientSavePlan = {
+  type: "save-plan";
+  planFilename: string;
+  markdown: string;
+};
+
 export type ClientMessage =
   | ClientStartBuild
   | ClientStartPlan
@@ -298,7 +313,8 @@ export type ClientMessage =
   | ClientRescanAgents
   | ClientTerminalInput
   | ClientTerminalResize
-  | ClientTerminalOpen;
+  | ClientTerminalOpen
+  | ClientSavePlan;
 
 export const idleRunState = (): RunState => ({
   status: "idle",
@@ -352,6 +368,11 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
     rows: z.number().int().positive(),
   }),
   z.object({ type: z.literal("terminal-open") }),
+  z.object({
+    type: z.literal("save-plan"),
+    planFilename: z.string().min(1),
+    markdown: z.string(),
+  }),
 ]);
 
 export function parseClientMessage(raw: unknown): ClientMessage | null {

@@ -45,3 +45,5 @@ Guidance on tone and length — the description must not read like AI prose:
 - Write it like the author would explain the change to a teammate at their desk, including the parts they are unsure about.
 
 Utilize the command line to create this PR and return a link to the PR for the user to be able to click on and review themselves.
+
+After the PR is created, update the YAML frontmatter of the associated plan file in `.shipper/done/` with `pr_url` (the full canonical GitHub PR URL, not a comparison or branch URL) and `pr_number` (the PR number as an integer). These fields power the Shipper UI's PR link, so they must be the real PR URL returned by `gh pr create`. If the plan file has no frontmatter block yet, create one at the very top of the file before the `#` title; if frontmatter already exists, add or update only `pr_url` and `pr_number` without changing other keys.

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   isPhaseComplete,
@@ -26,6 +26,7 @@ export function planFileToSummary(plan: PlanFile, rawMarkdown: string): PlanSumm
     },
     phases: plan.parsed.phases.map(phaseToDto),
     rawMarkdown,
+    meta: plan.meta,
   };
 }
 
@@ -68,11 +69,38 @@ export async function loadPlansSnapshot(repoPath: string): Promise<PlansSnapshot
   return { open, done };
 }
 
+export async function savePlanMarkdown(
+  repoPath: string,
+  plans: PlansSnapshot,
+  planFilename: string,
+  markdown: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const summary =
+    plans.open.find((plan) => plan.filename === planFilename) ??
+    plans.done.find((plan) => plan.filename === planFilename);
+  if (!summary) {
+    return { ok: false, error: "Plan not found." };
+  }
+  if (summary.folder !== "open") {
+    return { ok: false, error: "Only open plans can be edited." };
+  }
+  await writeFile(
+    join(repoPath, ".shipper", summary.folder, summary.filename),
+    markdown,
+    "utf8",
+  );
+  return { ok: true };
+}
+
 export type PlansWatcher = {
   getPlans: () => PlansSnapshot;
   start: () => Promise<void>;
   stop: () => Promise<void>;
   refresh: () => Promise<PlansSnapshot>;
+  savePlan: (
+    planFilename: string,
+    markdown: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 export function createPlansWatcher(
@@ -100,6 +128,13 @@ export function createPlansWatcher(
 
   return {
     getPlans: () => current,
+    savePlan: async (planFilename, markdown) => {
+      const result = await savePlanMarkdown(repoPath, current, planFilename, markdown);
+      if (result.ok) {
+        await refresh();
+      }
+      return result;
+    },
     refresh: async () => {
       await refresh();
       return current;

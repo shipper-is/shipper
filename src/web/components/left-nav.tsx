@@ -53,7 +53,29 @@ function PlanRow({
         />
       </div>
       <span className="plan-row-meta">
-        {plan.progress.totalChecked}/{total} · {formatPhaseLine(plan)}
+        <span className="plan-row-meta-text">
+          {plan.progress.totalChecked}/{total} · {formatPhaseLine(plan)}
+        </span>
+        {plan.meta.prUrl !== null && (
+          <span
+            className="pr-badge"
+            role="link"
+            tabIndex={0}
+            onClick={(event) => {
+              event.stopPropagation();
+              window.open(plan.meta.prUrl!, "_blank", "noopener");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                window.open(plan.meta.prUrl!, "_blank", "noopener");
+              }
+            }}
+          >
+            PR #{plan.meta.prNumber ?? "?"}
+          </span>
+        )}
       </span>
     </button>
   );

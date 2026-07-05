@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { getPlanProgress, parsePlan, type PlanFile } from "../core/plan-store.ts";
+import {
+  getPlanProgress,
+  parsePlan,
+  emptyPlanMeta,
+  parseFrontmatter,
+  type PlanFile,
+} from "../core/plan-store.ts";
 import { planFileToSummary, phaseToDto } from "./plans-watcher.ts";
 import { parseClientMessage } from "../shared/protocol.ts";
 
@@ -25,6 +31,13 @@ describe("parseClientMessage", () => {
         planFilename: "foo.md",
       }),
     ).toEqual({ type: "start-build", planFilename: "foo.md" });
+    expect(
+      parseClientMessage({
+        type: "save-plan",
+        planFilename: "foo.md",
+        markdown: "# Plan",
+      }),
+    ).toEqual({ type: "save-plan", planFilename: "foo.md", markdown: "# Plan" });
   });
 
   it("rejects unknown or malformed messages", () => {
@@ -44,6 +57,7 @@ describe("planFileToSummary", () => {
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
+      meta: emptyPlanMeta(),
     };
 
     const summary = planFileToSummary(plan, SAMPLE_MARKDOWN);
@@ -57,6 +71,39 @@ describe("planFileToSummary", () => {
     expect(summary.phases).toHaveLength(1);
     expect(summary.phases[0]!.complete).toBe(true);
     expect(summary.phases[0]!.sections[0]!.title).toBe("Section 1.1");
+    expect(summary.meta).toEqual(emptyPlanMeta());
+  });
+
+  it("passes through frontmatter meta on the DTO", () => {
+    const markdownWithMeta = `---
+branch: shipper/plan-completion-metadata
+started_at: "2026-07-04T22:15:00-05:00"
+completed_at: "2026-07-05T01:40:00-05:00"
+pr_url: https://github.com/owner/repo/pull/123
+pr_number: 123
+---
+${SAMPLE_MARKDOWN}`;
+    const parsed = parsePlan(markdownWithMeta);
+    const meta = parseFrontmatter(markdownWithMeta);
+    const plan: PlanFile = {
+      filename: "done-plan.md",
+      path: "/repo/.shipper/done/done-plan.md",
+      folder: "done",
+      title: parsed.title,
+      progress: getPlanProgress(parsed),
+      parsed,
+      meta,
+    };
+
+    const summary = planFileToSummary(plan, markdownWithMeta);
+
+    expect(summary.meta).toEqual({
+      branch: "shipper/plan-completion-metadata",
+      startedAt: "2026-07-04T22:15:00-05:00",
+      completedAt: "2026-07-05T01:40:00-05:00",
+      prUrl: "https://github.com/owner/repo/pull/123",
+      prNumber: 123,
+    });
   });
 });
 

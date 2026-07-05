@@ -1,9 +1,12 @@
-import { useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import type { ClientMessage, PlanSummary, RunState, AgentQuestion, ChatEntry } from "../../shared/protocol.ts";
 import { ChatLog } from "./chat-log.tsx";
 import { ChatInput } from "./chat-input.tsx";
+import { PlanDocumentView } from "./plan-document-view.tsx";
 import { PlanView } from "./plan-view.tsx";
 import { QuestionCard } from "./question-card.tsx";
+
+type MainTab = "phases" | "plan" | "build";
 
 type MainPaneProps = {
   plan: PlanSummary | null;
@@ -38,7 +41,7 @@ export function MainPane({
   createdPlanFilename,
   onBuildCreatedPlan,
 }: MainPaneProps) {
-  const [tab, setTab] = useState<"overview" | "raw">("overview");
+  const [tab, setTab] = useState<MainTab>("phases");
   const [description, setDescription] = useState("");
   const [confirmStop, setConfirmStop] = useState(false);
 
@@ -47,6 +50,18 @@ export function MainPane({
     runState.status === "waiting-answer" ||
     runState.status === "stopping";
   const isIdle = runState.status === "idle";
+
+  useEffect(() => {
+    if (isRunning) {
+      setTab("build");
+    }
+  }, [isRunning]);
+
+  useEffect(() => {
+    if (isIdle && plan) {
+      setTab("phases");
+    }
+  }, [plan?.filename, isIdle]);
 
   if (composingNewPlan) {
     return (
@@ -104,12 +119,20 @@ export function MainPane({
   }
 
   const displayPlan = plan;
-  const showPlanDetails = displayPlan && isIdle;
-  const showChat = isRunning || chatEntries.length > 0 || pendingQuestion;
-  const showChatInput = Boolean(displayPlan) || isRunning || chatEntries.length > 0;
+  const showTabs = Boolean(displayPlan) || isRunning;
+  const showChatInput =
+    tab === "build" && (Boolean(displayPlan) || isRunning || chatEntries.length > 0);
+  const canEditPlan = Boolean(displayPlan && isIdle && displayPlan.folder === "open");
+  const showBuildKickoff =
+    tab === "build" &&
+    isIdle &&
+    displayPlan &&
+    displayPlan.folder === "open" &&
+    chatEntries.length === 0 &&
+    !pendingQuestion;
 
   return (
-    <main className="main-pane main-with-chat">
+    <main className="main-pane main-with-tabs">
       <header className="main-pane-header">
         <div>
           <h1>{displayPlan?.title ?? (runState.skill === "plan" ? "Creating plan…" : "Build in progress")}</h1>
@@ -140,11 +163,14 @@ export function MainPane({
               {confirmStop ? "Confirm stop" : "Stop"}
             </button>
           )}
-          {showPlanDetails && displayPlan.folder === "open" && (
+          {isIdle && displayPlan?.folder === "open" && tab !== "build" && (
             <button
               type="button"
               className="primary-button"
-              onClick={() => send({ type: "start-build", planFilename: displayPlan.filename })}
+              onClick={() => {
+                setTab("build");
+                send({ type: "start-build", planFilename: displayPlan.filename });
+              }}
             >
               Build
             </button>
@@ -152,72 +178,105 @@ export function MainPane({
         </div>
       </header>
 
-      {showPlanDetails && (
+      {showTabs && (
         <div className="main-tabs">
           <button
             type="button"
-            className={tab === "overview" ? "active" : ""}
-            onClick={() => setTab("overview")}
+            className={tab === "phases" ? "active" : ""}
+            onClick={() => setTab("phases")}
+            disabled={!displayPlan}
           >
-            Overview
+            Phases
           </button>
           <button
             type="button"
-            className={tab === "raw" ? "active" : ""}
-            onClick={() => setTab("raw")}
+            className={tab === "plan" ? "active" : ""}
+            onClick={() => setTab("plan")}
+            disabled={!displayPlan}
           >
-            Raw markdown
+            Plan
+          </button>
+          <button
+            type="button"
+            className={tab === "build" ? "active" : ""}
+            onClick={() => setTab("build")}
+          >
+            Build
+            {isRunning && <span className="tab-live-dot" aria-label="Agent running" />}
           </button>
         </div>
       )}
 
-      {showPlanDetails && tab === "overview" && (
-        <PlanView plan={displayPlan} activePhaseNumber={runState.activePhaseNumber} />
-      )}
-
-      {showPlanDetails && tab === "raw" && (
-        <pre className="raw-markdown">{displayPlan.rawMarkdown}</pre>
-      )}
-
-      {showChat && (
-      <section className="chat-section">
-        <ChatLog entries={chatEntries} paused={Boolean(pendingQuestion)} />
-        {pendingQuestion && (
-          <QuestionCard
-            question={pendingQuestion}
-            onSubmit={(msg) => send(msg)}
-          />
+      <div className="main-tab-panel">
+        {tab === "phases" && displayPlan && (
+          <PlanView plan={displayPlan} activePhaseNumber={runState.activePhaseNumber} />
         )}
-        {createdPlanFilename && displayPlan?.filename === createdPlanFilename && isIdle && (
-          <div className="build-now-banner">
-            <span>Plan ready.</span>
-            <button
-              type="button"
-              className="primary-button"
-              onClick={onBuildCreatedPlan}
-            >
-              Build it now
-            </button>
-          </div>
+
+        {tab === "plan" && displayPlan && (
+          <PlanDocumentView plan={displayPlan} editable={canEditPlan} send={send} />
         )}
-      </section>
-      )}
 
-      {showChatInput && queuedMessages.length > 0 && (
-        <p className="queued-messages-banner">
-          {queuedMessages.length} message{queuedMessages.length === 1 ? "" : "s"} queued for the
-          next agent session.
-        </p>
-      )}
+        {tab === "build" && (
+          <section className="build-tab">
+            {showBuildKickoff && (
+              <div className="build-kickoff">
+                <p>No build session yet for this plan.</p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => send({ type: "start-build", planFilename: displayPlan.filename })}
+                >
+                  Start build
+                </button>
+              </div>
+            )}
 
-      {showChatInput && (
-        <ChatInput
-          ref={chatInputRef}
-          disabled={Boolean(pendingQuestion)}
-          disabledHint="Answer the agent's question before sending a message."
-          onSend={(text) => send({ type: "send-message", text })}
-        />
-      )}
+            {(isRunning || chatEntries.length > 0 || pendingQuestion) && (
+              <div className="chat-section build-chat">
+                <ChatLog entries={chatEntries} paused={Boolean(pendingQuestion)} />
+                {pendingQuestion && (
+                  <QuestionCard
+                    question={pendingQuestion}
+                    onSubmit={(msg) => send(msg)}
+                  />
+                )}
+              </div>
+            )}
+
+            {createdPlanFilename &&
+              displayPlan?.filename === createdPlanFilename &&
+              isIdle &&
+              chatEntries.length > 0 && (
+                <div className="build-now-banner">
+                  <span>Plan ready.</span>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={onBuildCreatedPlan}
+                  >
+                    Build it now
+                  </button>
+                </div>
+              )}
+
+            {showChatInput && queuedMessages.length > 0 && (
+              <p className="queued-messages-banner">
+                {queuedMessages.length} message{queuedMessages.length === 1 ? "" : "s"} queued for the
+                next agent session.
+              </p>
+            )}
+
+            {showChatInput && (
+              <ChatInput
+                ref={chatInputRef}
+                disabled={Boolean(pendingQuestion)}
+                disabledHint="Answer the agent's question before sending a message."
+                onSend={(text) => send({ type: "send-message", text })}
+              />
+            )}
+          </section>
+        )}
+      </div>
     </main>
   );
 }

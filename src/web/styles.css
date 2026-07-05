@@ -4,6 +4,7 @@
   --bg-elevated: #000000;
   --bg-hover: rgba(255, 255, 255, 0.08);
   --border: rgba(255, 255, 255, 0.2);
+  --pane-border: rgba(255, 255, 255, 0.35);
   --text: #ffffff;
   --text-dim: rgba(255, 255, 255, 0.6);
   --accent: #ffffff;
@@ -219,6 +220,7 @@ input:focus-visible,
   grid-template-columns: var(--nav-width) 1fr var(--terminal-width);
   min-height: 0;
   overflow: hidden;
+  border-top: 1px solid var(--pane-border);
 }
 
 .app-shell.terminal-collapsed .workspace {
@@ -226,13 +228,14 @@ input:focus-visible,
 }
 
 .left-nav {
-  border-right: 1px solid var(--border);
+  border-right: 1px solid var(--pane-border);
   background: var(--bg-elevated);
   overflow: auto;
   padding: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.5);
 }
 
 .new-plan-button {
@@ -315,14 +318,50 @@ input:focus-visible,
 }
 
 .plan-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   font-size: 0.75rem;
   color: var(--text-dim);
 }
 
+.pr-badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pr-badge:hover,
+.pr-badge:focus-visible {
+  background: var(--accent);
+  color: var(--bg);
+  outline: none;
+}
+
 .main-pane {
+  overflow: hidden;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.02);
+  border-right: 1px solid var(--pane-border);
+  box-shadow: 1px 0 0 rgba(0, 0, 0, 0.5);
+}
+
+.main-pane.empty-main,
+.main-pane.compose-pane {
   overflow: auto;
   padding: 1rem 1.25rem 2rem;
-  min-width: 0;
 }
 
 .main-pane.empty-main {
@@ -337,7 +376,10 @@ input:focus-visible,
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .main-pane-header h1 {
@@ -398,7 +440,9 @@ input:focus-visible,
 .main-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .main-tabs button {
@@ -407,12 +451,153 @@ input:focus-visible,
   color: var(--text-dim);
   border-radius: 0;
   padding: 0.35rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.main-tabs button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .main-tabs button.active {
   color: var(--text);
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.tab-live-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--success);
+  animation: tab-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes tab-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.main-with-tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.main-tab-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.plan-view,
+.plan-document-view {
+  min-height: 0;
+}
+
+.plan-document-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+}
+
+.plan-doc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.plan-doc-modes {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.plan-doc-modes button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 0;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8125rem;
+}
+
+.plan-doc-modes button.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.plan-doc-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.plan-doc-content {
+  flex: 1;
+  min-height: 12rem;
+}
+
+.plan-edit-textarea {
+  width: 100%;
+  min-height: 24rem;
+  resize: vertical;
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+  padding: 0.85rem;
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.build-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 100%;
+}
+
+.build-kickoff {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+}
+
+.build-kickoff p {
+  margin: 0;
+}
+
+.build-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.build-chat .chat-log-wrap {
+  max-height: none;
+  flex: 1;
+}
+
+.build-chat .chat-log {
+  max-height: none;
+  flex: 1;
 }
 
 .plan-progress-summary {
@@ -422,6 +607,50 @@ input:focus-visible,
   margin-bottom: 1.25rem;
   color: var(--text-dim);
   font-size: 0.875rem;
+}
+
+.plan-meta-panel {
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+}
+
+.plan-meta-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.plan-meta-label {
+  flex: 0 0 5.5rem;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.plan-meta-value {
+  color: var(--text);
+  min-width: 0;
+}
+
+.plan-meta-value a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.plan-meta-value a:hover {
+  text-decoration: underline;
+}
+
+.plan-meta-value code {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8125rem;
 }
 
 .phase-tracker {
@@ -528,12 +757,13 @@ input:focus-visible,
 }
 
 .terminal-rail {
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--pane-border);
   background: #000000;
   display: flex;
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  box-shadow: -1px 0 0 rgba(0, 0, 0, 0.5);
 }
 
 .terminal-rail.collapsed {
@@ -710,9 +940,6 @@ input:focus-visible,
 }
 
 .chat-section {
-  margin-top: 1rem;
-  border-top: 1px solid var(--border);
-  padding-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

@@ -147,6 +147,19 @@ export async function startServer(
           case "terminal-resize":
             terminalSession.handleResize(msg.cols, msg.rows);
             break;
+          case "save-plan": {
+            const run = runController.getRunState();
+            if (run.status !== "idle") {
+              broadcast({ type: "notice", text: "Cannot edit a plan while an agent is running." });
+              break;
+            }
+            void plansWatcher.savePlan(msg.planFilename, msg.markdown).then((result) => {
+              if (!result.ok) {
+                broadcast({ type: "notice", text: result.error });
+              }
+            });
+            break;
+          }
           default:
             runController.handleClientMessage(msg);
             break;

@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { getPlanProgress, parsePlan } from "./plan-store.ts";
+import {
+  emptyPlanMeta,
+  getPlanProgress,
+  parseFrontmatter,
+  parsePlan,
+} from "./plan-store.ts";
 
 const fixturePath = join(
   import.meta.dirname,
@@ -96,5 +101,103 @@ describe("getPlanProgress", () => {
     const parsed = parsePlan(md);
     const progress = getPlanProgress(parsed);
     expect(progress.currentPhase).toBeNull();
+  });
+});
+
+const FULL_FRONTMATTER = `---
+branch: shipper/plan-completion-metadata
+started_at: "2026-07-04T22:15:00-05:00"
+completed_at: "2026-07-05T01:40:00-05:00"
+pr_url: https://github.com/owner/repo/pull/123
+pr_number: 123
+---
+# Plan With Metadata
+
+## Phase 1: First
+
+### Section A
+
+- [x] done item
+- [ ] todo item
+`;
+
+describe("parseFrontmatter", () => {
+  it("parses all five fields from a complete frontmatter block", () => {
+    const meta = parseFrontmatter(FULL_FRONTMATTER);
+    expect(meta).toEqual({
+      branch: "shipper/plan-completion-metadata",
+      startedAt: "2026-07-04T22:15:00-05:00",
+      completedAt: "2026-07-05T01:40:00-05:00",
+      prUrl: "https://github.com/owner/repo/pull/123",
+      prNumber: 123,
+    });
+  });
+
+  it("returns empty meta when frontmatter is absent", () => {
+    expect(parseFrontmatter("# No frontmatter\n\n## Phase 1\n")).toEqual(
+      emptyPlanMeta(),
+    );
+    expect(parseFrontmatter(fixture)).toEqual(emptyPlanMeta());
+  });
+
+  it("returns empty meta for malformed YAML", () => {
+    const md = `---
+branch: [unclosed
+---
+# Title
+`;
+    expect(parseFrontmatter(md)).toEqual(emptyPlanMeta());
+  });
+
+  it("nulls wrong-typed values", () => {
+    const md = `---
+branch: 42
+started_at: true
+completed_at: 3.14
+pr_url: 99
+pr_number: abc
+---
+# Title
+`;
+    expect(parseFrontmatter(md)).toEqual(emptyPlanMeta());
+  });
+
+  it("coerces numeric pr_number from a string", () => {
+    const md = `---
+pr_number: "456"
+---
+# Title
+`;
+    expect(parseFrontmatter(md).prNumber).toBe(456);
+  });
+
+  it("ignores frontmatter not on line 1", () => {
+    const md = `# Title first
+
+---
+branch: ignored
+---
+`;
+    expect(parseFrontmatter(md)).toEqual(emptyPlanMeta());
+  });
+});
+
+describe("parsePlan with frontmatter", () => {
+  it("still finds title, phases, and checklist items", () => {
+    const parsed = parsePlan(FULL_FRONTMATTER);
+    expect(parsed.title).toBe("Plan With Metadata");
+    expect(parsed.phases).toHaveLength(1);
+    expect(parsed.phases[0]!.title).toBe("First");
+    expect(parsed.phases[0]!.sections[0]!.title).toBe("Section A");
+    expect(parsed.phases[0]!.sections[0]!.items).toHaveLength(2);
+    expect(parsed.totalChecked).toBe(1);
+    expect(parsed.totalUnchecked).toBe(1);
+  });
+
+  it("preserves absolute line numbers for checklist items", () => {
+    const parsed = parsePlan(FULL_FRONTMATTER);
+    const items = parsed.phases[0]!.sections[0]!.items;
+    expect(items[0]!.line).toBe(14);
+    expect(items[1]!.line).toBe(15);
   });
 });
