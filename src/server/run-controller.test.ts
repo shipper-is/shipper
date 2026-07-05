@@ -7,17 +7,11 @@ import {
 } from "./run-controller.ts";
 import { idleRunState } from "../shared/protocol.ts";
 
-vi.mock("../core/config.ts", () => ({
+const mocks = vi.hoisted(() => ({
   resolveDefaultModel: vi.fn(async () => "test-model"),
   saveModelChoice: vi.fn(async () => undefined),
   setProjectConfig: vi.fn(async () => ({})),
-}));
-
-vi.mock("../agents/models.ts", () => ({
   listModels: vi.fn(async () => [{ id: "model-a", label: "Model A" }]),
-}));
-
-vi.mock("../core/plan-store.ts", () => ({
   findPlanByFilename: vi.fn(async () => ({
     filename: "foo.md",
     title: "Foo",
@@ -26,6 +20,20 @@ vi.mock("../core/plan-store.ts", () => ({
     progress: { totalChecked: 0, totalUnchecked: 1, currentPhase: 1, phaseCount: 1 },
     parsed: { title: "Foo", phases: [] },
   })),
+}));
+
+vi.mock("../core/config.ts", () => ({
+  resolveDefaultModel: mocks.resolveDefaultModel,
+  saveModelChoice: mocks.saveModelChoice,
+  setProjectConfig: mocks.setProjectConfig,
+}));
+
+vi.mock("../agents/models.ts", () => ({
+  listModels: mocks.listModels,
+}));
+
+vi.mock("../core/plan-store.ts", () => ({
+  findPlanByFilename: mocks.findPlanByFilename,
 }));
 
 function makeEntry(kind: "agent-text" | "user-message", text: string) {
@@ -80,11 +88,10 @@ describe("createRunController", () => {
   const repoPath = "/repo";
   const broadcasts: unknown[] = [];
 
-  beforeEach(async () => {
+  beforeEach(() => {
     broadcasts.length = 0;
-    const { resolveDefaultModel } = await import("../core/config.ts");
-    vi.mocked(resolveDefaultModel).mockReset();
-    vi.mocked(resolveDefaultModel).mockResolvedValue("test-model");
+    mocks.resolveDefaultModel.mockReset();
+    mocks.resolveDefaultModel.mockResolvedValue("test-model");
   });
 
   const baseDeps = () => ({
@@ -251,8 +258,7 @@ describe("createRunController", () => {
   });
 
   it("cancels model pick and clears pending start", async () => {
-    const { resolveDefaultModel } = await import("../core/config.ts");
-    vi.mocked(resolveDefaultModel).mockResolvedValueOnce(undefined);
+    mocks.resolveDefaultModel.mockResolvedValueOnce(undefined);
 
     const controller = createRunController(baseDeps());
 
@@ -394,8 +400,7 @@ describe("createRunController", () => {
   });
 
   it("requests a model pick for start-spike when no default is set", async () => {
-    const { resolveDefaultModel } = await import("../core/config.ts");
-    vi.mocked(resolveDefaultModel).mockResolvedValueOnce(undefined);
+    mocks.resolveDefaultModel.mockResolvedValueOnce(undefined);
 
     const runSpike = vi.fn();
     const controller = createRunController({
@@ -539,7 +544,6 @@ describe("createRunController", () => {
   });
 
   it("resolves follow-up model via shipper-spike after a spike run", async () => {
-    const { resolveDefaultModel } = await import("../core/config.ts");
     const runFollowUp = vi.fn(async () => ({
       ok: true,
       lastSessionId: "spike-followup",
@@ -572,7 +576,7 @@ describe("createRunController", () => {
       ).toBe(true);
     });
 
-    vi.mocked(resolveDefaultModel).mockClear();
+    mocks.resolveDefaultModel.mockClear();
 
     controller.handleClientMessage({
       type: "send-message",
@@ -583,6 +587,6 @@ describe("createRunController", () => {
       expect(runFollowUp).toHaveBeenCalled();
     });
 
-    expect(resolveDefaultModel).toHaveBeenCalledWith(repoPath, "cursor", "shipper-spike");
+    expect(mocks.resolveDefaultModel).toHaveBeenCalledWith(repoPath, "cursor", "shipper-spike");
   });
 });
