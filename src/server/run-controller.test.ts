@@ -7,11 +7,11 @@ import {
 } from "./run-controller.ts";
 import { idleRunState } from "../shared/protocol.ts";
 import type { AgentKind } from "../agents/types.ts";
-import type { SkillName } from "../core/skills.ts";
+import type { OrchestratedSkillName } from "../core/skills.ts";
 
 const mocks = vi.hoisted(() => ({
   resolveDefaultModel: vi.fn<
-    (repoPath: string, agent: AgentKind, skill: SkillName) => Promise<string | undefined>
+    (repoPath: string, agent: AgentKind, skill: OrchestratedSkillName) => Promise<string | undefined>
   >(async () => "test-model"),
   saveModelChoice: vi.fn(async () => undefined),
   setProjectConfig: vi.fn(async () => ({})),

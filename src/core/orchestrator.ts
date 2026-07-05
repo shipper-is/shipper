@@ -17,7 +17,7 @@ import {
 } from "./plan-store.ts";
 import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, buildSpikePrompt, appendPendingUserMessages } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
-import { installSkills } from "./skills.ts";
+import { installSkillsGlobally } from "./skills.ts";
 
 export type AgentRunHandlers = {
   onEvent: (event: AgentEvent) => void;
@@ -205,7 +205,7 @@ export async function runPlanCreation(
   const beforePlans = await listPlans(repoPath);
   const beforeFilenames = new Set(beforePlans.open.map((plan) => plan.filename));
 
-  await installSkills(repoPath, agent);
+  await installSkillsGlobally([agent]);
 
   const prompt = buildPlanPrompt(featureDescription, agent);
   const adapter = createAdapter(agent);
@@ -253,7 +253,7 @@ export async function runSpike(
     ...beforePlans.done.map((plan) => plan.filename),
   ]);
 
-  await installSkills(repoPath, agent);
+  await installSkillsGlobally([agent]);
 
   const prompt = buildSpikePrompt(description, agent);
   const adapter = createAdapter(agent);
@@ -380,7 +380,7 @@ export async function runBuildLoop(
       plan.parsed.phases.find((phase) => phase.number === targetPhase.number),
     );
 
-    await installSkills(repoPath, agent);
+    await installSkillsGlobally([agent]);
 
     const pendingMessages = handlers.pendingUserMessages?.() ?? [];
     let prompt = buildBuildPrompt(

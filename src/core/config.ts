@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import type { AgentKind } from "../agents/types.ts";
-import type { SkillName } from "./skills.ts";
+import type { OrchestratedSkillName } from "./skills.ts";
 
 const agentKindSchema = z.enum(["claude", "cursor", "opencode"]);
 
@@ -103,7 +103,7 @@ export async function setDefaultAgent(agent: AgentKind): Promise<void> {
 export async function resolveDefaultModel(
   repoPath: string,
   agent: AgentKind,
-  skill: SkillName,
+  skill: OrchestratedSkillName,
 ): Promise<string | undefined> {
   const config = await readConfig();
   return (
@@ -115,7 +115,7 @@ export async function resolveDefaultModel(
 export async function saveModelChoice(
   repoPath: string,
   agent: AgentKind,
-  skill: SkillName,
+  skill: OrchestratedSkillName,
   model: string,
 ): Promise<void> {
   const config = await readConfig();

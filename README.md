@@ -34,7 +34,7 @@ The workspace has three sections:
 ### New plan flow
 
 1. Click **New plan** (or press `n`), describe the feature.
-2. Confirm the agent and model if prompted; Shipper installs bundled skills into your repo and starts a headless agent session.
+2. Confirm the agent and model if prompted; Shipper refreshes bundled skills in your global agent directories and starts a headless agent session.
 3. Answer clarifying questions inline when prompted.
 4. A new plan file appears in `.shipper/open/`.
 
@@ -63,8 +63,11 @@ Agent choice is stored per project on your machine (`~/.config/shipper/`), not i
 | `<repo>/.shipper/done/` | Completed plans |
 | `~/.config/shipper/config.json` | Per-project agent preference, last plan |
 | `~/.config/shipper/logs/` | NDJSON session logs (last 20 retained) |
+| `~/.claude/skills/shipper-*/` | Global skills for Claude Code (auto-discovered) |
+| `~/.cursor/skills/shipper-*/` | Global skills for Cursor CLI (auto-discovered) |
+| `~/.config/opencode/skills/shipper-*/` | Global skills for opencode (auto-discovered) |
 
-Bundled `shipper-plan`, `shipper-build`, `shipper-spike`, `shipper-ship`, and `shipper-bug` skills are embedded in the binary and installed into agent-specific directories at run time (`.cursor/skills/`, `.claude/skills/`, `.opencode/skill/`).
+Bundled `shipper-plan`, `shipper-build`, `shipper-spike`, `shipper-ship`, and `shipper-bug` skills are embedded in the binary and installed **globally** for each detected coding agent on startup (or via `shipper skills`). Repos no longer receive skill copies — stale per-repo copies from older versions are removed on boot.
 
 ## Debugging
 
@@ -102,7 +105,23 @@ Push a `v*` tag to trigger `.github/workflows/release.yml`, which builds `shippe
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-## CLI flags
+## CLI
+
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `shipper` | Start the web workspace (default) |
+| `shipper skills` | Install or refresh global skills for detected agents |
+
+Use `shipper skills` without starting the console when you want the bundled skills in your own coding agent — e.g. type `/shipper-plan` in Cursor CLI or Claude Code to plan a feature directly in your editor.
+
+```bash
+shipper skills                  # install for all detected agents
+shipper skills --agent cursor   # force install for one agent
+```
+
+### Flags
 
 | Flag | Description |
 |------|-------------|
