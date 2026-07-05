@@ -2,6 +2,7 @@
 type: plan
 branch: shipper/spike-tab-web-console
 started_at: "2026-07-04T22:58:00-05:00"
+completed_at: "2026-07-04T23:10:00-05:00"
 ---
 
 # Spike Tab in the Web Console
@@ -225,12 +226,18 @@ Tests:
 ### Section 1: Core tests
 
 - Overview: cover parsing and orchestration.
-- [ ] In [/Users/matt/Documents/shipper/src/core/plan-store.test.ts](/Users/matt/Documents/shipper/src/core/plan-store.test.ts), add `parseFrontmatter` cases: `type: spike` yields `"spike"`; `type: plan`, missing `type`, and an unknown value all yield `"plan"`.
-- [ ] In [/Users/matt/Documents/shipper/src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts), add `runSpike` cases using the existing temp-repo/fake-adapter patterns: success with the new file left in `open/` (location `"open"`), success with the file created in `done/` (location `"done"`), and error when no new file appears.
-- [ ] In [/Users/matt/Documents/shipper/src/core/core.test.ts](/Users/matt/Documents/shipper/src/core/core.test.ts) (or wherever prompts/skills are covered), assert `buildSpikePrompt` references the `shipper-spike` SKILL.md path and includes the description, and that `installSkills` writes all three `shipper-spike` files for a cursor-agent target.
+- [x] In [/Users/matt/Documents/shipper/src/core/plan-store.test.ts](/Users/matt/Documents/shipper/src/core/plan-store.test.ts), add `parseFrontmatter` cases: `type: spike` yields `"spike"`; `type: plan`, missing `type`, and an unknown value all yield `"plan"`.
+- [x] In [/Users/matt/Documents/shipper/src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts), add `runSpike` cases using the existing temp-repo/fake-adapter patterns: success with the new file left in `open/` (location `"open"`), success with the file created in `done/` (location `"done"`), and error when no new file appears.
+- [x] In [/Users/matt/Documents/shipper/src/core/core.test.ts](/Users/matt/Documents/shipper/src/core/core.test.ts) (or wherever prompts/skills are covered), assert `buildSpikePrompt` references the `shipper-spike` SKILL.md path and includes the description, and that `installSkills` writes all three `shipper-spike` files for a cursor-agent target.
 
 ### Section 2: Run controller tests and final verification
 
 - Overview: cover the WebSocket-facing behavior and run the suite.
-- [ ] In [/Users/matt/Documents/shipper/src/server/run-controller.test.ts](/Users/matt/Documents/shipper/src/server/run-controller.test.ts), using the injected fake orchestrator: `start-spike` with no default model broadcasts `needs-model-pick` for `shipper-spike` and then `select-model` resumes the pending spike; `start-spike` with a model runs `runSpike` and sets `runState.skill` to `"spike"`; a successful result broadcasts `spike-created` and a completion notice; a follow-up after a spike resolves the model via `shipper-spike`.
-- [ ] Run `bun test` and fix any failures; check for new linter/type errors in all edited files.
+- [x] In [/Users/matt/Documents/shipper/src/server/run-controller.test.ts](/Users/matt/Documents/shipper/src/server/run-controller.test.ts), using the injected fake orchestrator: `start-spike` with no default model broadcasts `needs-model-pick` for `shipper-spike` and then `select-model` resumes the pending spike; `start-spike` with a model runs `runSpike` and sets `runState.skill` to `"spike"`; a successful result broadcasts `spike-created` and a completion notice; a follow-up after a spike resolves the model via `shipper-spike`.
+- [x] Run `bun test` and fix any failures; check for new linter/type errors in all edited files.
+
+### Completion Notes
+
+- Spike run-controller tests reset `resolveDefaultModel` in `beforeEach` to avoid mock leakage between cases; fast-completing spike mocks require waiting on `spike-created` rather than transient `running` state.
+- `runSpike` orchestrator tests mock `createAdapter` and write spike files inside the fake agent's `start()` generator, matching the `runBuildLoop` temp-repo pattern.
+- Full suite runs via `bun run test` (vitest); `bun test` alone does not support vitest-specific APIs (`vi.waitFor`, `importOriginal`).

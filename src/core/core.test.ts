@@ -8,6 +8,7 @@ import {
   saveModelChoice,
   setProjectConfig,
 } from "./config.ts";
+import { buildSpikePrompt } from "./prompts.ts";
 import { installSkills, SKILLS, skillPathForAgent } from "./skills.ts";
 
 describe("config", () => {
@@ -78,5 +79,26 @@ describe("installSkills", () => {
     await installSkills(dir, "cursor");
     const path = join(dir, skillPathForAgent("cursor", "shipper-build"));
     expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"][0].content);
+  });
+
+  it("writes all three shipper-spike files for cursor", async () => {
+    dir = await mkdtemp(join(tmpdir(), "shipper-spike-skills-"));
+
+    await installSkills(dir, "cursor");
+
+    for (const { file, content } of SKILLS["shipper-spike"]) {
+      const path = join(dir, ".cursor", "skills", "shipper-spike", file);
+      expect(await readFile(path, "utf8")).toBe(content);
+    }
+  });
+});
+
+describe("buildSpikePrompt", () => {
+  it("references the shipper-spike SKILL.md path and includes the description", () => {
+    const description = "Add dark mode toggle";
+    const prompt = buildSpikePrompt(description, "cursor");
+    expect(prompt).toContain(skillPathForAgent("cursor", "shipper-spike"));
+    expect(prompt).toContain(description);
+    expect(prompt).toContain("Run a Shipper Spike");
   });
 });

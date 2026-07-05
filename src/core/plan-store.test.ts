@@ -181,6 +181,39 @@ branch: ignored
 `;
     expect(parseFrontmatter(md)).toEqual(emptyPlanMeta());
   });
+
+  it("maps type: spike to spike", () => {
+    const md = `---
+type: spike
+---
+# Spike
+`;
+    expect(parseFrontmatter(md).type).toBe("spike");
+  });
+
+  it("maps type: plan, missing type, and unknown values to plan", () => {
+    const planMd = `---
+type: plan
+---
+# Plan
+`;
+    expect(parseFrontmatter(planMd).type).toBe("plan");
+
+    const missingMd = `---
+branch: foo
+---
+# Plan
+`;
+    expect(parseFrontmatter(missingMd).type).toBe("plan");
+    expect(parseFrontmatter("# No frontmatter").type).toBe("plan");
+
+    const unknownMd = `---
+type: feature
+---
+# Plan
+`;
+    expect(parseFrontmatter(unknownMd).type).toBe("plan");
+  });
 });
 
 describe("parsePlan with frontmatter", () => {
