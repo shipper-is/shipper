@@ -113,6 +113,7 @@ export function App() {
           chatEntries={socket.chatEntries}
           pendingQuestion={socket.pendingQuestion}
           composingNewPlan={composingNewPlan}
+          queuedMessages={socket.queuedMessages}
           onStartCompose={() => setComposingNewPlan(true)}
           onCancelCompose={() => setComposingNewPlan(false)}
           onStartPlan={(description) => socket.send({ type: "start-plan", description })}

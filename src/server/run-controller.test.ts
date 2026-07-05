@@ -108,6 +108,7 @@ describe("createRunController", () => {
           }),
       ),
       runPlanCreation: vi.fn(),
+      runFollowUp: vi.fn(),
     };
 
     const controller = createRunController({
@@ -130,7 +131,7 @@ describe("createRunController", () => {
     });
 
     expect(broadcasts.some((msg) => (msg as { type: string }).type === "notice")).toBe(true);
-    resolveBuild?.({ status: "cancelled", sessionsUsed: 0 });
+    resolveBuild?.({ status: "cancelled", sessionsUsed: 0, lastSessionId: null });
     await vi.waitFor(() => {
       expect(controller.getRunState().status).toBe("idle");
     });
@@ -153,9 +154,11 @@ describe("createRunController", () => {
           sessionsUsed: 1,
           phasesRun: 1,
           planLocation: "open",
+          lastSessionId: "session-1",
         } satisfies BuildLoopResult;
       }),
       runPlanCreation: vi.fn(),
+      runFollowUp: vi.fn(),
     };
 
     const controller = createRunController({
@@ -193,5 +196,122 @@ describe("createRunController", () => {
     const controller = createRunController(baseDeps());
     expect(controller.getRunState()).toEqual(idleRunState());
     expect(controller.getChatEntries()).toEqual([]);
+  });
+
+  it("queues follow-up messages during an active build", async () => {
+    let resolveBuild: ((value: BuildLoopResult) => void) | undefined;
+    let pendingUserMessages: (() => string[]) | undefined;
+
+    const orchestrator: OrchestratorFns = {
+      runBuildLoop: vi.fn((_repo, _agent, _file, handlers) => {
+        pendingUserMessages = handlers.pendingUserMessages;
+        return new Promise<BuildLoopResult>((resolve) => {
+          resolveBuild = resolve;
+        });
+      }),
+      runPlanCreation: vi.fn(),
+      runFollowUp: vi.fn(),
+    };
+
+    const controller = createRunController({
+      ...baseDeps(),
+      orchestrator,
+    });
+
+    void controller.handleClientMessage({
+      type: "start-build",
+      planFilename: "foo.md",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getRunState().status).toBe("running");
+    });
+
+    controller.handleClientMessage({
+      type: "send-message",
+      text: "also fix the tests",
+    });
+
+    expect(controller.getQueuedMessages()).toEqual(["also fix the tests"]);
+    expect(
+      controller.getChatEntries().some(
+        (entry) => entry.text === "Message queued for the next agent session.",
+      ),
+    ).toBe(true);
+
+    const drained = pendingUserMessages?.();
+    expect(drained).toEqual(["also fix the tests"]);
+    expect(controller.getQueuedMessages()).toEqual([]);
+
+    resolveBuild?.({
+      status: "success",
+      sessionsUsed: 1,
+      phasesRun: 1,
+      planLocation: "open",
+      lastSessionId: "session-1",
+    });
+    await vi.waitFor(() => {
+      expect(controller.getRunState().status).toBe("idle");
+    });
+  });
+
+  it("starts a follow-up run when idle after a build", async () => {
+    let resolveBuild: ((value: BuildLoopResult) => void) | undefined;
+
+    const orchestrator: OrchestratorFns = {
+      runBuildLoop: vi.fn(
+        () =>
+          new Promise<BuildLoopResult>((resolve) => {
+            resolveBuild = resolve;
+          }),
+      ),
+      runPlanCreation: vi.fn(),
+      runFollowUp: vi.fn(async () => ({
+        ok: true,
+        lastSessionId: "cursor-session-2",
+      })),
+    };
+
+    const controller = createRunController({
+      ...baseDeps(),
+      orchestrator,
+    });
+
+    void controller.handleClientMessage({
+      type: "start-build",
+      planFilename: "foo.md",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getRunState().status).toBe("running");
+    });
+
+    resolveBuild?.({
+      status: "success",
+      sessionsUsed: 1,
+      phasesRun: 1,
+      planLocation: "open",
+      lastSessionId: "cursor-session",
+    });
+
+    await vi.waitFor(() => {
+      expect(controller.getRunState().status).toBe("idle");
+    });
+
+    controller.handleClientMessage({
+      type: "send-message",
+      text: "one more tweak",
+    });
+
+    await vi.waitFor(() => {
+      expect(orchestrator.runFollowUp).toHaveBeenCalledWith(
+        repoPath,
+        "cursor",
+        "one more tweak",
+        "cursor-session",
+        expect.any(Object),
+        expect.objectContaining({ model: "test-model", planFilename: "foo.md" }),
+      );
+    });
   });
 });

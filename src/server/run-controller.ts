@@ -9,6 +9,7 @@ import {
 } from "../core/config.ts";
 import {
   runBuildLoop,
+  runFollowUp,
   runPlanCreation,
   type BuildLoopResult,
   type PlanCreationResult,
@@ -24,6 +25,7 @@ import type {
   ModelPickRequest,
   RunState,
   ServerMessage,
+  SkillIndicator,
 } from "../shared/protocol.ts";
 import { idleRunState } from "../shared/protocol.ts";
 
@@ -32,11 +34,13 @@ export const CHAT_MAX_ENTRIES = 500;
 export type OrchestratorFns = {
   runBuildLoop: typeof runBuildLoop;
   runPlanCreation: typeof runPlanCreation;
+  runFollowUp: typeof runFollowUp;
 };
 
 const defaultOrchestrator: OrchestratorFns = {
   runBuildLoop,
   runPlanCreation,
+  runFollowUp,
 };
 
 type PendingStart =
@@ -58,6 +62,7 @@ export type RunController = {
   getChatEntries: () => ChatEntry[];
   getPendingQuestion: () => ProtocolQuestion | null;
   getModelPickRequest: () => ModelPickRequest | null;
+  getQueuedMessages: () => string[];
   handleClientMessage: (msg: ClientMessage) => void;
   stopActiveRun: () => void;
   shutdown: () => void;
@@ -229,10 +234,18 @@ export function createRunController(deps: RunControllerDeps): RunController {
   let pendingQuestion: ProtocolQuestion | null = null;
   let modelPickRequest: ModelPickRequest | null = null;
   let pendingStart: PendingStart | null = null;
+  let followUpQueue: string[] = [];
+  let lastSessionId: string | null = null;
+  let lastSkill: SkillIndicator = null;
+  let lastPlanFilename: string | null = null;
 
   let questionResolver: ((answers: Record<string, string | string[]>) => void) | null =
     null;
   let abortController: AbortController | null = null;
+
+  const broadcastQueuedMessages = () => {
+    deps.onBroadcast({ type: "queued-messages", messages: [...followUpQueue] });
+  };
 
   const broadcastRunState = () => {
     deps.onBroadcast({ type: "run-state", runState: { ...runState } });
@@ -295,6 +308,10 @@ export function createRunController(deps: RunControllerDeps): RunController {
     planFilename: string,
     planTitle: string,
   ) => {
+    lastSessionId = result.lastSessionId;
+    lastSkill = "build";
+    lastPlanFilename = planFilename;
+
     if (result.status === "success") {
       appendNotice(buildSuccessNotice(result, planTitle, planFilename));
     } else if (result.status === "cancelled") {
@@ -307,7 +324,11 @@ export function createRunController(deps: RunControllerDeps): RunController {
   };
 
   const finishPlan = (result: PlanCreationResult) => {
+    lastSessionId = result.lastSessionId ?? lastSessionId;
+    lastSkill = "plan";
+
     if (result.status === "success") {
+      lastPlanFilename = result.plan.filename;
       appendNotice(
         `Plan created — ${result.plan.title}\n${result.plan.filename}\nBuild it now?`,
       );
@@ -359,6 +380,15 @@ export function createRunController(deps: RunControllerDeps): RunController {
         signal: abortController.signal,
         onSessionLog: (path) => setRunState({ logPath: path }),
         onEvent: handleAgentEvent,
+        pendingUserMessages: () => {
+          if (followUpQueue.length === 0) {
+            return [];
+          }
+          const messages = [...followUpQueue];
+          followUpQueue = [];
+          broadcastQueuedMessages();
+          return messages;
+        },
         onQuestion: (question) =>
           new Promise((resolve) => {
             pendingQuestion = toProtocolQuestion(question);
@@ -425,6 +455,95 @@ export function createRunController(deps: RunControllerDeps): RunController {
     );
 
     finishPlan(result);
+  };
+
+  const runFollowUpMessage = async (text: string) => {
+    const agent = deps.getAgent();
+    if (!agent) {
+      appendNotice("No agent configured. Open settings to choose one.");
+      return;
+    }
+
+    const skill = lastSkill ?? "build";
+    const skillName: SkillName = skill === "plan" ? "shipper-plan" : "shipper-build";
+    const model = await resolveDefaultModel(deps.repoPath, agent, skillName);
+    if (!model) {
+      appendNotice("Choose a default model in settings before sending follow-up messages.");
+      return;
+    }
+
+    abortController = new AbortController();
+    pendingQuestion = null;
+    modelPickRequest = null;
+    pendingStart = null;
+
+    runState = {
+      status: "running",
+      skill,
+      planFilename: lastPlanFilename,
+      activePhaseNumber: null,
+      logPath: null,
+    };
+    broadcastRunState();
+
+    const resumeSessionId = agent === "cursor" ? lastSessionId : null;
+    const result = await orchestrator.runFollowUp(
+      deps.repoPath,
+      agent,
+      text,
+      resumeSessionId,
+      {
+        signal: abortController.signal,
+        onSessionLog: (path) => setRunState({ logPath: path }),
+        onEvent: handleAgentEvent,
+        onQuestion: (question) =>
+          new Promise((resolve) => {
+            pendingQuestion = toProtocolQuestion(question);
+            questionResolver = resolve;
+            setRunState({ status: "waiting-answer" });
+            deps.onBroadcast({
+              type: "question-pending",
+              question: pendingQuestion,
+              runState: { ...runState },
+            });
+          }),
+      },
+      {
+        model,
+        planFilename: lastPlanFilename ?? undefined,
+      },
+    );
+
+    if (result.lastSessionId) {
+      lastSessionId = result.lastSessionId;
+    }
+
+    if (!result.ok) {
+      appendNotice(`Follow-up failed: ${result.error ?? "unknown error"}`);
+    }
+    clearRun();
+  };
+
+  const sendMessage = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    if (pendingQuestion) {
+      return;
+    }
+
+    appendUserMessage(trimmed);
+
+    if (isRunActive()) {
+      followUpQueue.push(trimmed);
+      broadcastQueuedMessages();
+      appendNotice("Message queued for the next agent session.");
+      return;
+    }
+
+    void runFollowUpMessage(trimmed);
   };
 
   const requestModelPick = async (skill: SkillName, pending: PendingStart) => {
@@ -552,6 +671,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     getChatEntries: () => chatEntries,
     getPendingQuestion: () => pendingQuestion,
     getModelPickRequest: () => modelPickRequest,
+    getQueuedMessages: () => [...followUpQueue],
     handleClientMessage(msg: ClientMessage) {
       switch (msg.type) {
         case "start-build":
@@ -576,7 +696,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
           void rescanAgents();
           break;
         case "send-message":
-          // Phase 3
+          sendMessage(msg.text);
           break;
         default:
           break;

@@ -54,10 +54,14 @@ export class OpencodeAdapter implements AgentAdapter {
   private stopped = false;
   private running = false;
   private serverClose: (() => void) | null = null;
-  private sessionId: string | null = null;
+  private opencodeSessionId: string | null = null;
   private inactivityMs = DEFAULT_INACTIVITY_MS;
   private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
   private eventAbort: AbortController | null = null;
+
+  get sessionId(): string | null {
+    return null;
+  }
 
   start(opts: AgentStartOptions): AsyncIterable<AgentEvent> {
     void this.run(opts);
@@ -77,7 +81,7 @@ export class OpencodeAdapter implements AgentAdapter {
     this.clearInactivityTimer();
     this.gate.cancelAll();
     this.eventAbort?.abort();
-    if (this.sessionId) {
+    if (this.opencodeSessionId) {
       try {
         // session abort handled in run finally
       } catch {
@@ -213,7 +217,7 @@ export class OpencodeAdapter implements AgentAdapter {
           opencodeErrorMessage(session.error, "Failed to create opencode session"),
         );
       }
-      this.sessionId = session.data.id;
+      this.opencodeSessionId = session.data.id;
 
       const assistantTextByMessage = new Map<string, string>();
       const seenToolCalls = new Set<string>();
@@ -242,7 +246,7 @@ export class OpencodeAdapter implements AgentAdapter {
         void opts.rawLogger?.logRaw("out", prompt);
 
         const response = await client.session.prompt({
-          path: { id: this.sessionId },
+          path: { id: this.opencodeSessionId },
           query: { directory: opts.cwd },
           body: {
             parts: [{ type: "text", text: prompt }],
@@ -292,10 +296,10 @@ export class OpencodeAdapter implements AgentAdapter {
     } finally {
       this.clearInactivityTimer();
       this.eventAbort?.abort();
-      if (client && this.sessionId) {
+      if (client && this.opencodeSessionId) {
         try {
           await client.session.abort({
-            path: { id: this.sessionId },
+            path: { id: this.opencodeSessionId },
             query: { directory: opts.cwd },
           });
         } catch {

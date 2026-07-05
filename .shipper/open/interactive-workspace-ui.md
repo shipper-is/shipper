@@ -187,21 +187,25 @@ New dependencies (add with `bun add`): `react-dom`, `@xterm/xterm`, `@xterm/addo
 
 ### Section 3.1: Adapter and orchestrator support
 
-- [ ] [src/agents/types.ts](/Users/matt/Documents/shipper/src/agents/types.ts): add `resumeSessionId?: string` to `AgentStartOptions` and `readonly sessionId: string | null` to `AgentAdapter`
-- [ ] [src/agents/cursor.ts](/Users/matt/Documents/shipper/src/agents/cursor.ts): seed `this.chatId` from `opts.resumeSessionId` (making the first spawn use `--resume`), expose `get sessionId()`; extend [src/agents/cursor.test.ts](/Users/matt/Documents/shipper/src/agents/cursor.test.ts) for both behaviors
-- [ ] [src/agents/claude.ts](/Users/matt/Documents/shipper/src/agents/claude.ts) / [src/agents/opencode.ts](/Users/matt/Documents/shipper/src/agents/opencode.ts): `sessionId` returns `null`; `resumeSessionId` ignored
-- [ ] [src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts): thread `adapter.sessionId` into results (`lastSessionId` on `BuildLoopResult`/`PlanCreationResult`); add `pendingUserMessages?: () => string[]` to `BuildLoopHandlers`, drained before each session and injected via a new prompt block in [src/core/prompts.ts](/Users/matt/Documents/shipper/src/core/prompts.ts) ("Messages from the user since the last session:")
-- [ ] Add `runFollowUp(repoPath, agent, message, resumeSessionId, handlers, model?)` in the orchestrator + `buildFollowUpPrompt` in prompts.ts (message + question-protocol preamble; when not resuming, prepend the plan path and a note that this continues previous work); unit-test the prompt builders and message injection
+- [x] [src/agents/types.ts](/Users/matt/Documents/shipper/src/agents/types.ts): add `resumeSessionId?: string` to `AgentStartOptions` and `readonly sessionId: string | null` to `AgentAdapter`
+- [x] [src/agents/cursor.ts](/Users/matt/Documents/shipper/src/agents/cursor.ts): seed `this.chatId` from `opts.resumeSessionId` (making the first spawn use `--resume`), expose `get sessionId()`; extend [src/agents/cursor.test.ts](/Users/matt/Documents/shipper/src/agents/cursor.test.ts) for both behaviors
+- [x] [src/agents/claude.ts](/Users/matt/Documents/shipper/src/agents/claude.ts) / [src/agents/opencode.ts](/Users/matt/Documents/shipper/src/agents/opencode.ts): `sessionId` returns `null`; `resumeSessionId` ignored
+- [x] [src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts): thread `adapter.sessionId` into results (`lastSessionId` on `BuildLoopResult`/`PlanCreationResult`); add `pendingUserMessages?: () => string[]` to `BuildLoopHandlers`, drained before each session and injected via a new prompt block in [src/core/prompts.ts](/Users/matt/Documents/shipper/src/core/prompts.ts) ("Messages from the user since the last session:")
+- [x] Add `runFollowUp(repoPath, agent, message, resumeSessionId, handlers, model?)` in the orchestrator + `buildFollowUpPrompt` in prompts.ts (message + question-protocol preamble; when not resuming, prepend the plan path and a note that this continues previous work); unit-test the prompt builders and message injection
 
 ### Section 3.2: Chat input wiring
 
-- [ ] [src/web/components/chat-input.tsx](/Users/matt/Documents/shipper/src/web/components/chat-input.tsx): footer input with Send button (Enter submits, Shift+Enter newline), disabled with a hint while a question is pending
-- [ ] Run controller `sendMessage(text)`: append a user-message chat entry, then — running → push to the follow-up queue + notice "queued for the next agent session"; idle with `lastSessionId` → `runFollowUp` with resume (indicator keeps the last skill); idle without resume support → `runFollowUp` fresh with plan context
-- [ ] Snapshot includes any queued messages so a refreshed tab shows them
+- [x] [src/web/components/chat-input.tsx](/Users/matt/Documents/shipper/src/web/components/chat-input.tsx): footer input with Send button (Enter submits, Shift+Enter newline), disabled with a hint while a question is pending
+- [x] Run controller `sendMessage(text)`: append a user-message chat entry, then — running → push to the follow-up queue + notice "queued for the next agent session"; idle with `lastSessionId` → `runFollowUp` with resume (indicator keeps the last skill); idle without resume support → `runFollowUp` fresh with plan context
+- [x] Snapshot includes any queued messages so a refreshed tab shows them
 - [ ] Verify with Cursor: finish a small run, send a follow-up, confirm `--resume <id>` appears in the RunLogger raw log; verify a mid-run message lands in the next session's prompt
 
 ### Completion Notes
-(to be filled by build agent)
+
+- `AgentAdapter.sessionId` is the Cursor chat id after a run; Claude/OpenCode always return `null`. Follow-up resume is Cursor-only (`--resume` seeded via `resumeSessionId`).
+- `runFollowUp` uses `buildFollowUpPrompt`: plan path context is prepended only when not resuming; build-loop mid-run messages are injected via `appendPendingUserMessages` drained through `pendingUserMessages`.
+- Run controller keeps `lastSessionId`, `lastSkill`, and `lastPlanFilename` across idle periods so follow-ups preserve skill indicator and Cursor session context. Queued messages broadcast via `queued-messages` and are included in WS snapshots.
+- Manual Cursor E2E verification (resume flag in RunLogger, mid-run queue injection) is left to the maintainer (checkbox above).
 
 ## Phase 4: Passthrough terminal rail
 

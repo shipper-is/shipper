@@ -120,6 +120,7 @@ export async function startServer(
     getChatEntries: () => runController.getChatEntries(),
     getPendingQuestion: () => runController.getPendingQuestion(),
     getModelPickRequest: () => runController.getModelPickRequest(),
+    getQueuedMessages: () => runController.getQueuedMessages(),
     getConfigInfo: () => configInfo,
     getTerminalState: () => terminalState,
     handlers: {

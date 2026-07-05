@@ -30,6 +30,7 @@ export type WsHubDeps = {
   getChatEntries: () => ChatEntry[];
   getPendingQuestion: () => AgentQuestion | null;
   getModelPickRequest: () => ModelPickRequest | null;
+  getQueuedMessages: () => string[];
   getConfigInfo: () => ConfigInfo;
   getTerminalState: () => TerminalState;
   handlers?: WsMessageHandlers;
@@ -57,6 +58,7 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     chatEntries: deps.getChatEntries(),
     pendingQuestion: deps.getPendingQuestion(),
     modelPickRequest: deps.getModelPickRequest(),
+    queuedMessages: deps.getQueuedMessages(),
     configInfo: deps.getConfigInfo(),
     terminalState: deps.getTerminalState(),
   });

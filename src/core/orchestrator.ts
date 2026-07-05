@@ -15,13 +15,14 @@ import {
   type PlanFile,
   type PlanPhase,
 } from "./plan-store.ts";
-import { buildBuildPrompt, buildPlanPrompt } from "./prompts.ts";
+import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, appendPendingUserMessages } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
 import { installSkills } from "./skills.ts";
 
 export type AgentRunHandlers = {
   onEvent: (event: AgentEvent) => void;
   onQuestion: (question: AgentQuestion) => Promise<Record<string, string | string[]>>;
+  onSessionLog?: (logPath: string) => void;
   signal?: AbortSignal;
   logger?: RunLogger;
 };
@@ -32,14 +33,15 @@ export type AgentRunResult = {
 };
 
 export type PlanCreationResult =
-  | { status: "success"; plan: PlanFile }
-  | { status: "error"; message: string };
+  | { status: "success"; plan: PlanFile; lastSessionId: string | null }
+  | { status: "error"; message: string; lastSessionId?: string | null };
 
 export type BuildLoopHandlers = AgentRunHandlers & {
   onPhaseStart?: (phaseNumber: number) => void;
   onPhaseComplete?: (phaseNumber: number) => void;
   onPlanUpdate?: () => void;
   onSessionLog?: (logPath: string) => void;
+  pendingUserMessages?: () => string[];
 };
 
 export type BuildLoopResult =
@@ -49,9 +51,12 @@ export type BuildLoopResult =
       phasesRun: number;
       planLocation: "open" | "done";
       leftInOpen?: boolean;
+      lastSessionId: string | null;
     }
-  | { status: "error"; message: string; sessionsUsed: number }
-  | { status: "cancelled"; sessionsUsed: number };
+  | { status: "error"; message: string; sessionsUsed: number; lastSessionId: string | null }
+  | { status: "cancelled"; sessionsUsed: number; lastSessionId: string | null };
+
+export type FollowUpResult = AgentRunResult & { lastSessionId: string | null };
 
 type PhaseSnapshot = {
   checkedCount: number;
@@ -180,25 +185,28 @@ export async function runPlanCreation(
     { cwd: repoPath, prompt, ...(model ? { model } : {}) },
     { ...handlers, logger },
   );
+  const lastSessionId = adapter.sessionId;
 
   const afterPlans = await listPlans(repoPath);
   const newPlan = findNewOpenPlan(beforeFilenames, afterPlans.open);
 
   if (newPlan) {
     await setProjectConfig(repoPath, { lastPlan: newPlan.filename });
-    return { status: "success", plan: newPlan };
+    return { status: "success", plan: newPlan, lastSessionId };
   }
 
   if (!runResult.ok) {
     return {
       status: "error",
       message: runResult.error ?? "Plan creation failed",
+      lastSessionId,
     };
   }
 
   return {
     status: "error",
     message: "Agent finished but no new plan file appeared in .shipper/open/",
+    lastSessionId,
   };
 }
 
@@ -211,7 +219,7 @@ export async function runBuildLoop(
 ): Promise<BuildLoopResult> {
   const initialPlan = await findPlanByFilename(repoPath, planFilename);
   if (!initialPlan) {
-    return { status: "error", message: "Plan file not found", sessionsUsed: 0 };
+    return { status: "error", message: "Plan file not found", sessionsUsed: 0, lastSessionId: null };
   }
 
   if (initialPlan.folder === "done" || isPlanFullyComplete(initialPlan)) {
@@ -221,18 +229,20 @@ export async function runBuildLoop(
       phasesRun: 0,
       planLocation: initialPlan.folder,
       leftInOpen: initialPlan.folder === "open",
+      lastSessionId: null,
     };
   }
 
   const maxSessions = initialPlan.parsed.phases.length * 2 + 2;
   let sessionsUsed = 0;
+  let lastSessionId: string | null = null;
   const phasesRun = new Set<number>();
   let consecutiveStrikes = 0;
   let lastStrikingPhase: number | null = null;
 
   while (sessionsUsed < maxSessions) {
     if (handlers.signal?.aborted) {
-      return { status: "cancelled", sessionsUsed };
+      return { status: "cancelled", sessionsUsed, lastSessionId };
     }
 
     const plan = await findPlanByFilename(repoPath, planFilename);
@@ -241,6 +251,7 @@ export async function runBuildLoop(
         status: "error",
         message: "Plan file disappeared",
         sessionsUsed,
+        lastSessionId,
       };
     }
 
@@ -250,6 +261,7 @@ export async function runBuildLoop(
         sessionsUsed,
         phasesRun: phasesRun.size,
         planLocation: "done",
+        lastSessionId,
       };
     }
 
@@ -260,6 +272,7 @@ export async function runBuildLoop(
         phasesRun: phasesRun.size,
         planLocation: "open",
         leftInOpen: true,
+        lastSessionId,
       };
     }
 
@@ -271,6 +284,7 @@ export async function runBuildLoop(
         phasesRun: phasesRun.size,
         planLocation: plan.folder,
         leftInOpen: plan.folder === "open",
+        lastSessionId,
       };
     }
 
@@ -282,11 +296,15 @@ export async function runBuildLoop(
 
     await installSkills(repoPath, agent);
 
-    const prompt = buildBuildPrompt(
+    const pendingMessages = handlers.pendingUserMessages?.() ?? [];
+    let prompt = buildBuildPrompt(
       planRelativePath(plan.folder, planFilename),
       targetPhase.number,
       agent,
     );
+    if (pendingMessages.length > 0) {
+      prompt = appendPendingUserMessages(prompt, pendingMessages);
+    }
     const adapter = createAdapter(agent);
     const sessionLogger = handlers.logger ?? (await RunLogger.create(agent));
     handlers.onSessionLog?.(sessionLogger.path);
@@ -297,9 +315,10 @@ export async function runBuildLoop(
     );
     sessionsUsed++;
     phasesRun.add(targetPhase.number);
+    lastSessionId = adapter.sessionId;
 
     if (handlers.signal?.aborted) {
-      return { status: "cancelled", sessionsUsed };
+      return { status: "cancelled", sessionsUsed, lastSessionId };
     }
 
     if (!runResult.ok) {
@@ -307,6 +326,7 @@ export async function runBuildLoop(
         status: "error",
         message: runResult.error ?? "Agent session failed",
         sessionsUsed,
+        lastSessionId,
       };
     }
 
@@ -316,6 +336,7 @@ export async function runBuildLoop(
         status: "error",
         message: "Plan file disappeared after session",
         sessionsUsed,
+        lastSessionId,
       };
     }
 
@@ -339,6 +360,7 @@ export async function runBuildLoop(
           status: "error",
           message: `Build stalled on Phase ${targetPhase.number}: no progress after two consecutive sessions. Inspect the plan file and re-run build.`,
           sessionsUsed,
+          lastSessionId,
         };
       }
     } else {
@@ -355,6 +377,7 @@ export async function runBuildLoop(
         phasesRun: phasesRun.size,
         planLocation: afterPlan.folder,
         leftInOpen: afterPlan.folder === "open",
+        lastSessionId,
       };
     }
   }
@@ -363,5 +386,46 @@ export async function runBuildLoop(
     status: "error",
     message: `Build loop exceeded session limit (${maxSessions}). Inspect the plan and re-run build.`,
     sessionsUsed,
+    lastSessionId,
+  };
+}
+
+export async function runFollowUp(
+  repoPath: string,
+  agent: AgentKind,
+  message: string,
+  resumeSessionId: string | null,
+  handlers: AgentRunHandlers,
+  options?: { model?: string; planFilename?: string },
+): Promise<FollowUpResult> {
+  let planRelative: string | undefined;
+  if (!resumeSessionId && options?.planFilename) {
+    const plan = await findPlanByFilename(repoPath, options.planFilename);
+    if (plan) {
+      planRelative = planRelativePath(plan.folder, plan.filename);
+    }
+  }
+
+  const prompt = buildFollowUpPrompt(message, agent, {
+    planRelativePath: planRelative,
+    resuming: Boolean(resumeSessionId),
+  });
+
+  const adapter = createAdapter(agent);
+  const logger = handlers.logger ?? (await RunLogger.create(agent));
+  const runResult = await consumeAgentRun(
+    adapter,
+    {
+      cwd: repoPath,
+      prompt,
+      ...(resumeSessionId ? { resumeSessionId } : {}),
+      ...(options?.model ? { model: options.model } : {}),
+    },
+    { ...handlers, logger },
+  );
+
+  return {
+    ...runResult,
+    lastSessionId: adapter.sessionId,
   };
 }

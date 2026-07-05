@@ -130,8 +130,14 @@ export type ServerSnapshot = {
   chatEntries: ChatEntry[];
   pendingQuestion: AgentQuestion | null;
   modelPickRequest: ModelPickRequest | null;
+  queuedMessages: string[];
   configInfo: ConfigInfo;
   terminalState: TerminalState;
+};
+
+export type ServerQueuedMessages = {
+  type: "queued-messages";
+  messages: string[];
 };
 
 export type ServerPlansUpdated = {
@@ -207,7 +213,8 @@ export type ServerMessage =
   | ServerNotice
   | ServerConfigInfo
   | ServerNeedsModelPick
-  | ServerPlanCreated;
+  | ServerPlanCreated
+  | ServerQueuedMessages;
 
 export type ClientStartBuild = {
   type: "start-build";

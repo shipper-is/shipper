@@ -585,6 +585,55 @@ button {
   flex: 1;
 }
 
+.chat-input-footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.chat-input-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+}
+
+.chat-input {
+  flex: 1;
+  min-height: 2.75rem;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 0.625rem 0.75rem;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.chat-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.chat-send-button {
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.queued-messages-banner {
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
 .chat-log-wrap {
   position: relative;
   min-height: 200px;

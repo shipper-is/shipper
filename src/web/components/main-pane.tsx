@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ClientMessage, PlanSummary, RunState, AgentQuestion, ChatEntry } from "../../shared/protocol.ts";
 import { ChatLog } from "./chat-log.tsx";
+import { ChatInput } from "./chat-input.tsx";
 import { PlanView } from "./plan-view.tsx";
 import { QuestionCard } from "./question-card.tsx";
 
@@ -10,6 +11,7 @@ type MainPaneProps = {
   chatEntries: ChatEntry[];
   pendingQuestion: AgentQuestion | null;
   composingNewPlan: boolean;
+  queuedMessages: string[];
   onStartCompose: () => void;
   onCancelCompose: () => void;
   onStartPlan: (description: string) => void;
@@ -24,6 +26,7 @@ export function MainPane({
   chatEntries,
   pendingQuestion,
   composingNewPlan,
+  queuedMessages,
   onStartCompose,
   onCancelCompose,
   onStartPlan,
@@ -92,6 +95,7 @@ export function MainPane({
   const displayPlan = plan;
   const showPlanDetails = displayPlan && isIdle;
   const showChat = isRunning || chatEntries.length > 0 || pendingQuestion;
+  const showChatInput = Boolean(displayPlan) || isRunning || chatEntries.length > 0;
 
   return (
     <main className="main-pane main-with-chat">
@@ -186,6 +190,21 @@ export function MainPane({
           </div>
         )}
       </section>
+      )}
+
+      {showChatInput && queuedMessages.length > 0 && (
+        <p className="queued-messages-banner">
+          {queuedMessages.length} message{queuedMessages.length === 1 ? "" : "s"} queued for the
+          next agent session.
+        </p>
+      )}
+
+      {showChatInput && (
+        <ChatInput
+          disabled={Boolean(pendingQuestion)}
+          disabledHint="Answer the agent's question before sending a message."
+          onSend={(text) => send({ type: "send-message", text })}
+        />
       )}
     </main>
   );

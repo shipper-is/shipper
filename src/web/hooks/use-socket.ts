@@ -24,6 +24,7 @@ export type SocketState = {
   selectedPlanFilename: string | null;
   notice: string | null;
   createdPlanFilename: string | null;
+  queuedMessages: string[];
 };
 
 export type UseSocketResult = SocketState & {
@@ -67,6 +68,7 @@ export function useSocket(): UseSocketResult {
   const [selectedPlanFilename, setSelectedPlanFilename] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [createdPlanFilename, setCreatedPlanFilename] = useState<string | null>(null);
+  const [queuedMessages, setQueuedMessages] = useState<string[]>([]);
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   const handleMessage = useCallback((msg: ServerMessage) => {
@@ -77,6 +79,7 @@ export function useSocket(): UseSocketResult {
         setChatEntries(msg.chatEntries);
         setPendingQuestion(msg.pendingQuestion);
         setModelPickRequest(msg.modelPickRequest);
+        setQueuedMessages(msg.queuedMessages);
         setConfigInfo(msg.configInfo);
         setSelectedPlanFilename((current) => {
           if (current && findPlan(msg.plans, current)) {
@@ -130,6 +133,9 @@ export function useSocket(): UseSocketResult {
         break;
       case "notice":
         setNotice(msg.text);
+        break;
+      case "queued-messages":
+        setQueuedMessages(msg.messages);
         break;
       default:
         break;
@@ -219,6 +225,7 @@ export function useSocket(): UseSocketResult {
     selectedPlan,
     notice,
     createdPlanFilename,
+    queuedMessages,
     send,
     selectPlan: setSelectedPlanFilename,
     clearNotice: () => setNotice(null),
