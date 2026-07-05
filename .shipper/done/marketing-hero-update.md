@@ -3,6 +3,8 @@ type: spike
 branch: shipper/marketing-hero-update
 started_at: "2026-07-04T23:22:00-05:00"
 completed_at: "2026-07-04T23:24:00-05:00"
+pr_url: https://github.com/shipper-is/shipper/pull/8
+pr_number: 8
 ---
 
 # Marketing Hero Update
