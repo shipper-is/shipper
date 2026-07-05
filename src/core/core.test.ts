@@ -79,11 +79,4 @@ describe("installSkills", () => {
     const path = join(dir, skillPathForAgent("cursor", "shipper-build"));
     expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-build"]);
   });
-
-  it("installs shipper-ship skill", async () => {
-    dir = await mkdtemp(join(tmpdir(), "shipper-skills-"));
-    await installSkills(dir, "cursor");
-    const path = join(dir, skillPathForAgent("cursor", "shipper-ship"));
-    expect(await readFile(path, "utf8")).toBe(SKILLS["shipper-ship"]);
-  });
 });

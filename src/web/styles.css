@@ -533,11 +533,6 @@ button {
   cursor: not-allowed;
 }
 
-.ship-button {
-  background: #c084fc;
-  border-color: #c084fc;
-}
-
 .secondary-button {
   background: transparent;
   color: var(--text);

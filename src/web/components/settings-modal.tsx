@@ -90,11 +90,6 @@ export function SettingsModal({ configInfo, onClose, send }: SettingsModalProps)
                     Build model: <code>{configInfo.models["shipper-build"]}</code>
                   </p>
                 )}
-                {configInfo.models["shipper-ship"] && (
-                  <p>
-                    Ship model: <code>{configInfo.models["shipper-ship"]}</code>
-                  </p>
-                )}
               </div>
             )}
             <button

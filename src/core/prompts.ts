@@ -5,10 +5,7 @@ import {
 } from "../agents/question-protocol.ts";
 import { skillPathForAgent } from "./skills.ts";
 
-function skillInstruction(
-  agent: AgentKind,
-  skillName: "shipper-plan" | "shipper-build" | "shipper-ship",
-): string {
+function skillInstruction(agent: AgentKind, skillName: "shipper-plan" | "shipper-build"): string {
   const path = skillPathForAgent(agent, skillName);
   return `Read and follow the skill at \`${path}\` in the target repository.`;
 }
@@ -41,17 +38,6 @@ export function buildBuildPrompt(
     "",
     `Implement Phase ${phaseNumber} of the plan at \`${planRelativePath}\`.`,
     `Work only on Phase ${phaseNumber} — do not ask which phase to implement.`,
-    "",
-    questionInstructions(agentKind),
-  ].join("\n");
-}
-
-export function buildShipPrompt(planRelativePath: string, agentKind: AgentKind): string {
-  return [
-    skillInstruction(agentKind, "shipper-ship"),
-    "",
-    `Create a pull request for the work completed in the plan at \`${planRelativePath}\`.`,
-    "Review the Completion Notes in each phase, verify the implementation against the plan, then create the PR using the format described in the skill.",
     "",
     questionInstructions(agentKind),
   ].join("\n");

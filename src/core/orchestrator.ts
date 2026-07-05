@@ -15,7 +15,7 @@ import {
   type PlanFile,
   type PlanPhase,
 } from "./plan-store.ts";
-import { buildBuildPrompt, buildPlanPrompt, buildShipPrompt } from "./prompts.ts";
+import { buildBuildPrompt, buildPlanPrompt } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
 import { installSkills } from "./skills.ts";
 
@@ -52,11 +52,6 @@ export type BuildLoopResult =
     }
   | { status: "error"; message: string; sessionsUsed: number }
   | { status: "cancelled"; sessionsUsed: number };
-
-export type ShipResult =
-  | { status: "success" }
-  | { status: "error"; message: string }
-  | { status: "cancelled" };
 
 type PhaseSnapshot = {
   checkedCount: number;
@@ -369,45 +364,4 @@ export async function runBuildLoop(
     message: `Build loop exceeded session limit (${maxSessions}). Inspect the plan and re-run build.`,
     sessionsUsed,
   };
-}
-
-export async function runShip(
-  repoPath: string,
-  agent: AgentKind,
-  planFilename: string,
-  handlers: AgentRunHandlers,
-  model?: string,
-): Promise<ShipResult> {
-  const plan = await findPlanByFilename(repoPath, planFilename);
-  if (!plan) {
-    return { status: "error", message: "Plan file not found" };
-  }
-
-  if (plan.folder !== "done" && !isPlanFullyComplete(plan)) {
-    return {
-      status: "error",
-      message: "Plan must be complete before shipping. Finish the build first.",
-    };
-  }
-
-  await installSkills(repoPath, agent);
-
-  const prompt = buildShipPrompt(planRelativePath(plan.folder, planFilename), agent);
-  const adapter = createAdapter(agent);
-  const logger = handlers.logger ?? (await RunLogger.create(agent));
-  const runResult = await consumeAgentRun(
-    adapter,
-    { cwd: repoPath, prompt, ...(model ? { model } : {}) },
-    { ...handlers, logger },
-  );
-
-  if (handlers.signal?.aborted) {
-    return { status: "cancelled" };
-  }
-
-  if (!runResult.ok) {
-    return { status: "error", message: runResult.error ?? "Ship failed" };
-  }
-
-  return { status: "success" };
 }

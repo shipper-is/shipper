@@ -25,12 +25,6 @@ describe("parseClientMessage", () => {
         planFilename: "foo.md",
       }),
     ).toEqual({ type: "start-build", planFilename: "foo.md" });
-    expect(
-      parseClientMessage({
-        type: "start-ship",
-        planFilename: "foo.md",
-      }),
-    ).toEqual({ type: "start-ship", planFilename: "foo.md" });
   });
 
   it("rejects unknown or malformed messages", () => {

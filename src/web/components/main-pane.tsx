@@ -18,16 +18,6 @@ type MainPaneProps = {
   onBuildCreatedPlan: () => void;
 };
 
-function isPlanComplete(plan: PlanSummary): boolean {
-  if (plan.folder === "done") {
-    return true;
-  }
-  if (plan.phases.length === 0) {
-    return false;
-  }
-  return plan.phases.every((phase) => phase.complete);
-}
-
 export function MainPane({
   plan,
   runState,
@@ -102,22 +92,12 @@ export function MainPane({
   const displayPlan = plan;
   const showPlanDetails = displayPlan && isIdle;
   const showChat = isRunning || chatEntries.length > 0 || pendingQuestion;
-  const planComplete = displayPlan ? isPlanComplete(displayPlan) : false;
-  const canBuild = showPlanDetails && displayPlan.folder === "open" && !planComplete;
-  const canShip = showPlanDetails && planComplete;
-
-  const runTitle =
-    runState.skill === "plan"
-      ? "Creating plan…"
-      : runState.skill === "ship"
-        ? "Shipping…"
-        : "Build in progress";
 
   return (
     <main className="main-pane main-with-chat">
       <header className="main-pane-header">
         <div>
-          <h1>{displayPlan?.title ?? runTitle}</h1>
+          <h1>{displayPlan?.title ?? (runState.skill === "plan" ? "Creating plan…" : "Build in progress")}</h1>
           {displayPlan && (
             <span className={`folder-badge folder-${displayPlan.folder}`}>{displayPlan.folder}</span>
           )}
@@ -145,22 +125,13 @@ export function MainPane({
               {confirmStop ? "Confirm stop" : "Stop"}
             </button>
           )}
-          {canBuild && (
+          {showPlanDetails && displayPlan.folder === "open" && (
             <button
               type="button"
               className="primary-button"
               onClick={() => send({ type: "start-build", planFilename: displayPlan.filename })}
             >
               Build
-            </button>
-          )}
-          {canShip && (
-            <button
-              type="button"
-              className="primary-button ship-button"
-              onClick={() => send({ type: "start-ship", planFilename: displayPlan.filename })}
-            >
-              Ship
             </button>
           )}
         </div>

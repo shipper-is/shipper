@@ -19,9 +19,7 @@ export function ModelPicker({ request, onSelect, onCancel }: ModelPickerProps) {
   const title =
     request.skill === "shipper-plan"
       ? "Choose a model for plan creation"
-      : request.skill === "shipper-build"
-        ? "Choose a model for builds"
-        : "Choose a model for shipping";
+      : "Choose a model for builds";
 
   if (step.type === "family") {
     return (

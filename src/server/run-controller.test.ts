@@ -108,7 +108,6 @@ describe("createRunController", () => {
           }),
       ),
       runPlanCreation: vi.fn(),
-      runShip: vi.fn(),
     };
 
     const controller = createRunController({
@@ -157,7 +156,6 @@ describe("createRunController", () => {
         } satisfies BuildLoopResult;
       }),
       runPlanCreation: vi.fn(),
-      runShip: vi.fn(),
     };
 
     const controller = createRunController({
