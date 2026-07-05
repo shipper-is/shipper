@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "shipper-build": {
+      "source": "shipper-is/shipper",
+      "sourceType": "github",
+      "skillPath": "skills/shipper-build/SKILL.md",
+      "computedHash": "0a4c01ed4676edc9178529847d500cc29b933b29c641eb6219134f5992536a19"
+    },
+    "shipper-plan": {
+      "source": "shipper-is/shipper",
+      "sourceType": "github",
+      "skillPath": "skills/shipper-plan/SKILL.md",
+      "computedHash": "6c77933443386b0c1ce1afe376a9f2810444a01408ae97c05e6a617e9d890b06"
+    },
+    "shipper-ship": {
+      "source": "shipper-is/shipper",
+      "sourceType": "github",
+      "skillPath": "skills/shipper-ship/SKILL.md",
+      "computedHash": "76a90289dcde0fd69c2d60b9ed23b4bed449132763feef7e9c9e9cd0ca1e0b29"
+    },
+    "shipper-spike": {
+      "source": "shipper-is/shipper",
+      "sourceType": "github",
+      "skillPath": "skills/shipper-spike/SKILL.md",
+      "computedHash": "d3889893875bace2e4c0ce4213f363c4543a7770dd06b1819efd281f5f30dbd6"
+    }
+  }
+}
