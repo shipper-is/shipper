@@ -191,6 +191,7 @@ describe("buildSpikePrompt", () => {
     const description = "Add dark mode toggle";
     const prompt = buildSpikePrompt(description, "cursor");
     expect(prompt).toContain(globalSkillPath("cursor", "shipper-spike"));
+    expect(prompt).not.toContain("target repository");
     expect(prompt).toContain(description);
     expect(prompt).toContain("Run a Shipper Spike");
   });

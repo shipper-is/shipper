@@ -10,7 +10,7 @@ function skillInstruction(
   skillName: "shipper-plan" | "shipper-build" | "shipper-spike",
 ): string {
   const path = globalSkillPath(agent, skillName);
-  return `Read and follow the skill at \`${path}\` in the target repository.`;
+  return `Read and follow the skill at \`${path}\`.`;
 }
 
 function questionInstructions(agent: AgentKind): string {
