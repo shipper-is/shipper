@@ -1,11 +1,11 @@
 {
   "name": "shipper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "bun run src/index.ts",
-    "build": "bun build --compile src/index.ts --outfile dist/shipper --define __SHIPPER_VERSION__='\"0.1.0\"'",
+    "build": "bun run scripts/build-local.ts",
     "build:release": "bun run scripts/build-release.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",

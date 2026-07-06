@@ -11,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh 
 Pin a version:
 
 ```bash
-SHIPPER_VERSION=0.1.0 sh -c 'curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh | sh'
+SHIPPER_VERSION=0.2.0 sh -c 'curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh | sh'
 ```
 
 macOS binaries are **unsigned** in v1. Installing via `curl | sh` avoids Gatekeeper quarantine; downloading the binary directly in a browser may require removing the quarantine attribute or allowing it in System Settings.
@@ -102,7 +102,7 @@ bun run build:release          # all four release targets → dist/shipper-*
 Push a `v*` tag to trigger `.github/workflows/release.yml`, which builds `shipper-darwin-arm64`, `shipper-darwin-x64`, `shipper-linux-x64`, and `shipper-linux-arm64` with SHA256 checksums attached to the GitHub Release.
 
 ```bash
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
 ## Modules
