@@ -4,6 +4,8 @@ reported_at: "2026-07-05T22:03:00-04:00"
 branch: shipper/bug-done-plan-cursor-tagging
 base_branch: shipper/bug-worktree-plan-cursor-tagging
 fixed_at: "2026-07-05T22:05:00-04:00"
+pr_url: https://github.com/shipper-is/shipper/pull/16
+pr_number: 16
 ---
 
 # Done plans invisible to Cursor @ tagging
