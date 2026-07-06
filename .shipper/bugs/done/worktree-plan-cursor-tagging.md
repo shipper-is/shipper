@@ -4,6 +4,8 @@ reported_at: "2026-07-05T21:51:00-04:00"
 branch: shipper/bug-worktree-plan-cursor-tagging
 base_branch: main
 fixed_at: "2026-07-05T21:54:00-04:00"
+pr_url: https://github.com/shipper-is/shipper/pull/14
+pr_number: 14
 ---
 
 # Worktree plans invisible to Cursor file tagging
