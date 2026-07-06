@@ -3,6 +3,8 @@ type: plan
 branch: shipper/remove-worktree-workflow
 base_branch: main
 started_at: "2026-07-05T23:27:00-04:00"
+phase_commits:
+  1: d71a303
 ---
 
 # Remove Worktrees from the Shipper Workflow
@@ -149,31 +151,36 @@ flowchart TD
 
 ### Section 1: plan-store.ts
 
-- [ ] Remove `worktree` from `PlanMeta`, `emptyPlanMeta()`, and `parseFrontmatter()` in [src/core/plan-store.ts](/Users/matt/Documents/shipper/src/core/plan-store.ts).
-- [ ] Remove `resolvePlanSessionCwd()` entirely.
-- [ ] Remove the `origin` field from `PlanFile`, `readPlanFileAt`, and `readFolderPlans` signatures.
-- [ ] Delete `listWorktreePlans`, `dedupePlansByFilename`, `syncWorktreePlanSymlinks`, `ensurePlanSymlink`, `removeStaleWorktreeSymlinks`, `removeLegacyPlansFolderSymlinks`, and `planCursorTagPath`.
-- [ ] Add one cleanup function (e.g. `removeLeftoverPlanSymlinks(repoPath)`) that iterates `.shipper/open`, `.shipper/done`, and `.shipper/plans`, and unlinks any `.md` entry that `isSymlink` reports true for. Call it from `listPlans` before reading folders. Keep the existing `isSymlink` helper.
-- [ ] Simplify `listPlans` to read main-checkout `open`/`done` only, sorted as today. Keep skipping symlinks inside `readFolderPlans` as a guard (the cleanup runs first, so this is belt-and-braces during the same scan).
-- [ ] In `watchPlans`, drop the two `worktrees` glob patterns.
+- [x] Remove `worktree` from `PlanMeta`, `emptyPlanMeta()`, and `parseFrontmatter()` in [src/core/plan-store.ts](/Users/matt/Documents/shipper/src/core/plan-store.ts).
+- [x] Remove `resolvePlanSessionCwd()` entirely.
+- [x] Remove the `origin` field from `PlanFile`, `readPlanFileAt`, and `readFolderPlans` signatures.
+- [x] Delete `listWorktreePlans`, `dedupePlansByFilename`, `syncWorktreePlanSymlinks`, `ensurePlanSymlink`, `removeStaleWorktreeSymlinks`, `removeLegacyPlansFolderSymlinks`, and `planCursorTagPath`.
+- [x] Add one cleanup function (e.g. `removeLeftoverPlanSymlinks(repoPath)`) that iterates `.shipper/open`, `.shipper/done`, and `.shipper/plans`, and unlinks any `.md` entry that `isSymlink` reports true for. Call it from `listPlans` before reading folders. Keep the existing `isSymlink` helper.
+- [x] Simplify `listPlans` to read main-checkout `open`/`done` only, sorted as today. Keep skipping symlinks inside `readFolderPlans` as a guard (the cleanup runs first, so this is belt-and-braces during the same scan).
+- [x] In `watchPlans`, drop the two `worktrees` glob patterns.
 
 ### Section 2: orchestrator, protocol, UI
 
-- [ ] In [src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts): remove the `resolvePlanSessionCwd` import and both call sites; use `repoPath` directly as the session cwd (the `sessionCwd` variable in the follow-up path collapses to `repoPath`).
-- [ ] In [src/shared/protocol.ts](/Users/matt/Documents/shipper/src/shared/protocol.ts): remove `worktree` from `PlanMetaDto`.
-- [ ] In [src/web/components/plan-view.tsx](/Users/matt/Documents/shipper/src/web/components/plan-view.tsx): remove `meta.worktree !== null` from `hasMeta()` and delete the "Worktree" meta row block.
-- [ ] Check [src/server/plans-watcher.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.ts) `planFileToSummary` — `meta: plan.meta` passes through unchanged; no edit expected, but confirm the DTO types still line up after the `PlanMeta` change.
+- [x] In [src/core/orchestrator.ts](/Users/matt/Documents/shipper/src/core/orchestrator.ts): remove the `resolvePlanSessionCwd` import and both call sites; use `repoPath` directly as the session cwd (the `sessionCwd` variable in the follow-up path collapses to `repoPath`).
+- [x] In [src/shared/protocol.ts](/Users/matt/Documents/shipper/src/shared/protocol.ts): remove `worktree` from `PlanMetaDto`.
+- [x] In [src/web/components/plan-view.tsx](/Users/matt/Documents/shipper/src/web/components/plan-view.tsx): remove `meta.worktree !== null` from `hasMeta()` and delete the "Worktree" meta row block.
+- [x] Check [src/server/plans-watcher.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.ts) `planFileToSummary` — `meta: plan.meta` passes through unchanged; no edit expected, but confirm the DTO types still line up after the `PlanMeta` change.
 
 ### Section 3: tests
 
-- [ ] [src/core/plan-store.test.ts](/Users/matt/Documents/shipper/src/core/plan-store.test.ts): delete describe blocks/tests covering worktree aggregation, dedupe precedence, symlink syncing, `resolvePlanSessionCwd`, and `planCursorTagPath`. Update `parseFrontmatter` expectations that assert a `worktree` field. Add a test for the new leftover-symlink cleanup: seed a dangling symlink in `.shipper/open/`, call `listPlans`, assert the symlink is gone and the plan list is unaffected.
-- [ ] [src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts): delete the two tests asserting worktree session cwd (lines ~371–401 and ~437–474). Confirm remaining tests assert `sessionCwd === repoPath` where relevant.
-- [ ] [src/server/plans-watcher.test.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.test.ts): remove `worktree: null` from meta expectations and `origin: "main"` from `PlanFile` literals; rewrite the `savePlanMarkdown` worktree-path test to use a normal `.shipper/open/` path (the behavior under test — writing to `plan.path` from the snapshot — is still worth covering).
-- [ ] Run `bun run typecheck`, `bun run lint`, and `bun run test`; fix any fallout.
+- [x] [src/core/plan-store.test.ts](/Users/matt/Documents/shipper/src/core/plan-store.test.ts): delete describe blocks/tests covering worktree aggregation, dedupe precedence, symlink syncing, `resolvePlanSessionCwd`, and `planCursorTagPath`. Update `parseFrontmatter` expectations that assert a `worktree` field. Add a test for the new leftover-symlink cleanup: seed a dangling symlink in `.shipper/open/`, call `listPlans`, assert the symlink is gone and the plan list is unaffected.
+- [x] [src/core/orchestrator.test.ts](/Users/matt/Documents/shipper/src/core/orchestrator.test.ts): delete the two tests asserting worktree session cwd (lines ~371–401 and ~437–474). Confirm remaining tests assert `sessionCwd === repoPath` where relevant.
+- [x] [src/server/plans-watcher.test.ts](/Users/matt/Documents/shipper/src/server/plans-watcher.test.ts): remove `worktree: null` from meta expectations and `origin: "main"` from `PlanFile` literals; rewrite the `savePlanMarkdown` worktree-path test to use a normal `.shipper/open/` path (the behavior under test — writing to `plan.path` from the snapshot — is still worth covering).
+- [x] Run `bun run typecheck`, `bun run lint`, and `bun run test`; fix any fallout.
 
 ### Completion Notes
 
-(to be filled in by the implementer)
+- `PlanMeta`, `PlanMetaDto`, and `PlanFile` no longer carry `worktree` or `origin`. `parseFrontmatter` ignores legacy `worktree:` keys in old plan files.
+- Agent sessions always run with `cwd: repoPath`; `resolvePlanSessionCwd` and `planCursorTagPath` are removed.
+- `listPlans` calls `removeLeftoverPlanSymlinks` before reading folders — unlinks any `.md` symlink in `.shipper/open`, `.shipper/done`, or `.shipper/plans`.
+- `watchPlans` only watches main-checkout `open`/`done` globs.
+- `plans-watcher.ts` required no code changes; `planFileToSummary` passes `meta` through as-is.
+- All 121 tests pass after removing ~10 worktree-specific tests and adding 3 simpler listPlans tests plus a symlink-cleanup test.
 
 ## Phase 3: Repo hygiene and verification
 

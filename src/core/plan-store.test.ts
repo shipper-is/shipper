@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join } from "node:path";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -10,9 +10,6 @@ import {
   listPlans,
   parseFrontmatter,
   parsePlan,
-  planCursorTagPath,
-  resolvePlanSessionCwd,
-  type PlanFile,
 } from "./plan-store.ts";
 
 const fixturePath = join(
@@ -135,7 +132,6 @@ describe("parseFrontmatter", () => {
       type: "plan",
       branch: "shipper/plan-completion-metadata",
       baseBranch: null,
-      worktree: null,
       startedAt: "2026-07-04T22:15:00-05:00",
       completedAt: "2026-07-05T01:40:00-05:00",
       phaseCommits: {},
@@ -225,10 +221,9 @@ type: feature
     expect(parseFrontmatter(unknownMd).type).toBe("plan");
   });
 
-  it("parses base_branch, worktree, and phase_commits", () => {
+  it("parses base_branch and phase_commits", () => {
     const md = `---
 base_branch: main
-worktree: .shipper/worktrees/my-plan
 phase_commits:
   1: abc1234
   2: def5678
@@ -237,8 +232,16 @@ phase_commits:
 `;
     const meta = parseFrontmatter(md);
     expect(meta.baseBranch).toBe("main");
-    expect(meta.worktree).toBe(".shipper/worktrees/my-plan");
     expect(meta.phaseCommits).toEqual({ 1: "abc1234", 2: "def5678" });
+  });
+
+  it("ignores legacy worktree frontmatter keys", () => {
+    const md = `---
+worktree: .shipper/worktrees/my-plan
+---
+# Plan
+`;
+    expect(parseFrontmatter(md)).toEqual(emptyPlanMeta());
   });
 
   it("normalizes phase_commits keys whether YAML yields numbers or strings", () => {
@@ -276,7 +279,6 @@ branch: shipper/foo
 `;
     const meta = parseFrontmatter(md);
     expect(meta.baseBranch).toBeNull();
-    expect(meta.worktree).toBeNull();
     expect(meta.phaseCommits).toEqual({});
   });
 });
@@ -312,7 +314,7 @@ describe("listPlans", () => {
   const SIMPLE_PLAN = `---
 type: plan
 ---
-# Worktree Plan
+# Test Plan
 
 ## Phase 1: One
 
@@ -321,280 +323,50 @@ type: plan
 - [ ] task
 `;
 
-  it("includes plans from a worktree checkout", async () => {
+  it("lists plans from the main checkout open and done folders", async () => {
     const repoPath = await makeRepoLayout();
-    const worktreeShipper = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "my-plan",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeShipper, { recursive: true });
-    await writeFile(join(worktreeShipper, "my-plan.md"), SIMPLE_PLAN, "utf8");
+    await writeFile(join(repoPath, ".shipper", "open", "my-plan.md"), SIMPLE_PLAN, "utf8");
 
     const plans = await listPlans(repoPath);
     expect(plans.open).toHaveLength(1);
     expect(plans.open[0]!.filename).toBe("my-plan.md");
-    expect(plans.open[0]!.origin).toBe("worktree");
-    expect(plans.open[0]!.path).toBe(join(worktreeShipper, "my-plan.md"));
+    expect(plans.open[0]!.path).toBe(join(repoPath, ".shipper", "open", "my-plan.md"));
 
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("creates an open-folder symlink for worktree plans", async () => {
+  it("removes leftover symlinks in open, done, and plans folders", async () => {
     const repoPath = await makeRepoLayout();
-    const worktreeShipper = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "my-plan",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeShipper, { recursive: true });
-    await writeFile(join(worktreeShipper, "my-plan.md"), SIMPLE_PLAN, "utf8");
+    const realPlanPath = join(repoPath, ".shipper", "open", "real-plan.md");
+    await writeFile(realPlanPath, SIMPLE_PLAN, "utf8");
+
+    const danglingLink = join(repoPath, ".shipper", "open", "stale-link.md");
+    await symlink("../worktrees/gone/.shipper/open/stale-link.md", danglingLink);
+
+    const plansDir = join(repoPath, ".shipper", "plans");
+    await mkdir(plansDir, { recursive: true });
+    const legacyLink = join(plansDir, "legacy.md");
+    await symlink("../worktrees/old/.shipper/open/legacy.md", legacyLink);
 
     const plans = await listPlans(repoPath);
     expect(plans.open).toHaveLength(1);
-    expect(plans.open[0]!.origin).toBe("worktree");
+    expect(plans.open[0]!.filename).toBe("real-plan.md");
 
-    const linkPath = planCursorTagPath(repoPath, plans.open[0]!);
-    const content = await readFile(linkPath, "utf8");
-    expect(content).toContain("# Worktree Plan");
-    expect(linkPath).toBe(join(repoPath, ".shipper", "open", "my-plan.md"));
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  it("moves the symlink to done/ when a worktree plan completes", async () => {
-    const repoPath = await makeRepoLayout();
-    const worktreeShipper = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "my-plan",
-      ".shipper",
-    );
-    const worktreeOpen = join(worktreeShipper, "open");
-    const worktreeDone = join(worktreeShipper, "done");
-    await mkdir(worktreeOpen, { recursive: true });
-    const openPath = join(worktreeOpen, "my-plan.md");
-    await writeFile(openPath, SIMPLE_PLAN, "utf8");
-
-    await listPlans(repoPath);
-    const openLink = join(repoPath, ".shipper", "open", "my-plan.md");
-    expect(await readFile(openLink, "utf8")).toContain("# Worktree Plan");
-
-    await mkdir(worktreeDone, { recursive: true });
-    const donePath = join(worktreeDone, "my-plan.md");
-    await writeFile(donePath, SIMPLE_PLAN, "utf8");
-    await rm(openPath);
-
-    const plans = await listPlans(repoPath);
-    expect(plans.open).toHaveLength(0);
-    expect(plans.done).toHaveLength(1);
-
-    const doneLink = planCursorTagPath(repoPath, plans.done[0]!);
-    expect(doneLink).toBe(join(repoPath, ".shipper", "done", "my-plan.md"));
-    expect(await readFile(doneLink, "utf8")).toContain("# Worktree Plan");
-    const target = resolve(dirname(doneLink), await readlink(doneLink));
-    expect(target).toBe(donePath);
-    await expect(readFile(openLink, "utf8")).rejects.toThrow();
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  it("does not symlink main-checkout done plans that already exist as real files", async () => {
-    const repoPath = await makeRepoLayout();
-    const donePath = join(repoPath, ".shipper", "done", "finished.md");
-    await writeFile(donePath, SIMPLE_PLAN, "utf8");
-
-    const plans = await listPlans(repoPath);
-    expect(plans.done).toHaveLength(1);
-    expect(await isSymlink(donePath)).toBe(false);
-
-    const tagPath = planCursorTagPath(repoPath, plans.done[0]!);
-    expect(tagPath).toBe(donePath);
-    expect(await readFile(tagPath, "utf8")).toContain("# Worktree Plan");
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  async function isSymlink(path: string): Promise<boolean> {
     const { lstat } = await import("node:fs/promises");
-    try {
-      return (await lstat(path)).isSymbolicLink();
-    } catch {
-      return false;
-    }
-  }
-
-  it("does not treat worktree symlinks as duplicate main plans", async () => {
-    const repoPath = await makeRepoLayout();
-    const worktreeOpen = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "dup-plan",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeOpen, { recursive: true });
-    await writeFile(join(worktreeOpen, "dup-plan.md"), SIMPLE_PLAN, "utf8");
-
-    await listPlans(repoPath);
-
-    const plans = await listPlans(repoPath);
-    expect(plans.open).toHaveLength(1);
-    expect(plans.open[0]!.origin).toBe("worktree");
+    await expect(lstat(danglingLink)).rejects.toThrow();
+    await expect(lstat(legacyLink)).rejects.toThrow();
 
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("removes stale open-folder symlinks when the target plan is gone", async () => {
+  it("findPlanByFilename resolves main-checkout plans", async () => {
     const repoPath = await makeRepoLayout();
-    const worktreeOpen = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "gone-plan",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeOpen, { recursive: true });
-    const planPath = join(worktreeOpen, "gone-plan.md");
-    await writeFile(planPath, SIMPLE_PLAN, "utf8");
-
-    await listPlans(repoPath);
-    const linkPath = join(repoPath, ".shipper", "open", "gone-plan.md");
-    expect(await readFile(linkPath, "utf8")).toContain("# Worktree Plan");
-
-    await rm(planPath);
-    await listPlans(repoPath);
-
-    await expect(readFile(linkPath, "utf8")).rejects.toThrow();
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  it("prefers the worktree copy when the same filename exists in main", async () => {
-    const repoPath = await makeRepoLayout();
-    const mainPlan = `---
-type: plan
----
-# Main Copy
-`;
-    const worktreePlan = `---
-type: plan
-worktree: .shipper/worktrees/dup-plan
----
-# Worktree Copy
-`;
-    await writeFile(
-      join(repoPath, ".shipper", "open", "dup-plan.md"),
-      mainPlan,
-      "utf8",
-    );
-    const worktreeOpen = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "dup-plan",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeOpen, { recursive: true });
-    await writeFile(join(worktreeOpen, "dup-plan.md"), worktreePlan, "utf8");
-
-    const plans = await listPlans(repoPath);
-    expect(plans.open).toHaveLength(1);
-    expect(plans.open[0]!.origin).toBe("worktree");
-    expect(plans.open[0]!.title).toBe("Worktree Copy");
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  it("does not scan nested worktrees inside a worktree checkout", async () => {
-    const repoPath = await makeRepoLayout();
-    const nestedOpen = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "outer",
-      ".shipper",
-      "worktrees",
-      "inner",
-      ".shipper",
-      "open",
-    );
-    await mkdir(nestedOpen, { recursive: true });
-    await writeFile(join(nestedOpen, "nested.md"), SIMPLE_PLAN, "utf8");
-
-    const plans = await listPlans(repoPath);
-    expect(plans.open).toHaveLength(0);
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  it("findPlanByFilename resolves worktree plans", async () => {
-    const repoPath = await makeRepoLayout();
-    const worktreeOpen = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "find-me",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeOpen, { recursive: true });
-    await writeFile(join(worktreeOpen, "find-me.md"), SIMPLE_PLAN, "utf8");
+    await writeFile(join(repoPath, ".shipper", "open", "find-me.md"), SIMPLE_PLAN, "utf8");
 
     const plan = await findPlanByFilename(repoPath, "find-me.md");
     expect(plan).not.toBeNull();
-    expect(plan!.origin).toBe("worktree");
-    expect(plan!.path).toBe(join(worktreeOpen, "find-me.md"));
+    expect(plan!.path).toBe(join(repoPath, ".shipper", "open", "find-me.md"));
 
     await rm(repoPath, { recursive: true, force: true });
-  });
-});
-
-describe("resolvePlanSessionCwd", () => {
-  const repoPath = "/repo/main";
-
-  function planWithWorktree(worktree: string | null): PlanFile {
-    return {
-      filename: "my-plan.md",
-      path: join(repoPath, ".shipper", "open", "my-plan.md"),
-      folder: "open",
-      origin: "main",
-      title: "My Plan",
-      progress: { totalChecked: 0, totalUnchecked: 1, currentPhase: 1, phaseCount: 1 },
-      parsed: { title: "My Plan", phases: [], totalChecked: 0, totalUnchecked: 0 },
-      meta: { ...emptyPlanMeta(), worktree },
-    };
-  }
-
-  it("returns repoPath when worktree is unset", () => {
-    expect(resolvePlanSessionCwd(repoPath, planWithWorktree(null))).toBe(repoPath);
-  });
-
-  it("returns the worktree path when worktree is set and exists", async () => {
-    const repoPath = await mkdtemp(join(tmpdir(), "shipper-cwd-"));
-    const worktreeRel = ".shipper/worktrees/my-plan";
-    await mkdir(join(repoPath, worktreeRel), { recursive: true });
-
-    expect(resolvePlanSessionCwd(repoPath, planWithWorktree(worktreeRel))).toBe(
-      join(repoPath, worktreeRel),
-    );
-
-    await rm(repoPath, { recursive: true, force: true });
-  });
-
-  it("falls back to repoPath when worktree is set but missing", () => {
-    expect(
-      resolvePlanSessionCwd(repoPath, planWithWorktree(".shipper/worktrees/gone")),
-    ).toBe(repoPath);
   });
 });

@@ -33,7 +33,6 @@ function hasMeta(meta: PlanMetaDto): boolean {
   return (
     meta.branch !== null ||
     meta.baseBranch !== null ||
-    meta.worktree !== null ||
     meta.startedAt !== null ||
     meta.completedAt !== null ||
     meta.prUrl !== null ||
@@ -111,14 +110,6 @@ function PlanMetaPanel({ meta }: { meta: PlanMetaDto }) {
           <span className="plan-meta-label">Base</span>
           <span className="plan-meta-value">
             <code>{meta.baseBranch}</code>
-          </span>
-        </div>
-      )}
-      {meta.worktree !== null && (
-        <div className="plan-meta-row">
-          <span className="plan-meta-label">Worktree</span>
-          <span className="plan-meta-value">
-            <code>{meta.worktree}</code>
           </span>
         </div>
       )}
