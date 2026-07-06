@@ -6,6 +6,7 @@ worktree: .shipper/worktrees/modules-marketplace
 started_at: "2026-07-05T21:48:00-04:00"
 phase_commits:
   1: 3a37126
+  2: ee2cf44
 ---
 
 # Modules Marketplace
@@ -176,16 +177,22 @@ Files to modify:
 
 ### Section 1: Skill content
 
-- [ ] Update [skills/shipper-plan/SKILL.md](/Users/matt/Documents/shipper/skills/shipper-plan/SKILL.md) with a new "Module references" section placed after the intro: if the user's request contains a Shipper module reference (a `shipper.is/modules/<id>` URL, a `modules/<id>` GitHub URL, or an explicit module id), follow the module flow below; otherwise the existing four-step flow applies unchanged.
-- [ ] Document the module flow in the skill: (1) install the module by running `shipper modules add <id>`; if the `shipper` CLI is not installed, fall back to fetching `https://raw.githubusercontent.com/shipper-is/shipper/main/modules/<id>/MODULE.md` plus each reference file it links, writing them to `.shipper/modules/<id>/`; (2) read every file in `.shipper/modules/<id>/` — the module is the feature spec; (3) explore the host codebase to map the module's stack-neutral requirements (data model, UI surfaces, auth assumptions) onto the repo's actual stack and conventions; (4) ask clarifying questions focused on integration choices the module leaves open (placement, naming, which optional features to include) — do not re-ask things the module already decides; (5) write the plan, citing both module files (as the spec) and host repo files (as the integration points).
-- [ ] Amend the read-only rule in the skill: the allowed writes are the plan markdown file and the module files installed into `.shipper/modules/<id>/` (via the CLI or the fallback fetch). Running `shipper modules add` is explicitly permitted.
-- [ ] Require module plans to note the module id and version in the plan body (e.g. a line in the Plan Overview: "Built from module `customer-support` v1") so future maintenance can detect drift, and to instruct that `.shipper/modules/` is committed to the repo.
-- [ ] Update the stale `computedHash` for `shipper-plan` in [skills-lock.json](/Users/matt/Documents/shipper/skills-lock.json) — first verify how the existing hashes are derived (sha256 of the SKILL.md bytes is the likely scheme; confirm by hashing an unchanged skill file and comparing).
+- [x] Update [skills/shipper-plan/SKILL.md](/Users/matt/Documents/shipper/skills/shipper-plan/SKILL.md) with a new "Module references" section placed after the intro: if the user's request contains a Shipper module reference (a `shipper.is/modules/<id>` URL, a `modules/<id>` GitHub URL, or an explicit module id), follow the module flow below; otherwise the existing four-step flow applies unchanged.
+- [x] Document the module flow in the skill: (1) install the module by running `shipper modules add <id>`; if the `shipper` CLI is not installed, fall back to fetching `https://raw.githubusercontent.com/shipper-is/shipper/main/modules/<id>/MODULE.md` plus each reference file it links, writing them to `.shipper/modules/<id>/`; (2) read every file in `.shipper/modules/<id>/` — the module is the feature spec; (3) explore the host codebase to map the module's stack-neutral requirements (data model, UI surfaces, auth assumptions) onto the repo's actual stack and conventions; (4) ask clarifying questions focused on integration choices the module leaves open (placement, naming, which optional features to include) — do not re-ask things the module already decides; (5) write the plan, citing both module files (as the spec) and host repo files (as the integration points).
+- [x] Amend the read-only rule in the skill: the allowed writes are the plan markdown file and the module files installed into `.shipper/modules/<id>/` (via the CLI or the fallback fetch). Running `shipper modules add` is explicitly permitted.
+- [x] Require module plans to note the module id and version in the plan body (e.g. a line in the Plan Overview: "Built from module `customer-support` v1") so future maintenance can detect drift, and to instruct that `.shipper/modules/` is committed to the repo.
+- [x] Update the stale `computedHash` for `shipper-plan` in [skills-lock.json](/Users/matt/Documents/shipper/skills-lock.json) — first verify how the existing hashes are derived (sha256 of the SKILL.md bytes is the likely scheme; confirm by hashing an unchanged skill file and comparing).
 
 ### Section 2: Docs alignment
 
-- [ ] Update [README.md](/Users/matt/Documents/shipper/README.md): add a "Modules" section explaining the concept (open source, agent-built replacements for SaaS features), the `shipper modules list` / `shipper modules add` commands, the `/shipper-plan <module-url>` flow, and that module files live in `.shipper/modules/` (committed).
-- [ ] Update the mirrored skill description in [web/app/docs/skills/page.tsx](/Users/matt/Documents/shipper/web/app/docs/skills/page.tsx) so the `shipper-plan` card mentions module planning (this file is hardcoded; keep the copy short).
+- [x] Update [README.md](/Users/matt/Documents/shipper/README.md): add a "Modules" section explaining the concept (open source, agent-built replacements for SaaS features), the `shipper modules list` / `shipper modules add` commands, the `/shipper-plan <module-url>` flow, and that module files live in `.shipper/modules/` (committed).
+- [x] Update the mirrored skill description in [web/app/docs/skills/page.tsx](/Users/matt/Documents/shipper/web/app/docs/skills/page.tsx) so the `shipper-plan` card mentions module planning (this file is hardcoded; keep the copy short).
+
+#### Completion Notes
+
+- `skills-lock.json` uses sha256 of raw `SKILL.md` bytes; all pre-existing lock hashes were already stale vs current files on `main` — only `shipper-plan` was updated in this phase.
+- Module flow is placed before the standard flow so agents branch early; the read-only carve-out is in the "Standard flow" section and applies to module installs too.
+- Phase 4 should use `modulePlanCommand(id)` returning `/shipper-plan https://shipper.is/modules/${id}` — the skill and README use the full URL form consistently.
 
 ## Phase 4: Web — Modules pages on shipper.is
 

@@ -105,6 +105,25 @@ Push a `v*` tag to trigger `.github/workflows/release.yml`, which builds `shippe
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
+## Modules
+
+Modules are open source, opinionated feature specs — agent-built replacements for SaaS tools like Intercom or Mixpanel. Instead of subscribing to a third-party service, you install a module and let your coding agent build the feature directly into your codebase. You own the code, and the agent can maintain it over time.
+
+Browse available modules at [shipper.is/modules](https://shipper.is/modules).
+
+```bash
+shipper modules list                    # show modules from the GitHub repo
+shipper modules add customer-support    # install into .shipper/modules/<id>/
+```
+
+Then plan the build in your coding agent:
+
+```
+/shipper-plan https://shipper.is/modules/customer-support
+```
+
+The `shipper-plan` skill installs the module (or uses files already in `.shipper/modules/`), reads the spec, maps it to your stack, and writes a tailored plan to `.shipper/open/`. Commit `.shipper/modules/` alongside your plans — it is the long-term reference for maintaining the feature.
+
 ## CLI
 
 ### Commands
@@ -113,6 +132,8 @@ git tag v0.1.0 && git push origin v0.1.0
 |---------|-------------|
 | `shipper` | Start the web workspace (default) |
 | `shipper skills` | Install or refresh global skills for detected agents |
+| `shipper modules list` | List available modules from the GitHub repo |
+| `shipper modules add <id-or-url>` | Install a module into `.shipper/modules/<id>/` |
 
 Use `shipper skills` without starting the console when you want the bundled skills in your own coding agent — e.g. type `/shipper-plan` in Cursor CLI or Claude Code to plan a feature directly in your editor.
 

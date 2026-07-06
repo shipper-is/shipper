@@ -17,7 +17,7 @@
       "source": "shipper-is/shipper",
       "sourceType": "github",
       "skillPath": "skills/shipper-plan/SKILL.md",
-      "computedHash": "7bd9f3c07f5eb55e13a9862830916637a283e2beb34136c7b6284b7122a17c00"
+      "computedHash": "d1c0b375a44098edaf53eca0ef4dc6db1e2619264059c88fe63f6bc52d4b7499"
     },
     "shipper-ship": {
       "source": "shipper-is/shipper",
