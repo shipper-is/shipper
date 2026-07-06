@@ -24,7 +24,13 @@ If the user opts **yes**:
 
    `<slug>` can match the bug filename without `.md` (e.g. `login-timeout` for `login-timeout.md`).
 
-3. **Move** the bug file from the main checkout's `.shipper/bugs/open/<filename>.md` into the worktree's `.shipper/bugs/open/<filename>.md` if it is not already there.
+3. **Move** the bug file from the main checkout's `.shipper/bugs/open/<filename>.md` into the worktree's `.shipper/bugs/open/<filename>.md` if it is not already there. Create a **symlink** at the original main-checkout path so editor `@` tags can still reach it:
+
+   ```sh
+   ln -s "../worktrees/<slug>/.shipper/bugs/open/<filename>.md" .shipper/bugs/open/<filename>.md
+   ```
+
+   Run from the repo root.
 4. Record `worktree: .shipper/worktrees/<slug>` in the bug file frontmatter.
 5. Perform all subsequent fix, test, and close work inside the worktree.
 
