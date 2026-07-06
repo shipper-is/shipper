@@ -8,6 +8,8 @@ phase_commits:
   2: 5f4e6c7
   3: ad92cc9
 completed_at: "2026-07-05T23:35:00-04:00"
+pr_url: https://github.com/shipper-is/shipper/pull/18
+pr_number: 18
 ---
 
 # Remove Worktrees from the Shipper Workflow
