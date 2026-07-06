@@ -32,13 +32,13 @@ If the user opts **yes**:
 
    `<slug>` matches the plan filename without `.md`.
 
-3. **Move** (do not copy) the plan file from the main checkout's `.shipper/open/<filename>.md` into the worktree's `.shipper/open/<filename>.md`. Create `.shipper/open/` in the worktree if needed. Then create a **symlink** at the original main-checkout path so editor tooling (e.g. Cursor `@` file tags) can still reach the plan:
+3. **Move** (do not copy) the plan file from the main checkout's `.shipper/open/<filename>.md` into the worktree's `.shipper/open/<filename>.md`. Create `.shipper/open/` in the worktree if needed. Then create a **symlink** in the main checkout's `.shipper/open/` so editor `@` tags can still reach the plan:
 
    ```sh
    ln -s "../worktrees/<slug>/.shipper/open/<filename>.md" .shipper/open/<filename>.md
    ```
 
-   Run from the repo root. When the plan later moves to `done`, recreate the symlink under `.shipper/done/` pointing at the worktree's `.shipper/done/<filename>.md`. The Shipper console also maintains these symlinks automatically when it loads plans.
+   Run from the repo root. When the plan later moves to `done`, recreate the symlink under `.shipper/done/` pointing at the worktree's `.shipper/done/<filename>.md` and remove the open symlink. The Shipper console maintains these symlinks automatically when it loads plans.
 4. Record `worktree: .shipper/worktrees/<slug>` in the plan frontmatter (repo-relative path).
 5. Perform all subsequent work inside the worktree directory. Treat the worktree as the session root for file edits, commits, and terminal commands.
 
@@ -78,7 +78,7 @@ If a worktree is in use, **worktree removal is the last action** of the run — 
 git -C <main-repo-path> worktree remove .shipper/worktrees/<slug>
 ```
 
-Remove any main-checkout symlinks at `.shipper/open/<filename>.md` or `.shipper/done/<filename>.md` that pointed into the worktree (the console also cleans stale symlinks automatically).
+Remove any `.shipper/open/<filename>.md` or `.shipper/done/<filename>.md` symlinks that pointed into the worktree (the console also cleans stale symlinks automatically).
 
 Do not delete the feature branch here. The branch persists for PR creation via shipper-ship.
 

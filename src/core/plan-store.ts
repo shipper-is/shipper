@@ -399,7 +399,7 @@ export async function ensureShipperDirs(repoPath: string): Promise<void> {
   await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
 }
 
-/** Repo-relative path in the main checkout for @-tagging a plan in an editor. */
+/** Visible main-checkout path for @-tagging a plan in an editor. */
 export function planCursorTagPath(
   repoPath: string,
   plan: Pick<PlanFile, "filename" | "folder">,
@@ -471,7 +471,28 @@ async function removeStaleWorktreeSymlinks(repoPath: string): Promise<void> {
   }
 }
 
-/** Symlinks in the main checkout so editor @-tags can reach gitignored worktree plans. */
+/** Remove any legacy .shipper/plans/ symlinks from the earlier stable-path experiment. */
+async function removeLegacyPlansFolderSymlinks(repoPath: string): Promise<void> {
+  const dir = join(repoPath, ".shipper", "plans");
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return;
+  }
+
+  for (const filename of entries) {
+    if (!filename.endsWith(".md")) {
+      continue;
+    }
+    const linkPath = join(dir, filename);
+    if (await isSymlink(linkPath)) {
+      await unlink(linkPath);
+    }
+  }
+}
+
+/** Symlinks in open/done so @-tags reach gitignored worktree plans in the matching bucket. */
 async function syncWorktreePlanSymlinks(
   repoPath: string,
   worktreePlans: { open: PlanFile[]; done: PlanFile[] },
@@ -490,6 +511,7 @@ async function syncWorktreePlanSymlinks(
   }
 
   await removeStaleWorktreeSymlinks(repoPath);
+  await removeLegacyPlansFolderSymlinks(repoPath);
 }
 
 async function readPlanFileAt(

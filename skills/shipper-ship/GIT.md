@@ -2,7 +2,7 @@ This file is the authoritative git workflow for shipper-ship. Read and follow it
 
 ## Locating the branch
 
-Read `branch` and `worktree` from the plan or spike file frontmatter in `.shipper/done/`.
+Read `branch` and `worktree` from the plan or spike file frontmatter in `.shipper/done/<filename>.md`. For worktree plans, the Shipper console maintains a symlink at that path in the main checkout (the real file may live under gitignored `.shipper/worktrees/`).
 
 If `worktree` is set and the path exists on disk, operate inside that worktree directory for all git and file edits.
 
