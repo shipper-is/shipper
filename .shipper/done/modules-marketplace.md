@@ -10,6 +10,8 @@ phase_commits:
   3: 32b1754
   4: 54bdeb8
 completed_at: "2026-07-05T22:02:00-04:00"
+pr_url: https://github.com/shipper-is/shipper/pull/15
+pr_number: 15
 ---
 
 # Modules Marketplace
