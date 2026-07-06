@@ -81,9 +81,9 @@ const alternateSkills = [
     skill: "shipper-bug",
     description:
       "Evidence-first bug workflow: reproduce, diagnose, fix, and prove it in .shipper/bugs/.",
-    command: "use shipper-bug to fix the login redirect loop",
+    command: "/shipper-bug fix the login redirect loop",
     steps: [
-      "Describe the bug you're seeing.",
+      "Run the slash command with a short description of the bug.",
       "The agent reproduces it before diagnosing root cause.",
       "A targeted fix is applied with proof it works.",
       "The bug file moves to .shipper/bugs/done/.",
