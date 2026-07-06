@@ -26,7 +26,6 @@ export type PlanMetaDto = {
   type: "plan" | "spike";
   branch: string | null;
   baseBranch: string | null;
-  worktree: string | null;
   startedAt: string | null;
   completedAt: string | null;
   phaseCommits: Record<number, string>;

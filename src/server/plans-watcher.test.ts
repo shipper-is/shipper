@@ -62,7 +62,6 @@ describe("planFileToSummary", () => {
       filename: "test-plan.md",
       path: "/repo/.shipper/open/test-plan.md",
       folder: "open",
-      origin: "main",
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
@@ -99,7 +98,6 @@ ${SAMPLE_MARKDOWN}`;
       filename: "done-plan.md",
       path: "/repo/.shipper/done/done-plan.md",
       folder: "done",
-      origin: "main",
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
@@ -112,7 +110,6 @@ ${SAMPLE_MARKDOWN}`;
       type: "plan",
       branch: "shipper/plan-completion-metadata",
       baseBranch: null,
-      worktree: null,
       startedAt: "2026-07-04T22:15:00-05:00",
       completedAt: "2026-07-05T01:40:00-05:00",
       phaseCommits: {},
@@ -123,21 +120,14 @@ ${SAMPLE_MARKDOWN}`;
 });
 
 describe("savePlanMarkdown", () => {
-  it("writes to the worktree plan path from the snapshot", async () => {
+  it("writes to the plan path from the snapshot", async () => {
     const repoPath = await mkdtemp(join(tmpdir(), "shipper-plans-watcher-"));
-    const worktreeOpen = join(
-      repoPath,
-      ".shipper",
-      "worktrees",
-      "edit-me",
-      ".shipper",
-      "open",
-    );
-    await mkdir(worktreeOpen, { recursive: true });
-    const planPath = join(worktreeOpen, "edit-me.md");
+    const openDir = join(repoPath, ".shipper", "open");
+    await mkdir(openDir, { recursive: true });
+    await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+    const planPath = join(openDir, "edit-me.md");
     const original = `---
 type: plan
-worktree: .shipper/worktrees/edit-me
 ---
 # Edit Me
 
@@ -148,8 +138,6 @@ worktree: .shipper/worktrees/edit-me
 - [ ] task
 `;
     await writeFile(planPath, original, "utf8");
-    await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
-    await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
 
     const snapshot = await loadPlansSnapshot(repoPath);
     const updated = original.replace("- [ ] task", "- [x] task");

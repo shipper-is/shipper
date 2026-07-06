@@ -14,7 +14,6 @@ import {
   listPlans,
   type PlanFile,
   type PlanPhase,
-  resolvePlanSessionCwd,
 } from "./plan-store.ts";
 import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, buildSpikePrompt, appendPendingUserMessages } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
@@ -395,10 +394,9 @@ export async function runBuildLoop(
     const adapter = createAdapter(agent);
     const sessionLogger = handlers.logger ?? (await RunLogger.create(agent));
     handlers.onSessionLog?.(sessionLogger.path);
-    const sessionCwd = resolvePlanSessionCwd(repoPath, plan);
     const runResult = await consumeAgentRun(
       adapter,
-      { cwd: sessionCwd, prompt, ...(model ? { model } : {}) },
+      { cwd: repoPath, prompt, ...(model ? { model } : {}) },
       { ...handlers, logger: sessionLogger },
     );
     sessionsUsed++;
@@ -487,12 +485,10 @@ export async function runFollowUp(
   options?: { model?: string; planFilename?: string },
 ): Promise<FollowUpResult> {
   let planRelative: string | undefined;
-  let sessionCwd = repoPath;
   if (options?.planFilename) {
     const plan = await findPlanByFilename(repoPath, options.planFilename);
     if (plan) {
       planRelative = planRelativePath(plan.folder, plan.filename);
-      sessionCwd = resolvePlanSessionCwd(repoPath, plan);
     }
   }
 
@@ -506,7 +502,7 @@ export async function runFollowUp(
   const runResult = await consumeAgentRun(
     adapter,
     {
-      cwd: sessionCwd,
+      cwd: repoPath,
       prompt,
       ...(resumeSessionId ? { resumeSessionId } : {}),
       ...(options?.model ? { model: options.model } : {}),

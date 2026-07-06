@@ -1,17 +1,12 @@
 import chokidar, { type FSWatcher } from "chokidar";
-import { existsSync } from "node:fs";
 import {
-  access,
   lstat,
   mkdir,
   readdir,
   readFile,
-  readlink,
-  stat,
-  symlink,
   unlink,
 } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 export type ChecklistItem = {
@@ -55,7 +50,6 @@ export type PlanMeta = {
   type: "plan" | "spike";
   branch: string | null;
   baseBranch: string | null;
-  worktree: string | null;
   startedAt: string | null;
   completedAt: string | null;
   phaseCommits: Record<number, string>;
@@ -68,7 +62,6 @@ export function emptyPlanMeta(): PlanMeta {
     type: "plan",
     branch: null,
     baseBranch: null,
-    worktree: null,
     startedAt: null,
     completedAt: null,
     phaseCommits: {},
@@ -138,7 +131,6 @@ export function parseFrontmatter(markdown: string): PlanMeta {
       type: asPlanType(record.type),
       branch: asMetaString(record.branch),
       baseBranch: asMetaString(record.base_branch),
-      worktree: asMetaString(record.worktree),
       startedAt: asMetaString(record.started_at),
       completedAt: asMetaString(record.completed_at),
       phaseCommits: parsePhaseCommits(record.phase_commits),
@@ -154,25 +146,11 @@ export type PlanFile = {
   filename: string;
   path: string;
   folder: "open" | "done";
-  origin: "main" | "worktree";
   title: string;
   progress: PlanProgress;
   parsed: ParsedPlan;
   meta: PlanMeta;
 };
-
-/** Session cwd for agent runs: worktree path when set and present, else main repo. */
-export function resolvePlanSessionCwd(repoPath: string, plan: PlanFile): string {
-  const worktree = plan.meta.worktree;
-  if (!worktree) {
-    return repoPath;
-  }
-  const worktreePath = join(repoPath, worktree);
-  if (existsSync(worktreePath)) {
-    return worktreePath;
-  }
-  return repoPath;
-}
 
 const PHASE_RE = /^## Phase (\d+)(?::\s*(.*))?$/;
 const SECTION_RE = /^### (.+)$/;
@@ -399,14 +377,6 @@ export async function ensureShipperDirs(repoPath: string): Promise<void> {
   await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
 }
 
-/** Visible main-checkout path for @-tagging a plan in an editor. */
-export function planCursorTagPath(
-  repoPath: string,
-  plan: Pick<PlanFile, "filename" | "folder">,
-): string {
-  return join(repoPath, ".shipper", plan.folder, plan.filename);
-}
-
 async function isSymlink(path: string): Promise<boolean> {
   try {
     return (await lstat(path)).isSymbolicLink();
@@ -415,31 +385,9 @@ async function isSymlink(path: string): Promise<boolean> {
   }
 }
 
-async function ensurePlanSymlink(linkPath: string, targetPath: string): Promise<void> {
-  const relTarget = relative(dirname(linkPath), targetPath);
-  try {
-    const entry = await lstat(linkPath);
-    if (entry.isSymbolicLink()) {
-      const current = await readlink(linkPath);
-      if (current === relTarget) {
-        return;
-      }
-      await unlink(linkPath);
-    } else {
-      return;
-    }
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
-  }
-  await symlink(relTarget, linkPath);
-}
-
-async function removeStaleWorktreeSymlinks(repoPath: string): Promise<void> {
-  const worktreesMarker = `${join(".shipper", "worktrees")}${sep}`;
-
-  for (const folder of ["open", "done"] as const) {
+/** Unlink leftover .md symlinks from the old worktree workflow. */
+async function removeLeftoverPlanSymlinks(repoPath: string): Promise<void> {
+  for (const folder of ["open", "done", "plans"] as const) {
     const dir = join(repoPath, ".shipper", folder);
     let entries: string[];
     try {
@@ -453,72 +401,17 @@ async function removeStaleWorktreeSymlinks(repoPath: string): Promise<void> {
         continue;
       }
       const linkPath = join(dir, filename);
-      if (!(await isSymlink(linkPath))) {
-        continue;
-      }
-
-      const target = resolve(dirname(linkPath), await readlink(linkPath));
-      if (!target.includes(worktreesMarker)) {
-        continue;
-      }
-
-      try {
-        await access(target);
-      } catch {
+      if (await isSymlink(linkPath)) {
         await unlink(linkPath);
       }
     }
   }
 }
 
-/** Remove any legacy .shipper/plans/ symlinks from the earlier stable-path experiment. */
-async function removeLegacyPlansFolderSymlinks(repoPath: string): Promise<void> {
-  const dir = join(repoPath, ".shipper", "plans");
-  let entries: string[];
-  try {
-    entries = await readdir(dir);
-  } catch {
-    return;
-  }
-
-  for (const filename of entries) {
-    if (!filename.endsWith(".md")) {
-      continue;
-    }
-    const linkPath = join(dir, filename);
-    if (await isSymlink(linkPath)) {
-      await unlink(linkPath);
-    }
-  }
-}
-
-/** Symlinks in open/done so @-tags reach gitignored worktree plans in the matching bucket. */
-async function syncWorktreePlanSymlinks(
-  repoPath: string,
-  worktreePlans: { open: PlanFile[]; done: PlanFile[] },
-): Promise<void> {
-  for (const folder of ["open", "done"] as const) {
-    for (const plan of worktreePlans[folder]) {
-      const linkPath = join(repoPath, ".shipper", folder, plan.filename);
-      await ensurePlanSymlink(linkPath, plan.path);
-
-      const otherFolder = folder === "open" ? "done" : "open";
-      const staleLink = join(repoPath, ".shipper", otherFolder, plan.filename);
-      if (await isSymlink(staleLink)) {
-        await unlink(staleLink);
-      }
-    }
-  }
-
-  await removeStaleWorktreeSymlinks(repoPath);
-  await removeLegacyPlansFolderSymlinks(repoPath);
-}
-
 async function readPlanFileAt(
   path: string,
   folder: "open" | "done",
   filename: string,
-  origin: "main" | "worktree",
 ): Promise<PlanFile> {
   const markdown = await readFile(path, "utf8");
   const parsed = parsePlan(markdown);
@@ -526,7 +419,6 @@ async function readPlanFileAt(
     filename,
     path,
     folder,
-    origin,
     title: parsed.title,
     progress: getPlanProgress(parsed),
     parsed,
@@ -537,7 +429,6 @@ async function readPlanFileAt(
 async function readFolderPlans(
   shipperRoot: string,
   folder: "open" | "done",
-  origin: "main" | "worktree",
 ): Promise<PlanFile[]> {
   const dir = join(shipperRoot, folder);
   let entries: string[];
@@ -551,11 +442,11 @@ async function readFolderPlans(
   const plans: PlanFile[] = [];
   for (const filename of mdFiles) {
     const filePath = join(dir, filename);
-    if (origin === "main" && (await isSymlink(filePath))) {
+    if (await isSymlink(filePath)) {
       continue;
     }
     try {
-      plans.push(await readPlanFileAt(filePath, folder, filename, origin));
+      plans.push(await readPlanFileAt(filePath, folder, filename));
     } catch {
       // skip unreadable files
     }
@@ -563,69 +454,17 @@ async function readFolderPlans(
   return plans;
 }
 
-/** Worktree copy wins when the same filename exists in main and a worktree. */
-function dedupePlansByFilename(plans: PlanFile[]): PlanFile[] {
-  const byFilename = new Map<string, PlanFile>();
-  for (const plan of plans) {
-    const existing = byFilename.get(plan.filename);
-    if (!existing) {
-      byFilename.set(plan.filename, plan);
-      continue;
-    }
-    if (plan.origin === "worktree" && existing.origin === "main") {
-      byFilename.set(plan.filename, plan);
-    }
-  }
-  return [...byFilename.values()].sort((a, b) =>
-    a.filename.localeCompare(b.filename),
-  );
-}
-
-async function listWorktreePlans(repoPath: string): Promise<{
-  open: PlanFile[];
-  done: PlanFile[];
-}> {
-  const worktreesDir = join(repoPath, ".shipper", "worktrees");
-  let entries: string[];
-  try {
-    entries = await readdir(worktreesDir);
-  } catch {
-    return { open: [], done: [] };
-  }
-
-  const open: PlanFile[] = [];
-  const done: PlanFile[] = [];
-
-  for (const entry of entries) {
-    const worktreeRoot = join(worktreesDir, entry);
-    const shipperRoot = join(worktreeRoot, ".shipper");
-    try {
-      await stat(shipperRoot);
-    } catch {
-      continue;
-    }
-    open.push(...(await readFolderPlans(shipperRoot, "open", "worktree")));
-    done.push(...(await readFolderPlans(shipperRoot, "done", "worktree")));
-  }
-
-  return { open, done };
-}
-
 export async function listPlans(repoPath: string): Promise<{
   open: PlanFile[];
   done: PlanFile[];
 }> {
   await ensureShipperDirs(repoPath);
+  await removeLeftoverPlanSymlinks(repoPath);
 
   const mainShipper = join(repoPath, ".shipper");
-  const mainOpen = await readFolderPlans(mainShipper, "open", "main");
-  const mainDone = await readFolderPlans(mainShipper, "done", "main");
-  const worktreePlans = await listWorktreePlans(repoPath);
-  await syncWorktreePlanSymlinks(repoPath, worktreePlans);
-
   return {
-    open: dedupePlansByFilename([...mainOpen, ...worktreePlans.open]),
-    done: dedupePlansByFilename([...mainDone, ...worktreePlans.done]),
+    open: await readFolderPlans(mainShipper, "open"),
+    done: await readFolderPlans(mainShipper, "done"),
   };
 }
 
@@ -648,8 +487,6 @@ export function watchPlans(
   const patterns = [
     join(repoPath, ".shipper", "open", "*.md"),
     join(repoPath, ".shipper", "done", "*.md"),
-    join(repoPath, ".shipper", "worktrees", "*", ".shipper", "open", "*.md"),
-    join(repoPath, ".shipper", "worktrees", "*", ".shipper", "done", "*.md"),
   ];
   let timer: ReturnType<typeof setTimeout> | null = null;
 
