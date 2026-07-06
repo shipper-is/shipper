@@ -1,7 +1,17 @@
 import chokidar, { type FSWatcher } from "chokidar";
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import {
+  access,
+  lstat,
+  mkdir,
+  readdir,
+  readFile,
+  readlink,
+  stat,
+  symlink,
+  unlink,
+} from "node:fs/promises";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 export type ChecklistItem = {
@@ -389,6 +399,99 @@ export async function ensureShipperDirs(repoPath: string): Promise<void> {
   await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
 }
 
+/** Repo-relative path in the main checkout for @-tagging a plan in an editor. */
+export function planCursorTagPath(
+  repoPath: string,
+  plan: Pick<PlanFile, "filename" | "folder">,
+): string {
+  return join(repoPath, ".shipper", plan.folder, plan.filename);
+}
+
+async function isSymlink(path: string): Promise<boolean> {
+  try {
+    return (await lstat(path)).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+async function ensurePlanSymlink(linkPath: string, targetPath: string): Promise<void> {
+  const relTarget = relative(dirname(linkPath), targetPath);
+  try {
+    const entry = await lstat(linkPath);
+    if (entry.isSymbolicLink()) {
+      const current = await readlink(linkPath);
+      if (current === relTarget) {
+        return;
+      }
+      await unlink(linkPath);
+    } else {
+      return;
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
+  await symlink(relTarget, linkPath);
+}
+
+async function removeStaleWorktreeSymlinks(repoPath: string): Promise<void> {
+  const worktreesMarker = `${join(".shipper", "worktrees")}${sep}`;
+
+  for (const folder of ["open", "done"] as const) {
+    const dir = join(repoPath, ".shipper", folder);
+    let entries: string[];
+    try {
+      entries = await readdir(dir);
+    } catch {
+      continue;
+    }
+
+    for (const filename of entries) {
+      if (!filename.endsWith(".md")) {
+        continue;
+      }
+      const linkPath = join(dir, filename);
+      if (!(await isSymlink(linkPath))) {
+        continue;
+      }
+
+      const target = resolve(dirname(linkPath), await readlink(linkPath));
+      if (!target.includes(worktreesMarker)) {
+        continue;
+      }
+
+      try {
+        await access(target);
+      } catch {
+        await unlink(linkPath);
+      }
+    }
+  }
+}
+
+/** Symlinks in the main checkout so editor @-tags can reach gitignored worktree plans. */
+async function syncWorktreePlanSymlinks(
+  repoPath: string,
+  worktreePlans: { open: PlanFile[]; done: PlanFile[] },
+): Promise<void> {
+  for (const folder of ["open", "done"] as const) {
+    for (const plan of worktreePlans[folder]) {
+      const linkPath = join(repoPath, ".shipper", folder, plan.filename);
+      await ensurePlanSymlink(linkPath, plan.path);
+
+      const otherFolder = folder === "open" ? "done" : "open";
+      const staleLink = join(repoPath, ".shipper", otherFolder, plan.filename);
+      if (await isSymlink(staleLink)) {
+        await unlink(staleLink);
+      }
+    }
+  }
+
+  await removeStaleWorktreeSymlinks(repoPath);
+}
+
 async function readPlanFileAt(
   path: string,
   folder: "open" | "done",
@@ -425,10 +528,12 @@ async function readFolderPlans(
   const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
   const plans: PlanFile[] = [];
   for (const filename of mdFiles) {
+    const filePath = join(dir, filename);
+    if (origin === "main" && (await isSymlink(filePath))) {
+      continue;
+    }
     try {
-      plans.push(
-        await readPlanFileAt(join(dir, filename), folder, filename, origin),
-      );
+      plans.push(await readPlanFileAt(filePath, folder, filename, origin));
     } catch {
       // skip unreadable files
     }
@@ -494,6 +599,7 @@ export async function listPlans(repoPath: string): Promise<{
   const mainOpen = await readFolderPlans(mainShipper, "open", "main");
   const mainDone = await readFolderPlans(mainShipper, "done", "main");
   const worktreePlans = await listWorktreePlans(repoPath);
+  await syncWorktreePlanSymlinks(repoPath, worktreePlans);
 
   return {
     open: dedupePlansByFilename([...mainOpen, ...worktreePlans.open]),
