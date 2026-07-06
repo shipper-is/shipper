@@ -397,15 +397,14 @@ export function getPlanProgress(parsed: ParsedPlan): PlanProgress {
 export async function ensureShipperDirs(repoPath: string): Promise<void> {
   await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
   await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
-  await mkdir(join(repoPath, ".shipper", "plans"), { recursive: true });
 }
 
-/** Stable main-checkout path for @-tagging a plan in an editor (open or done). */
+/** Visible main-checkout path for @-tagging a plan in an editor. */
 export function planCursorTagPath(
   repoPath: string,
-  plan: Pick<PlanFile, "filename">,
+  plan: Pick<PlanFile, "filename" | "folder">,
 ): string {
-  return join(repoPath, ".shipper", "plans", plan.filename);
+  return join(repoPath, ".shipper", plan.folder, plan.filename);
 }
 
 async function isSymlink(path: string): Promise<boolean> {
@@ -437,42 +436,7 @@ async function ensurePlanSymlink(linkPath: string, targetPath: string): Promise<
   await symlink(relTarget, linkPath);
 }
 
-async function removeStalePlanCursorAliases(
-  repoPath: string,
-  activeFilenames: Set<string>,
-): Promise<void> {
-  const dir = join(repoPath, ".shipper", "plans");
-  let entries: string[];
-  try {
-    entries = await readdir(dir);
-  } catch {
-    return;
-  }
-
-  for (const filename of entries) {
-    if (!filename.endsWith(".md")) {
-      continue;
-    }
-    const linkPath = join(dir, filename);
-    if (!(await isSymlink(linkPath))) {
-      continue;
-    }
-
-    const shouldRemove =
-      !activeFilenames.has(filename) ||
-      (await access(resolve(dirname(linkPath), await readlink(linkPath))).then(
-        () => false,
-        () => true,
-      ));
-
-    if (shouldRemove) {
-      await unlink(linkPath);
-    }
-  }
-}
-
-/** Remove legacy open/done folder symlinks from the earlier worktree-tagging fix. */
-async function removeLegacyWorktreeFolderSymlinks(repoPath: string): Promise<void> {
+async function removeStaleWorktreeSymlinks(repoPath: string): Promise<void> {
   const worktreesMarker = `${join(".shipper", "worktrees")}${sep}`;
 
   for (const folder of ["open", "done"] as const) {
@@ -494,28 +458,60 @@ async function removeLegacyWorktreeFolderSymlinks(repoPath: string): Promise<voi
       }
 
       const target = resolve(dirname(linkPath), await readlink(linkPath));
-      if (target.includes(worktreesMarker)) {
+      if (!target.includes(worktreesMarker)) {
+        continue;
+      }
+
+      try {
+        await access(target);
+      } catch {
         await unlink(linkPath);
       }
     }
   }
 }
 
-/** Stable symlinks at .shipper/plans/ so @-tags work across open/done and worktrees. */
-async function syncPlanCursorAliases(
-  repoPath: string,
-  plans: PlanFile[],
-): Promise<void> {
-  await mkdir(join(repoPath, ".shipper", "plans"), { recursive: true });
-
-  const activeFilenames = new Set<string>();
-  for (const plan of plans) {
-    activeFilenames.add(plan.filename);
-    await ensurePlanSymlink(planCursorTagPath(repoPath, plan), plan.path);
+/** Remove any legacy .shipper/plans/ symlinks from the earlier stable-path experiment. */
+async function removeLegacyPlansFolderSymlinks(repoPath: string): Promise<void> {
+  const dir = join(repoPath, ".shipper", "plans");
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return;
   }
 
-  await removeStalePlanCursorAliases(repoPath, activeFilenames);
-  await removeLegacyWorktreeFolderSymlinks(repoPath);
+  for (const filename of entries) {
+    if (!filename.endsWith(".md")) {
+      continue;
+    }
+    const linkPath = join(dir, filename);
+    if (await isSymlink(linkPath)) {
+      await unlink(linkPath);
+    }
+  }
+}
+
+/** Symlinks in open/done so @-tags reach gitignored worktree plans in the matching bucket. */
+async function syncWorktreePlanSymlinks(
+  repoPath: string,
+  worktreePlans: { open: PlanFile[]; done: PlanFile[] },
+): Promise<void> {
+  for (const folder of ["open", "done"] as const) {
+    for (const plan of worktreePlans[folder]) {
+      const linkPath = join(repoPath, ".shipper", folder, plan.filename);
+      await ensurePlanSymlink(linkPath, plan.path);
+
+      const otherFolder = folder === "open" ? "done" : "open";
+      const staleLink = join(repoPath, ".shipper", otherFolder, plan.filename);
+      if (await isSymlink(staleLink)) {
+        await unlink(staleLink);
+      }
+    }
+  }
+
+  await removeStaleWorktreeSymlinks(repoPath);
+  await removeLegacyPlansFolderSymlinks(repoPath);
 }
 
 async function readPlanFileAt(
@@ -625,12 +621,12 @@ export async function listPlans(repoPath: string): Promise<{
   const mainOpen = await readFolderPlans(mainShipper, "open", "main");
   const mainDone = await readFolderPlans(mainShipper, "done", "main");
   const worktreePlans = await listWorktreePlans(repoPath);
+  await syncWorktreePlanSymlinks(repoPath, worktreePlans);
 
-  const open = dedupePlansByFilename([...mainOpen, ...worktreePlans.open]);
-  const done = dedupePlansByFilename([...mainDone, ...worktreePlans.done]);
-  await syncPlanCursorAliases(repoPath, [...open, ...done]);
-
-  return { open, done };
+  return {
+    open: dedupePlansByFilename([...mainOpen, ...worktreePlans.open]),
+    done: dedupePlansByFilename([...mainDone, ...worktreePlans.done]),
+  };
 }
 
 export async function findPlanByFilename(

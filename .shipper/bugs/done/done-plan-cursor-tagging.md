@@ -32,11 +32,11 @@ Mechanism-proven: `planCursorTagPath` returns `.shipper/<folder>/<filename>.md`,
 - `shipper-ship` told agents to read `.shipper/done/<filename>.md`, which is gitignored for worktree plans and absent after worktree cleanup.
 
 ## Fix
-- Introduced a stable alias directory `.shipper/plans/<filename>.md` maintained by `syncPlanCursorAliases` in `listPlans` for all plans (open, done, main, worktree).
-- `planCursorTagPath` now always returns the `.shipper/plans/` path.
-- Legacy open/done worktree symlinks are removed on sync.
-- Updated `skills/shipper-ship/GIT.md` to prefer `.shipper/plans/<filename>.md` for locating done plans when running ship.
-- Updated `skills/shipper-build/GIT.md` and `skills/shipper-spike/GIT.md` symlink instructions to match.
+- Kept open/done folder separation: worktree plans get symlinks in `.shipper/open/` or `.shipper/done/` matching their current state.
+- `syncWorktreePlanSymlinks` removes the stale symlink from the other folder when a plan moves open→done (or vice versa).
+- `planCursorTagPath` returns `.shipper/<folder>/<filename>.md` so the file browser shows open vs done distinctly.
+- Cleans up any legacy `.shipper/plans/` symlinks from the earlier approach.
+- Updated `skills/shipper-ship/GIT.md` to read from `.shipper/done/<filename>.md` (symlinked for worktree plans).
 
 ## Regression Guard
 Pre-fix (`plan-store.ts` stashed, new tests kept):

@@ -343,7 +343,7 @@ type: plan
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("creates a stable plans/ alias for worktree plans", async () => {
+  it("creates an open-folder symlink for worktree plans", async () => {
     const repoPath = await makeRepoLayout();
     const worktreeShipper = join(
       repoPath,
@@ -360,15 +360,15 @@ type: plan
     expect(plans.open).toHaveLength(1);
     expect(plans.open[0]!.origin).toBe("worktree");
 
-    const aliasPath = planCursorTagPath(repoPath, plans.open[0]!);
-    const content = await readFile(aliasPath, "utf8");
+    const linkPath = planCursorTagPath(repoPath, plans.open[0]!);
+    const content = await readFile(linkPath, "utf8");
     expect(content).toContain("# Worktree Plan");
-    expect(aliasPath).toBe(join(repoPath, ".shipper", "plans", "my-plan.md"));
+    expect(linkPath).toBe(join(repoPath, ".shipper", "open", "my-plan.md"));
 
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("updates the plans/ alias when a worktree plan moves to done", async () => {
+  it("moves the symlink to done/ when a worktree plan completes", async () => {
     const repoPath = await makeRepoLayout();
     const worktreeShipper = join(
       repoPath,
@@ -384,7 +384,8 @@ type: plan
     await writeFile(openPath, SIMPLE_PLAN, "utf8");
 
     await listPlans(repoPath);
-    const aliasPath = planCursorTagPath(repoPath, { filename: "my-plan.md" });
+    const openLink = join(repoPath, ".shipper", "open", "my-plan.md");
+    expect(await readFile(openLink, "utf8")).toContain("# Worktree Plan");
 
     await mkdir(worktreeDone, { recursive: true });
     const donePath = join(worktreeDone, "my-plan.md");
@@ -395,28 +396,40 @@ type: plan
     expect(plans.open).toHaveLength(0);
     expect(plans.done).toHaveLength(1);
 
-    const content = await readFile(aliasPath, "utf8");
-    expect(content).toContain("# Worktree Plan");
-    const target = resolve(dirname(aliasPath), await readlink(aliasPath));
+    const doneLink = planCursorTagPath(repoPath, plans.done[0]!);
+    expect(doneLink).toBe(join(repoPath, ".shipper", "done", "my-plan.md"));
+    expect(await readFile(doneLink, "utf8")).toContain("# Worktree Plan");
+    const target = resolve(dirname(doneLink), await readlink(doneLink));
     expect(target).toBe(donePath);
+    await expect(readFile(openLink, "utf8")).rejects.toThrow();
 
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("creates a plans/ alias for main-checkout done plans", async () => {
+  it("does not symlink main-checkout done plans that already exist as real files", async () => {
     const repoPath = await makeRepoLayout();
     const donePath = join(repoPath, ".shipper", "done", "finished.md");
     await writeFile(donePath, SIMPLE_PLAN, "utf8");
 
     const plans = await listPlans(repoPath);
     expect(plans.done).toHaveLength(1);
+    expect(await isSymlink(donePath)).toBe(false);
 
-    const aliasPath = planCursorTagPath(repoPath, plans.done[0]!);
-    const content = await readFile(aliasPath, "utf8");
-    expect(content).toContain("# Worktree Plan");
+    const tagPath = planCursorTagPath(repoPath, plans.done[0]!);
+    expect(tagPath).toBe(donePath);
+    expect(await readFile(tagPath, "utf8")).toContain("# Worktree Plan");
 
     await rm(repoPath, { recursive: true, force: true });
   });
+
+  async function isSymlink(path: string): Promise<boolean> {
+    const { lstat } = await import("node:fs/promises");
+    try {
+      return (await lstat(path)).isSymbolicLink();
+    } catch {
+      return false;
+    }
+  }
 
   it("does not treat worktree symlinks as duplicate main plans", async () => {
     const repoPath = await makeRepoLayout();
@@ -440,7 +453,7 @@ type: plan
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("removes stale plans/ aliases when the target plan is gone", async () => {
+  it("removes stale open-folder symlinks when the target plan is gone", async () => {
     const repoPath = await makeRepoLayout();
     const worktreeOpen = join(
       repoPath,
@@ -455,13 +468,13 @@ type: plan
     await writeFile(planPath, SIMPLE_PLAN, "utf8");
 
     await listPlans(repoPath);
-    const aliasPath = join(repoPath, ".shipper", "plans", "gone-plan.md");
-    expect(await readFile(aliasPath, "utf8")).toContain("# Worktree Plan");
+    const linkPath = join(repoPath, ".shipper", "open", "gone-plan.md");
+    expect(await readFile(linkPath, "utf8")).toContain("# Worktree Plan");
 
     await rm(planPath);
     await listPlans(repoPath);
 
-    await expect(readFile(aliasPath, "utf8")).rejects.toThrow();
+    await expect(readFile(linkPath, "utf8")).rejects.toThrow();
 
     await rm(repoPath, { recursive: true, force: true });
   });
