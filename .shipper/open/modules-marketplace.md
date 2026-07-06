@@ -4,6 +4,8 @@ branch: shipper/modules-marketplace
 base_branch: main
 worktree: .shipper/worktrees/modules-marketplace
 started_at: "2026-07-05T21:48:00-04:00"
+phase_commits:
+  1: 3a37126
 ---
 
 # Modules Marketplace
@@ -141,23 +143,31 @@ Files to modify:
 
 ### Section 1: Core module logic
 
-- [ ] Add constants to [src/constants.ts](/Users/matt/Documents/shipper/src/constants.ts): `MODULES_BRANCH = "main"`, a raw-content base URL builder (`https://raw.githubusercontent.com/${GITHUB_REPO}/main/modules/`), a GitHub Contents API URL builder (`https://api.github.com/repos/${GITHUB_REPO}/contents/modules`), and `SITE_URL = "https://shipper.is"`.
-- [ ] Create [src/core/modules.ts](/Users/matt/Documents/shipper/src/core/modules.ts) with: `export type ModuleMeta = { id, name, description, category, version, replaces }`; `parseModuleFrontmatter(markdown): ModuleMeta | null` following the `parseFrontmatter` pattern from [src/core/plan-store.ts](/Users/matt/Documents/shipper/src/core/plan-store.ts) (yaml package, tolerant of malformed input, returns null when `type` is not `module`).
-- [ ] Add `parseModuleReference(input: string): string | null` to the same file: accepts a bare kebab-case id (`customer-support`), a site URL (`https://shipper.is/modules/customer-support`, with or without trailing slash), or a GitHub URL to the module folder, and returns the module id. Pure function, easy to test.
-- [ ] Add `listRemoteModules(fetchFn = fetch)` — calls the Contents API on `modules/`, filters to directories, and for each fetches `MODULE.md` from the raw URL and parses frontmatter to return `ModuleMeta[]`. Skip entries whose MODULE.md is missing or invalid rather than failing the whole list.
-- [ ] Add `installModule(id: string, targetDir: string, fetchFn = fetch)` — calls the Contents API on `modules/<id>` to enumerate files, filters to `.md` files, downloads each from its raw URL, and writes them into `<targetDir>/.shipper/modules/<id>/` using a write-if-changed helper copied from the `writeSkillIfChanged` pattern in [src/core/skills.ts](/Users/matt/Documents/shipper/src/core/skills.ts). Return a summary (`{ id, files: string[], root: string }`). Throw a descriptive `Error` for: unknown module (404), rate-limited API (403/429 with a message mentioning GitHub rate limits), and missing/invalid MODULE.md in the fetched set.
-- [ ] Accept `fetchFn` as an injectable parameter (defaulting to global `fetch`) so tests never hit the network.
+- [x] Add constants to [src/constants.ts](/Users/matt/Documents/shipper/src/constants.ts): `MODULES_BRANCH = "main"`, a raw-content base URL builder (`https://raw.githubusercontent.com/${GITHUB_REPO}/main/modules/`), a GitHub Contents API URL builder (`https://api.github.com/repos/${GITHUB_REPO}/contents/modules`), and `SITE_URL = "https://shipper.is"`.
+- [x] Create [src/core/modules.ts](/Users/matt/Documents/shipper/src/core/modules.ts) with: `export type ModuleMeta = { id, name, description, category, version, replaces }`; `parseModuleFrontmatter(markdown): ModuleMeta | null` following the `parseFrontmatter` pattern from [src/core/plan-store.ts](/Users/matt/Documents/shipper/src/core/plan-store.ts) (yaml package, tolerant of malformed input, returns null when `type` is not `module`).
+- [x] Add `parseModuleReference(input: string): string | null` to the same file: accepts a bare kebab-case id (`customer-support`), a site URL (`https://shipper.is/modules/customer-support`, with or without trailing slash), or a GitHub URL to the module folder, and returns the module id. Pure function, easy to test.
+- [x] Add `listRemoteModules(fetchFn = fetch)` — calls the Contents API on `modules/`, filters to directories, and for each fetches `MODULE.md` from the raw URL and parses frontmatter to return `ModuleMeta[]`. Skip entries whose MODULE.md is missing or invalid rather than failing the whole list.
+- [x] Add `installModule(id: string, targetDir: string, fetchFn = fetch)` — calls the Contents API on `modules/<id>` to enumerate files, filters to `.md` files, downloads each from its raw URL, and writes them into `<targetDir>/.shipper/modules/<id>/` using a write-if-changed helper copied from the `writeSkillIfChanged` pattern in [src/core/skills.ts](/Users/matt/Documents/shipper/src/core/skills.ts). Return a summary (`{ id, files: string[], root: string }`). Throw a descriptive `Error` for: unknown module (404), rate-limited API (403/429 with a message mentioning GitHub rate limits), and missing/invalid MODULE.md in the fetched set.
+- [x] Accept `fetchFn` as an injectable parameter (defaulting to global `fetch`) so tests never hit the network.
 
 ### Section 2: CLI wiring
 
-- [ ] In [src/index.ts](/Users/matt/Documents/shipper/src/index.ts), add a `modules` command group modeled on the existing `skills` command: `shipper modules list` prints each module as `id — name: description` lines; `shipper modules add <module>` resolves the reference via `parseModuleReference`, runs `installModule` against `process.cwd()` (respecting the existing `--dir` global option if present on the parsed options), and prints the installed file list and destination path.
-- [ ] On success, `add` should print a next-step hint: `Run /shipper-plan <id> in your coding agent to plan the build.`
-- [ ] Handle errors by printing `error.message` and exiting with code 1, matching the style of `runSkillsInstall` error handling.
+- [x] In [src/index.ts](/Users/matt/Documents/shipper/src/index.ts), add a `modules` command group modeled on the existing `skills` command: `shipper modules list` prints each module as `id — name: description` lines; `shipper modules add <module>` resolves the reference via `parseModuleReference`, runs `installModule` against `process.cwd()` (respecting the existing `--dir` global option if present on the parsed options), and prints the installed file list and destination path.
+- [x] On success, `add` should print a next-step hint: `Run /shipper-plan <id> in your coding agent to plan the build.`
+- [x] Handle errors by printing `error.message` and exiting with code 1, matching the style of `runSkillsInstall` error handling.
 
 ### Section 3: Tests
 
-- [ ] Create [src/core/modules.test.ts](/Users/matt/Documents/shipper/src/core/modules.test.ts) covering: `parseModuleReference` for bare ids, shipper.is URLs (with/without trailing slash), GitHub URLs, and invalid input; `parseModuleFrontmatter` for valid frontmatter, missing frontmatter, wrong `type`, and malformed YAML; `installModule` with a stubbed `fetchFn` asserting files land in `.shipper/modules/<id>/` (use a temp dir), re-running is a no-op for unchanged content, and 404/403 produce the descriptive errors.
-- [ ] Run `bun run typecheck`, `bun run lint`, and `bun run test` and fix any failures.
+- [x] Create [src/core/modules.test.ts](/Users/matt/Documents/shipper/src/core/modules.test.ts) covering: `parseModuleReference` for bare ids, shipper.is URLs (with/without trailing slash), GitHub URLs, and invalid input; `parseModuleFrontmatter` for valid frontmatter, missing frontmatter, wrong `type`, and malformed YAML; `installModule` with a stubbed `fetchFn` asserting files land in `.shipper/modules/<id>/` (use a temp dir), re-running is a no-op for unchanged content, and 404/403 produce the descriptive errors.
+- [x] Run `bun run typecheck`, `bun run lint`, and `bun run test` and fix any failures.
+
+#### Completion Notes
+
+- `src/core/modules.ts` exports `modulePlanHint()` for the CLI next-step message; Phase 3 can reuse the same copy in skill text.
+- `parseModuleReference` accepts GitHub `tree` and `blob` URLs under `modules/<id>` (optional trailing path for blob links to specific files).
+- `installModule` validates MODULE.md after writing files; a module folder with only invalid markdown fails install even if the API returned files.
+- `shipper modules add` reads the root `--dir` option via commander `optsWithGlobals()` — same pattern Phase 3 should document for agents running the CLI from a non-cwd repo.
+- Remote list/add hit the live GitHub API in production; tests stub `fetch` entirely. Until this branch merges to `main`, `shipper modules list` against production will not include `customer-support` yet.
 
 ## Phase 3: Module-aware shipper-plan skill
 

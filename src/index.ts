@@ -3,6 +3,12 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { detectAgents } from "./agents/detect.ts";
 import type { AgentKind } from "./agents/types.ts";
+import {
+  installModule,
+  listRemoteModules,
+  modulePlanHint,
+  parseModuleReference,
+} from "./core/modules.ts";
 import { ensureShipperDirs } from "./core/plan-store.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
 import { startServer } from "./server/http.ts";
@@ -122,6 +128,38 @@ async function runSkillsInstall(agentOverride?: string): Promise<void> {
   }
 }
 
+async function runModulesList(): Promise<void> {
+  const modules = await listRemoteModules();
+  if (modules.length === 0) {
+    console.log("No modules found.");
+    return;
+  }
+  for (const mod of modules) {
+    console.log(`${mod.id} — ${mod.name}: ${mod.description}`);
+  }
+}
+
+async function runModulesAdd(moduleRef: string, dir: string): Promise<void> {
+  const id = parseModuleReference(moduleRef);
+  if (!id) {
+    throw new Error(
+      `Invalid module reference: ${moduleRef}. Use a module id (e.g. customer-support), https://shipper.is/modules/<id>, or a GitHub modules URL.`,
+    );
+  }
+
+  const targetDir = resolve(dir);
+  if (!existsSync(targetDir)) {
+    throw new Error(`Directory does not exist: ${targetDir}`);
+  }
+
+  const result = await installModule(id, targetDir);
+  console.log(`Installed module ${result.id} to ${result.root}`);
+  for (const file of result.files) {
+    console.log(`  ${file}`);
+  }
+  console.log(modulePlanHint(result.id));
+}
+
 export async function main(argv: string[] = process.argv): Promise<void> {
   const program = new Command();
 
@@ -143,6 +181,38 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .option("--agent <kind>", "install for a specific agent (claude, cursor, opencode)")
     .action(async (opts: { agent?: string }) => {
       await runSkillsInstall(opts.agent);
+    });
+
+  const modulesCmd = program
+    .command("modules")
+    .description("discover and install Shipper modules");
+
+  modulesCmd
+    .command("list")
+    .description("list available modules from the Shipper repository")
+    .action(async () => {
+      try {
+        await runModulesList();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  modulesCmd
+    .command("add")
+    .description("install a module into .shipper/modules/ in the target repository")
+    .argument("<module>", "module id, shipper.is URL, or GitHub modules URL")
+    .action(async (moduleRef: string, _opts, cmd) => {
+      const globalOpts = cmd.optsWithGlobals() as { dir?: string };
+      try {
+        await runModulesAdd(moduleRef, globalOpts.dir ?? process.cwd());
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
     });
 
   await program.parseAsync(argv);
