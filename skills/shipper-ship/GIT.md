@@ -1,38 +1,28 @@
-This file is the authoritative git workflow for shipper-ship. Read and follow it for branch location, worktree handling, and frontmatter writeback.
+This file is the authoritative git workflow for shipper-ship. Read and follow it for branch location and frontmatter writeback.
 
 ## Locating the branch
 
-Read `branch` and `worktree` from the plan or spike file frontmatter in `.shipper/done/<filename>.md`. For worktree plans, the Shipper console maintains a symlink at that path in the main checkout (the real file may live under gitignored `.shipper/worktrees/`).
+Read `branch` from the plan or spike file frontmatter in `.shipper/done/<filename>.md`.
 
-If `worktree` is set and the path exists on disk, operate inside that worktree directory for all git and file edits.
-
-If `worktree` is set but the path no longer exists (cleaned up after build/spike completion), recreate a **temporary** worktree from the main repo checkout:
-
-```sh
-git worktree add .shipper/worktrees/<slug> shipper/<slug>
-```
-
-Use the branch name from frontmatter (`branch`). Perform frontmatter writeback inside this temporary worktree, then remove it when done.
-
-If `worktree` is not set, work in the main checkout on the feature branch.
+If the checkout is not on that branch, verify the working tree is clean before switching. If there are unrelated uncommitted changes, ask the user via the question tool (options like commit them, stash them, or abort) instead of proceeding. Record the current branch name, then `git checkout <branch>`.
 
 ## Push and PR
 
-From the resolved working directory (worktree or main checkout):
+From the main checkout on the feature branch:
 
 1. Push the branch to the remote (`git push -u origin HEAD` if not yet tracking).
 2. Create the PR with `gh pr create` following the PR description guidance in SKILL.md.
 3. Write `pr_url` (full canonical GitHub PR URL) and `pr_number` (integer) into the plan or spike file frontmatter **on the branch**.
 4. Commit the frontmatter update and push again.
 
-All of this must complete **before** any worktree removal.
+If ship switched branches to reach the feature branch, check out the previously recorded branch after the frontmatter writeback commit and push.
 
 ## Cleanup
 
-If you used a pre-existing or temporary worktree, remove it as the **last action** from the main repo checkout:
+Never delete the feature branch during ship.
+
+If ship switched branches during this run, restore the user's original branch as the last action:
 
 ```sh
-git -C <main-repo-path> worktree remove .shipper/worktrees/<slug>
+git checkout <previously-recorded-branch>
 ```
-
-Never delete the feature branch during ship.
