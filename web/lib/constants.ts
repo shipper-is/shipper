@@ -6,3 +6,10 @@ export const GITHUB_REPO = "shipper-is/shipper";
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 
 export const INSTALL_COMMAND = `curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPO}/main/install.sh | sh`;
+
+export const SITE_URL = "https://shipper.is";
+
+/** Slash-command to plan building a module in a coding agent. */
+export function modulePlanCommand(id: string): string {
+  return `/shipper-plan ${SITE_URL}/modules/${id}`;
+}

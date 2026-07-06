@@ -10,8 +10,9 @@ const skills = [
   {
     name: "shipper-plan",
     description:
-      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/open/.",
-    example: "use shipper-plan to plan dark mode settings",
+      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/open/. Also supports module URLs — install a Shipper module and plan building it into your repo.",
+    example:
+      "/shipper-plan https://shipper.is/modules/customer-support",
   },
   {
     name: "shipper-build",
