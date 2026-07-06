@@ -20,6 +20,12 @@ export function Footer() {
             Docs
           </Link>
           <Link
+            href="/modules"
+            className="font-mono text-sm underline underline-offset-4 transition-colors hover:text-white/60"
+          >
+            Modules
+          </Link>
+          <Link
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"

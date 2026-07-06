@@ -7,6 +7,7 @@ started_at: "2026-07-05T21:48:00-04:00"
 phase_commits:
   1: 3a37126
   2: ee2cf44
+  3: 32b1754
 ---
 
 # Modules Marketplace
@@ -201,25 +202,32 @@ Files to modify:
 
 ### Section 1: Build-time module loading
 
-- [ ] Add `yaml` and `react-markdown` to [web/package.json](/Users/matt/Documents/shipper/web/package.json) dependencies via `bun install` inside `web/`.
-- [ ] Add `SITE_URL = "https://shipper.is"` and a `moduleplanCommand(id)` helper (returns `/shipper-plan ${SITE_URL}/modules/${id}`) to [web/lib/constants.ts](/Users/matt/Documents/shipper/web/lib/constants.ts).
-- [ ] Create [web/lib/modules.ts](/Users/matt/Documents/shipper/web/lib/modules.ts): resolve the repo-root `modules/` directory relative to the web app (e.g. `path.join(process.cwd(), "..", "modules")`, with a comment noting the Vercel "include files outside root directory" requirement); export `getAllModules(): ModuleEntry[]` (read each `modules/*/MODULE.md`, parse frontmatter with `yaml`, skip invalid entries, sort by name) and `getModule(id): ModuleEntry | null` (frontmatter plus the markdown body with frontmatter stripped, and the list of sibling reference files). Server-only module — never import it from a client component.
-- [ ] Verify the local build picks up the seed module: run `bun run build` inside `web/` and confirm `/modules` and `/modules/customer-support` appear in the static generation output.
+- [x] Add `yaml` and `react-markdown` to [web/package.json](/Users/matt/Documents/shipper/web/package.json) dependencies via `bun install` inside `web/`.
+- [x] Add `SITE_URL = "https://shipper.is"` and a `moduleplanCommand(id)` helper (returns `/shipper-plan ${SITE_URL}/modules/${id}`) to [web/lib/constants.ts](/Users/matt/Documents/shipper/web/lib/constants.ts).
+- [x] Create [web/lib/modules.ts](/Users/matt/Documents/shipper/web/lib/modules.ts): resolve the repo-root `modules/` directory relative to the web app (e.g. `path.join(process.cwd(), "..", "modules")`, with a comment noting the Vercel "include files outside root directory" requirement); export `getAllModules(): ModuleEntry[]` (read each `modules/*/MODULE.md`, parse frontmatter with `yaml`, skip invalid entries, sort by name) and `getModule(id): ModuleEntry | null` (frontmatter plus the markdown body with frontmatter stripped, and the list of sibling reference files). Server-only module — never import it from a client component.
+- [x] Verify the local build picks up the seed module: run `bun run build` inside `web/` and confirm `/modules` and `/modules/customer-support` appear in the static generation output.
 
 ### Section 2: Index page
 
-- [ ] Create [web/app/modules/page.tsx](/Users/matt/Documents/shipper/web/app/modules/page.tsx) with `metadata` export. Structure it like the skills docs page: heading ("Modules"), then an explainer section covering the pitch — SaaS tools made sense when building was expensive; agents changed that; Modules are opinionated, open source feature specs your agent builds directly into your codebase, so you own the code and the agent can maintain it. Then a short "How it works" list: copy the command, paste it into your coding agent, review the plan, build it with shipper-build.
-- [ ] Render a card per module from `getAllModules()`: `font-mono` module id, display name, description, category, "replaces Intercom, Zendesk, Crisp" line from the `replaces` frontmatter, a link to the detail page, and an inline copy button for the plan command.
-- [ ] Reuse the existing card styling (`border border-white p-6`, grid `md:grid-cols-2`) and black/white palette.
+- [x] Create [web/app/modules/page.tsx](/Users/matt/Documents/shipper/web/app/modules/page.tsx) with `metadata` export. Structure it like the skills docs page: heading ("Modules"), then an explainer section covering the pitch — SaaS tools made sense when building was expensive; agents changed that; Modules are opinionated, open source feature specs your agent builds directly into your codebase, so you own the code and the agent can maintain it. Then a short "How it works" list: copy the command, paste it into your coding agent, review the plan, build it with shipper-build.
+- [x] Render a card per module from `getAllModules()`: `font-mono` module id, display name, description, category, "replaces Intercom, Zendesk, Crisp" line from the `replaces` frontmatter, a link to the detail page, and an inline copy button for the plan command.
+- [x] Reuse the existing card styling (`border border-white p-6`, grid `md:grid-cols-2`) and black/white palette.
 
 ### Section 3: Detail page and copy component
 
-- [ ] Create [web/components/copy-module-command.tsx](/Users/matt/Documents/shipper/web/components/copy-module-command.tsx) as a `"use client"` component modeled on [web/components/copy-install-command.tsx](/Users/matt/Documents/shipper/web/components/copy-install-command.tsx), taking the command string as a prop (same bordered `<pre>` + inverted Copy button + 2s "Copied" feedback).
-- [ ] Create [web/app/modules/[id]/page.tsx](/Users/matt/Documents/shipper/web/app/modules/[id]/page.tsx): `generateStaticParams` from `getAllModules()`; `generateMetadata` from the module name/description; `await params` (Next 16 async params); `notFound()` for unknown ids. Page layout: module name heading, description, the copy-command block near the top, the rendered MODULE.md body via `react-markdown` (style headings/lists/code with the site's palette using component overrides or prose-like utility classes), and a "Reference files" list linking to the files on GitHub (`${GITHUB_URL}/tree/main/modules/<id>`).
-- [ ] Add "Modules" links: nav item in [web/app/docs/layout.tsx](/Users/matt/Documents/shipper/web/app/docs/layout.tsx), a link in [web/components/footer.tsx](/Users/matt/Documents/shipper/web/components/footer.tsx), and a card on [web/app/docs/page.tsx](/Users/matt/Documents/shipper/web/app/docs/page.tsx) alongside the console and skills cards.
+- [x] Create [web/components/copy-module-command.tsx](/Users/matt/Documents/shipper/web/components/copy-module-command.tsx) as a `"use client"` component modeled on [web/components/copy-install-command.tsx](/Users/matt/Documents/shipper/web/components/copy-install-command.tsx), taking the command string as a prop (same bordered `<pre>` + inverted Copy button + 2s "Copied" feedback).
+- [x] Create [web/app/modules/[id]/page.tsx](/Users/matt/Documents/shipper/web/app/modules/[id]/page.tsx): `generateStaticParams` from `getAllModules()`; `generateMetadata` from the module name/description; `await params` (Next 16 async params); `notFound()` for unknown ids. Page layout: module name heading, description, the copy-command block near the top, the rendered MODULE.md body via `react-markdown` (style headings/lists/code with the site's palette using component overrides or prose-like utility classes), and a "Reference files" list linking to the files on GitHub (`${GITHUB_URL}/tree/main/modules/<id>`).
+- [x] Add "Modules" links: nav item in [web/app/docs/layout.tsx](/Users/matt/Documents/shipper/web/app/docs/layout.tsx), a link in [web/components/footer.tsx](/Users/matt/Documents/shipper/web/components/footer.tsx), and a card on [web/app/docs/page.tsx](/Users/matt/Documents/shipper/web/app/docs/page.tsx) alongside the console and skills cards.
 
 ### Section 4: Verification
 
-- [ ] Run `bun run build` in `web/` and confirm all module routes statically generate without errors.
-- [ ] Manually verify with `bun run dev` in `web/`: index page renders the customer-support card, detail page renders the full MODULE.md, the copy button copies exactly `/shipper-plan https://shipper.is/modules/customer-support`, and nav links work.
-- [ ] From the repo root, run `bun run typecheck`, `bun run lint`, and `bun run test` one final time to confirm nothing in the CLI regressed.
+- [x] Run `bun run build` in `web/` and confirm all module routes statically generate without errors.
+- [x] Manually verify with `bun run dev` in `web/`: index page renders the customer-support card, detail page renders the full MODULE.md, the copy button copies exactly `/shipper-plan https://shipper.is/modules/customer-support`, and nav links work.
+- [x] From the repo root, run `bun run typecheck`, `bun run lint`, and `bun run test` one final time to confirm nothing in the CLI regressed.
+
+#### Completion Notes
+
+- `web/app/modules/layout.tsx` adds a shared header (Home / Docs / Modules) for module pages; not in the original file list but mirrors `docs/layout.tsx`.
+- `modulePlanCommand()` in `web/lib/constants.ts` matches the full-URL form used by the shipper-plan skill and README.
+- `web/lib/modules.ts` duplicates frontmatter parsing from `src/core/modules.ts` — keep in sync if the schema changes.
+- Static build confirms `/modules` and `/modules/customer-support`; adding a new folder under `modules/` auto-generates routes on next deploy with no code changes.

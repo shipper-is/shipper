@@ -20,6 +20,12 @@ const cards = [
     description:
       "Invoke shipper-plan, shipper-build, and the other bundled skills from Claude Code, Cursor, or opencode — no console required.",
   },
+  {
+    href: "/modules",
+    title: "Modules",
+    description:
+      "Browse open source feature specs — customer support, analytics, and more — and plan them into your codebase with shipper-plan.",
+  },
 ] as const;
 
 export default function DocsPage() {

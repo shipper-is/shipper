@@ -3,7 +3,7 @@ import Link from "next/link";
 const linkClass =
   "font-mono text-sm underline underline-offset-4 transition-colors hover:text-white/60";
 
-export default function DocsLayout({
+export default function ModulesLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -18,12 +18,6 @@ export default function DocsLayout({
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Link href="/docs" className={linkClass}>
               Docs
-            </Link>
-            <Link href="/docs/console" className={linkClass}>
-              Console
-            </Link>
-            <Link href="/docs/skills" className={linkClass}>
-              Skills
             </Link>
             <Link href="/modules" className={linkClass}>
               Modules
