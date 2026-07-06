@@ -5,6 +5,7 @@ base_branch: main
 started_at: "2026-07-05T23:27:00-04:00"
 phase_commits:
   1: d71a303
+  2: 5f4e6c7
 ---
 
 # Remove Worktrees from the Shipper Workflow
@@ -189,11 +190,14 @@ flowchart TD
 
 ### Section 1: Sweep and verify
 
-- [ ] Grep `src/` and `skills/` for `worktree` (case-insensitive); the only acceptable remaining hits are historical documents under `.shipper/done/` and `.shipper/bugs/done/` (leave those untouched) and the `.gitignore` line.
-- [ ] Leave `.shipper/worktrees/` in [.gitignore](/Users/matt/Documents/shipper/.gitignore) with no change (see Gotchas for rationale).
-- [ ] Run the full check suite one more time: `bun run typecheck`, `bun run lint`, `bun run test`.
-- [ ] Refresh installed skills so the new workflow is live for agents: run `bun run dev` once (the console reinstalls skills before agent runs) or `bun run src/index.ts skills`. Verify `~/.claude/skills/shipper-build/GIT.md` no longer contains a Worktree section.
+- [x] Grep `src/` and `skills/` for `worktree` (case-insensitive); the only acceptable remaining hits are historical documents under `.shipper/done/` and `.shipper/bugs/done/` (leave those untouched) and the `.gitignore` line.
+- [x] Leave `.shipper/worktrees/` in [.gitignore](/Users/matt/Documents/shipper/.gitignore) with no change (see Gotchas for rationale).
+- [x] Run the full check suite one more time: `bun run typecheck`, `bun run lint`, `bun run test`.
+- [x] Refresh installed skills so the new workflow is live for agents: run `bun run dev` once (the console reinstalls skills before agent runs) or `bun run src/index.ts skills`. Verify `~/.claude/skills/shipper-build/GIT.md` no longer contains a Worktree section.
 
 ### Completion Notes
 
-(to be filled in by the implementer)
+- `skills/` has zero `worktree` hits. `src/` retains only intentional references: a cleanup comment in `plan-store.ts`, a legacy-frontmatter parse test, and symlink-cleanup fixtures that use old `../worktrees/` paths.
+- `.gitignore` still ignores `.shipper/worktrees/` for repos with in-flight worktrees.
+- Full check suite passes (121 tests).
+- Ran `bun run src/index.ts skills`; verified `~/.claude/skills/shipper-build/GIT.md` and `~/.cursor/skills/shipper-build/GIT.md` no longer contain a Worktree section.
