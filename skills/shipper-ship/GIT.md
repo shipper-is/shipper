@@ -2,7 +2,7 @@ This file is the authoritative git workflow for shipper-ship. Read and follow it
 
 ## Locating the branch
 
-Read `branch` and `worktree` from the plan or spike file frontmatter in `.shipper/done/`.
+Read `branch` and `worktree` from the plan or spike file frontmatter. Use the stable Cursor tag path **`.shipper/plans/<filename>.md`** (maintained automatically by the Shipper console via symlinks). That path works whether the plan is open or done and whether it lives in a worktree. Fall back to `.shipper/done/<filename>.md` only when the alias is missing.
 
 If `worktree` is set and the path exists on disk, operate inside that worktree directory for all git and file edits.
 

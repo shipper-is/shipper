@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
@@ -343,7 +343,7 @@ type: plan
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("creates a main-checkout symlink for worktree plans", async () => {
+  it("creates a stable plans/ alias for worktree plans", async () => {
     const repoPath = await makeRepoLayout();
     const worktreeShipper = join(
       repoPath,
@@ -360,8 +360,59 @@ type: plan
     expect(plans.open).toHaveLength(1);
     expect(plans.open[0]!.origin).toBe("worktree");
 
-    const linkPath = planCursorTagPath(repoPath, plans.open[0]!);
-    const content = await readFile(linkPath, "utf8");
+    const aliasPath = planCursorTagPath(repoPath, plans.open[0]!);
+    const content = await readFile(aliasPath, "utf8");
+    expect(content).toContain("# Worktree Plan");
+    expect(aliasPath).toBe(join(repoPath, ".shipper", "plans", "my-plan.md"));
+
+    await rm(repoPath, { recursive: true, force: true });
+  });
+
+  it("updates the plans/ alias when a worktree plan moves to done", async () => {
+    const repoPath = await makeRepoLayout();
+    const worktreeShipper = join(
+      repoPath,
+      ".shipper",
+      "worktrees",
+      "my-plan",
+      ".shipper",
+    );
+    const worktreeOpen = join(worktreeShipper, "open");
+    const worktreeDone = join(worktreeShipper, "done");
+    await mkdir(worktreeOpen, { recursive: true });
+    const openPath = join(worktreeOpen, "my-plan.md");
+    await writeFile(openPath, SIMPLE_PLAN, "utf8");
+
+    await listPlans(repoPath);
+    const aliasPath = planCursorTagPath(repoPath, { filename: "my-plan.md" });
+
+    await mkdir(worktreeDone, { recursive: true });
+    const donePath = join(worktreeDone, "my-plan.md");
+    await writeFile(donePath, SIMPLE_PLAN, "utf8");
+    await rm(openPath);
+
+    const plans = await listPlans(repoPath);
+    expect(plans.open).toHaveLength(0);
+    expect(plans.done).toHaveLength(1);
+
+    const content = await readFile(aliasPath, "utf8");
+    expect(content).toContain("# Worktree Plan");
+    const target = resolve(dirname(aliasPath), await readlink(aliasPath));
+    expect(target).toBe(donePath);
+
+    await rm(repoPath, { recursive: true, force: true });
+  });
+
+  it("creates a plans/ alias for main-checkout done plans", async () => {
+    const repoPath = await makeRepoLayout();
+    const donePath = join(repoPath, ".shipper", "done", "finished.md");
+    await writeFile(donePath, SIMPLE_PLAN, "utf8");
+
+    const plans = await listPlans(repoPath);
+    expect(plans.done).toHaveLength(1);
+
+    const aliasPath = planCursorTagPath(repoPath, plans.done[0]!);
+    const content = await readFile(aliasPath, "utf8");
     expect(content).toContain("# Worktree Plan");
 
     await rm(repoPath, { recursive: true, force: true });
@@ -389,7 +440,7 @@ type: plan
     await rm(repoPath, { recursive: true, force: true });
   });
 
-  it("removes stale worktree symlinks when the target plan is gone", async () => {
+  it("removes stale plans/ aliases when the target plan is gone", async () => {
     const repoPath = await makeRepoLayout();
     const worktreeOpen = join(
       repoPath,
@@ -404,13 +455,13 @@ type: plan
     await writeFile(planPath, SIMPLE_PLAN, "utf8");
 
     await listPlans(repoPath);
-    const linkPath = join(repoPath, ".shipper", "open", "gone-plan.md");
-    expect(await readFile(linkPath, "utf8")).toContain("# Worktree Plan");
+    const aliasPath = join(repoPath, ".shipper", "plans", "gone-plan.md");
+    expect(await readFile(aliasPath, "utf8")).toContain("# Worktree Plan");
 
     await rm(planPath);
     await listPlans(repoPath);
 
-    await expect(readFile(linkPath, "utf8")).rejects.toThrow();
+    await expect(readFile(aliasPath, "utf8")).rejects.toThrow();
 
     await rm(repoPath, { recursive: true, force: true });
   });

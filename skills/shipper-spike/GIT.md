@@ -31,13 +31,13 @@ If the user opts **yes**:
    `<slug>` matches the spike filename without `.md`.
 
 3. Record `worktree: .shipper/worktrees/<slug>` in the spike frontmatter.
-4. Create the spike file directly in the **worktree's** `.shipper/open/` — it never lives in the main checkout when a worktree is used. Also create a **symlink** in the main checkout so editor `@` tags can reach it:
+4. Create the spike file directly in the **worktree's** `.shipper/open/` — it never lives in the main checkout when a worktree is used. Also create a **symlink** at `.shipper/plans/<filename>.md` so editor `@` tags can reach it:
 
    ```sh
-   ln -s "../worktrees/<slug>/.shipper/open/<filename>.md" .shipper/open/<filename>.md
+   ln -s "../worktrees/<slug>/.shipper/open/<filename>.md" .shipper/plans/<filename>.md
    ```
 
-   Run from the repo root. The Shipper console also maintains these symlinks automatically when it loads plans.
+   Run from the repo root. Update the symlink when the spike moves to `done`. The Shipper console maintains `.shipper/plans/` aliases automatically when it loads plans.
 5. Perform all subsequent BUILD work inside the worktree.
 
 If the user opts **no**, create the spike file in the main checkout's `.shipper/open/` and work there. Do not set `worktree`.
