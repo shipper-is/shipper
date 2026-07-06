@@ -29,7 +29,7 @@ const skillGuides = [
     command: "/shipper-plan add a user settings page",
     steps: [
       "Open your coding agent in the repo.",
-      "Run the skill with a short description of the feature.",
+      "Run the slash command with a short description of the feature.",
       "Answer clarifying questions inline.",
       "A phased plan lands in .shipper/open/ — commit it so the team stays aligned.",
     ],
@@ -40,9 +40,9 @@ const skillGuides = [
     skill: "shipper-build",
     description:
       "Executes one phase per agent session until the plan is complete, then moves it to .shipper/done/.",
-    command: "use shipper-build on .shipper/open/my-feature.md",
+    command: "/shipper-build on .shipper/open/my-feature.md",
     steps: [
-      "Point the agent at an open plan file.",
+      "Run the slash command with the path to an open plan file.",
       "The agent runs one phase, checking off tasks in the plan as it goes.",
       "Run again for the next phase until every checkbox is done.",
       "The finished plan moves to .shipper/done/.",
@@ -54,9 +54,9 @@ const skillGuides = [
     skill: "shipper-ship",
     description:
       "Scaffolds a reviewable pull request from a completed plan — what changed, how to verify, and known risks.",
-    command: "use shipper-ship on .shipper/done/my-feature.md",
+    command: "/shipper-ship on .shipper/done/my-feature.md",
     steps: [
-      "Run after the plan is in .shipper/done/.",
+      "Run the slash command with the path to a completed plan in .shipper/done/.",
       "The agent writes a PR summary with verification steps and test evidence.",
       "A pull request is created via gh — ready for review.",
     ],
