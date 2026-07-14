@@ -5,6 +5,7 @@ import planSkill from "../../skills/shipper-plan/SKILL.md" with { type: "text" }
 import buildSkill from "../../skills/shipper-build/SKILL.md" with { type: "text" };
 import buildGit from "../../skills/shipper-build/GIT.md" with { type: "text" };
 import buildPr from "../../skills/shipper-build/PR.md" with { type: "text" };
+import loopSkill from "../../skills/shipper-loop/SKILL.md" with { type: "text" };
 import spikeSkill from "../../skills/shipper-spike/SKILL.md" with { type: "text" };
 import spikePlan from "../../skills/shipper-spike/PLAN.md" with { type: "text" };
 import spikeBuild from "../../skills/shipper-spike/BUILD.md" with { type: "text" };
@@ -29,6 +30,7 @@ const SKILLS = {
     { file: "GIT.md", content: buildGit },
     { file: "PR.md", content: buildPr },
   ],
+  "shipper-loop": [{ file: "SKILL.md", content: loopSkill }],
   "shipper-spike": [
     { file: "SKILL.md", content: spikeSkill },
     { file: "PLAN.md", content: spikePlan },

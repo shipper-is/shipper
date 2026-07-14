@@ -59,6 +59,7 @@ export type RunState = {
   planFilename: string | null;
   activePhaseNumber: number | null;
   logPath: string | null;
+  agentTranscriptPath: string | null;
 };
 
 export type ChatEntryKind =
@@ -242,9 +243,24 @@ export type ServerMessage =
   | ServerSpikeCreated
   | ServerQueuedMessages;
 
+export type GitWorkflowMode = "current-branch" | "new-branch";
+
+export type BuildGitOptions = {
+  /** Where the agent works. Defaults to the currently checked-out branch. */
+  mode: GitWorkflowMode;
+  /** Whether the agent commits after each phase. Defaults to true. */
+  commitEachPhase: boolean;
+};
+
+export const defaultBuildGitOptions = (): BuildGitOptions => ({
+  mode: "current-branch",
+  commitEachPhase: true,
+});
+
 export type ClientStartBuild = {
   type: "start-build";
   planFilename: string;
+  git?: BuildGitOptions;
 };
 
 export type ClientStartPlan = {
@@ -340,12 +356,19 @@ export const idleRunState = (): RunState => ({
   planFilename: null,
   activePhaseNumber: null,
   logPath: null,
+  agentTranscriptPath: null,
 });
 
 export const clientMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("start-build"),
     planFilename: z.string().min(1),
+    git: z
+      .object({
+        mode: z.enum(["current-branch", "new-branch"]),
+        commitEachPhase: z.boolean(),
+      })
+      .optional(),
   }),
   z.object({
     type: z.literal("start-plan"),

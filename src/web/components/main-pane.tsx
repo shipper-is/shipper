@@ -1,11 +1,19 @@
 import { useEffect, useState, type RefObject } from "react";
-import type { ClientMessage, PlanSummary, RunState, AgentQuestion, ChatEntry } from "../../shared/protocol.ts";
+import type {
+  ClientMessage,
+  GitWorkflowMode,
+  PlanSummary,
+  RunState,
+  AgentQuestion,
+  ChatEntry,
+} from "../../shared/protocol.ts";
 import type { NavMode } from "./left-nav.tsx";
 import { ChatLog } from "./chat-log.tsx";
 import { ChatInput } from "./chat-input.tsx";
 import { PlanDocumentView } from "./plan-document-view.tsx";
 import { PlanView } from "./plan-view.tsx";
 import { QuestionCard } from "./question-card.tsx";
+import { SessionPathsBar } from "./session-paths-bar.tsx";
 
 type MainTab = "phases" | "plan" | "build";
 type ComposeMode = "plan" | "spike";
@@ -56,6 +64,16 @@ export function MainPane({
   const [tab, setTab] = useState<MainTab>("phases");
   const [description, setDescription] = useState("");
   const [confirmStop, setConfirmStop] = useState(false);
+  const [gitMode, setGitMode] = useState<GitWorkflowMode>("current-branch");
+  const [commitEachPhase, setCommitEachPhase] = useState(true);
+
+  const startBuild = (planFilename: string) => {
+    send({
+      type: "start-build",
+      planFilename,
+      git: { mode: gitMode, commitEachPhase },
+    });
+  };
 
   const isRunning =
     runState.status === "running" ||
@@ -207,7 +225,7 @@ export function MainPane({
               className="primary-button"
               onClick={() => {
                 setTab("build");
-                send({ type: "start-build", planFilename: displayPlan.filename });
+                startBuild(displayPlan.filename);
               }}
             >
               Build
@@ -215,6 +233,11 @@ export function MainPane({
           )}
         </div>
       </header>
+
+      <SessionPathsBar
+        logPath={runState.logPath}
+        agentTranscriptPath={runState.agentTranscriptPath}
+      />
 
       {showTabs && (
         <div className="main-tabs">
@@ -259,10 +282,30 @@ export function MainPane({
             {showBuildKickoff && (
               <div className="build-kickoff">
                 <p>No build session yet for this plan.</p>
+                <div className="build-git-options">
+                  <label className="build-git-option">
+                    <span>Branch</span>
+                    <select
+                      value={gitMode}
+                      onChange={(event) => setGitMode(event.target.value as GitWorkflowMode)}
+                    >
+                      <option value="current-branch">Current branch</option>
+                      <option value="new-branch">New shipper/ branch</option>
+                    </select>
+                  </label>
+                  <label className="build-git-option build-git-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={commitEachPhase}
+                      onChange={(event) => setCommitEachPhase(event.target.checked)}
+                    />
+                    <span>Commit after each phase</span>
+                  </label>
+                </div>
                 <button
                   type="button"
                   className="primary-button"
-                  onClick={() => send({ type: "start-build", planFilename: displayPlan.filename })}
+                  onClick={() => startBuild(displayPlan.filename)}
                 >
                   Start build
                 </button>

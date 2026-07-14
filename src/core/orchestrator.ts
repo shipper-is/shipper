@@ -18,11 +18,13 @@ import {
 import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, buildSpikePrompt, appendPendingUserMessages } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
 import { installSkillsGlobally } from "./skills.ts";
+import { defaultBuildGitOptions, type BuildGitOptions } from "../shared/protocol.ts";
 
 export type AgentRunHandlers = {
   onEvent: (event: AgentEvent) => void;
   onQuestion: (question: AgentQuestion) => Promise<Record<string, string | string[]>>;
   onSessionLog?: (logPath: string) => void;
+  onAgentSessionId?: (sessionId: string) => void;
   signal?: AbortSignal;
   logger?: RunLogger;
 };
@@ -111,7 +113,17 @@ export async function consumeAgentRun(
   handlers: AgentRunHandlers,
 ): Promise<AgentRunResult> {
   let lastError: string | undefined;
+  let reportedSessionId: string | null = null;
   const logger = handlers.logger;
+
+  const reportSessionId = () => {
+    const sessionId = adapter.sessionId;
+    if (sessionId && sessionId !== reportedSessionId) {
+      reportedSessionId = sessionId;
+      handlers.onAgentSessionId?.(sessionId);
+    }
+  };
+
   const startOpts: AgentStartOptions = logger
     ? {
         ...opts,
@@ -122,6 +134,7 @@ export async function consumeAgentRun(
     : opts;
 
   try {
+    reportSessionId();
     for await (const event of adapter.start(startOpts)) {
       if (handlers.signal?.aborted) {
         await adapter.stop();
@@ -131,6 +144,7 @@ export async function consumeAgentRun(
 
       handlers.onEvent(event);
       void logger?.logEvent(event);
+      reportSessionId();
 
       if (event.type === "question") {
         const answers = await handlers.onQuestion(event.question);
@@ -160,6 +174,8 @@ export async function consumeAgentRun(
   } finally {
     await adapter.stop().catch(() => undefined);
   }
+
+  reportSessionId();
 
   if (handlers.signal?.aborted) {
     await logger?.close({ ok: false, error: "Cancelled" });
@@ -210,6 +226,7 @@ export async function runPlanCreation(
   const prompt = buildPlanPrompt(featureDescription, agent);
   const adapter = createAdapter(agent);
   const logger = handlers.logger ?? (await RunLogger.create(agent));
+  handlers.onSessionLog?.(logger.path);
   const runResult = await consumeAgentRun(
     adapter,
     { cwd: repoPath, prompt, ...(model ? { model } : {}) },
@@ -258,6 +275,7 @@ export async function runSpike(
   const prompt = buildSpikePrompt(description, agent);
   const adapter = createAdapter(agent);
   const logger = handlers.logger ?? (await RunLogger.create(agent));
+  handlers.onSessionLog?.(logger.path);
   const runResult = await consumeAgentRun(
     adapter,
     { cwd: repoPath, prompt, ...(model ? { model } : {}) },
@@ -302,7 +320,9 @@ export async function runBuildLoop(
   planFilename: string,
   handlers: BuildLoopHandlers,
   model?: string,
+  gitOptions?: BuildGitOptions,
 ): Promise<BuildLoopResult> {
+  const git = gitOptions ?? defaultBuildGitOptions();
   const initialPlan = await findPlanByFilename(repoPath, planFilename);
   if (!initialPlan) {
     return { status: "error", message: "Plan file not found", sessionsUsed: 0, lastSessionId: null };
@@ -387,6 +407,7 @@ export async function runBuildLoop(
       planRelativePath(plan.folder, planFilename),
       targetPhase.number,
       agent,
+      git,
     );
     if (pendingMessages.length > 0) {
       prompt = appendPendingUserMessages(prompt, pendingMessages);
@@ -499,6 +520,7 @@ export async function runFollowUp(
 
   const adapter = createAdapter(agent);
   const logger = handlers.logger ?? (await RunLogger.create(agent));
+  handlers.onSessionLog?.(logger.path);
   const runResult = await consumeAgentRun(
     adapter,
     {
