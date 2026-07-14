@@ -1,6 +1,19 @@
 This file is the authoritative git workflow for shipper-build. Read and follow it before starting any phase.
 
-## Branching
+## Choosing where the work happens
+
+There are two modes. The prompt that started this session may state which one to use — follow it. If the prompt says nothing:
+
+- If the plan frontmatter already has a `branch` key, use **feature-branch mode** on that branch (an earlier phase chose it).
+- Otherwise, default to **current-branch mode**.
+
+### Current-branch mode (default)
+
+Work directly on whatever branch is currently checked out. Do not create or switch branches, and do not set `branch` or `base_branch` in the plan frontmatter.
+
+### Feature-branch mode
+
+Only use this mode when the prompt or the user explicitly asks for it, or when the plan frontmatter already has a `branch` key.
 
 On **phase 1** (or whenever the plan frontmatter has no `branch` key), create and check out a feature branch named `shipper/<plan-name>` from the current branch. Derive `<plan-name>` from the plan filename (kebab-case, without `.md`). Record both `branch` and `base_branch` in the plan frontmatter:
 
@@ -11,9 +24,15 @@ On **later phases**, read `branch` and `base_branch` from the existing frontmatt
 
 If the checkout is currently on a different branch than frontmatter `branch`, verify the working tree is clean before `git checkout <branch>`. If there are unrelated uncommitted changes, ask the user via the question tool (options like commit them, stash them, or abort) instead of proceeding.
 
-If `started_at` is not set, add it as a quoted ISO 8601 timestamp (e.g. `"2026-07-05T08:35:00-05:00"`). Never overwrite `branch`, `base_branch`, or `started_at` once set.
+## Timestamps
 
-## Commit per phase
+In either mode, if `started_at` is not set, add it as a quoted ISO 8601 timestamp (e.g. `"2026-07-05T08:35:00-05:00"`). Never overwrite `branch`, `base_branch`, or `started_at` once set.
+
+## Committing
+
+By default, commit after each phase (see below). If the prompt or the user says **not** to commit, skip this entire section: leave all changes uncommitted in the working tree, never run `git commit`, and do not write `phase_commits` to the frontmatter.
+
+### Commit per phase
 
 After completing a phase (all section checkboxes checked, Completion Notes written):
 
@@ -39,9 +58,9 @@ When you complete the **final phase** of the plan:
 
 1. Set `completed_at` in frontmatter to the current time as a quoted ISO 8601 timestamp.
 2. Move the plan file from `.shipper/open/` to `.shipper/done/`.
-3. Make a final commit with an appropriate message (e.g. `Complete plan: <plan title>`).
+3. If committing is enabled, make a final commit with an appropriate message (e.g. `Complete plan: <plan title>`).
 
-Do not delete the feature branch here. The branch persists for PR creation via shipper-ship.
+In feature-branch mode, do not delete the feature branch here. The branch persists for PR creation via shipper-ship.
 
 ## Frontmatter reference
 
@@ -62,6 +81,6 @@ pr_number: 123
 ---
 ```
 
-- `branch`, `base_branch`: set during phase 1 per sections above; never overwrite on later phases.
-- `phase_commits`: map of phase number (integer key) to short commit sha; each entry is written after that phase's commit, with the frontmatter edit committed later.
+- `branch`, `base_branch`: only set in feature-branch mode, during phase 1; never overwrite on later phases. Absent in current-branch mode.
+- `phase_commits`: map of phase number (integer key) to short commit sha; each entry is written after that phase's commit, with the frontmatter edit committed later. Absent when committing is disabled.
 - `pr_url`, `pr_number`: added by shipper-ship after PR creation; do not set during build phases.

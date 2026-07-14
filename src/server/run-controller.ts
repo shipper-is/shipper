@@ -1,4 +1,5 @@
 import type { AgentEvent, AgentKind, AgentQuestion } from "../agents/types.ts";
+import { cursorTranscriptPath } from "../agents/cursor-transcript.ts";
 import { groupModelFamilies } from "../agents/model-variants.ts";
 import { listModels } from "../agents/models.ts";
 import {
@@ -12,6 +13,7 @@ import {
   runFollowUp,
   runPlanCreation,
   runSpike,
+  type AgentRunHandlers,
   type BuildLoopResult,
   type PlanCreationResult,
   type SpikeResult,
@@ -21,6 +23,7 @@ import { findPlanByFilename } from "../core/plan-store.ts";
 import type { OrchestratedSkillName } from "../core/skills.ts";
 import type {
   AgentQuestion as ProtocolQuestion,
+  BuildGitOptions,
   ChatEntry,
   ClientMessage,
   ConfigInfo,
@@ -30,7 +33,7 @@ import type {
   ServerMessage,
   SkillIndicator,
 } from "../shared/protocol.ts";
-import { idleRunState } from "../shared/protocol.ts";
+import { defaultBuildGitOptions, idleRunState } from "../shared/protocol.ts";
 
 export const CHAT_MAX_ENTRIES = 500;
 
@@ -49,7 +52,7 @@ const defaultOrchestrator: OrchestratorFns = {
 };
 
 type PendingStart =
-  | { kind: "build"; planFilename: string }
+  | { kind: "build"; planFilename: string; git: BuildGitOptions }
   | { kind: "plan"; description: string }
   | { kind: "spike"; description: string };
 
@@ -233,6 +236,21 @@ async function buildModelPickRequest(
   return { skill, families };
 }
 
+function makeSessionPathHandlers(
+  repoPath: string,
+  agent: AgentKind,
+  setRunState: (patch: Partial<RunState>) => void,
+): Pick<AgentRunHandlers, "onSessionLog" | "onAgentSessionId"> {
+  return {
+    onSessionLog: (path) => setRunState({ logPath: path }),
+    onAgentSessionId: (sessionId) => {
+      if (agent === "cursor") {
+        setRunState({ agentTranscriptPath: cursorTranscriptPath(repoPath, sessionId) });
+      }
+    },
+  };
+}
+
 export function createRunController(deps: RunControllerDeps): RunController {
   const orchestrator = deps.orchestrator ?? defaultOrchestrator;
 
@@ -306,7 +324,8 @@ export function createRunController(deps: RunControllerDeps): RunController {
     pendingQuestion = null;
     pendingStart = null;
     modelPickRequest = null;
-    runState = idleRunState();
+    const { logPath, agentTranscriptPath } = runState;
+    runState = { ...idleRunState(), logPath, agentTranscriptPath };
     broadcastRunState();
   };
 
@@ -376,7 +395,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     clearRun();
   };
 
-  const runBuild = async (planFilename: string, model: string) => {
+  const runBuild = async (planFilename: string, model: string, git: BuildGitOptions) => {
     const agent = deps.getAgent();
     if (!agent) {
       appendNotice("No agent configured. Open settings to choose one.");
@@ -401,6 +420,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       planFilename,
       activePhaseNumber: null,
       logPath: null,
+      agentTranscriptPath: null,
     };
     broadcastRunState();
 
@@ -410,7 +430,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       planFilename,
       {
         signal: abortController.signal,
-        onSessionLog: (path) => setRunState({ logPath: path }),
+        ...makeSessionPathHandlers(deps.repoPath, agent, setRunState),
         onEvent: handleAgentEvent,
         pendingUserMessages: () => {
           if (followUpQueue.length === 0) {
@@ -436,6 +456,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
         onPlanUpdate: () => deps.onPlanUpdate?.(),
       },
       model,
+      git,
     );
 
     await finishBuild(result, planFilename, plan.title);
@@ -460,6 +481,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       planFilename: null,
       activePhaseNumber: null,
       logPath: null,
+      agentTranscriptPath: null,
     };
     broadcastRunState();
     appendUserMessage(description.trim());
@@ -470,6 +492,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       description.trim(),
       {
         signal: abortController.signal,
+        ...makeSessionPathHandlers(deps.repoPath, agent, setRunState),
         onEvent: handleAgentEvent,
         onQuestion: (question) =>
           new Promise((resolve) => {
@@ -508,6 +531,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       planFilename: null,
       activePhaseNumber: null,
       logPath: null,
+      agentTranscriptPath: null,
     };
     broadcastRunState();
     appendUserMessage(description.trim());
@@ -518,8 +542,8 @@ export function createRunController(deps: RunControllerDeps): RunController {
       description.trim(),
       {
         signal: abortController.signal,
+        ...makeSessionPathHandlers(deps.repoPath, agent, setRunState),
         onEvent: handleAgentEvent,
-        onSessionLog: (path) => setRunState({ logPath: path }),
         onPlanUpdate: () => deps.onPlanUpdate?.(),
         onQuestion: (question) =>
           new Promise((resolve) => {
@@ -570,6 +594,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       planFilename: lastPlanFilename,
       activePhaseNumber: null,
       logPath: null,
+      agentTranscriptPath: null,
     };
     broadcastRunState();
 
@@ -581,7 +606,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       resumeSessionId,
       {
         signal: abortController.signal,
-        onSessionLog: (path) => setRunState({ logPath: path }),
+        ...makeSessionPathHandlers(deps.repoPath, agent, setRunState),
         onEvent: handleAgentEvent,
         onQuestion: (question) =>
           new Promise((resolve) => {
@@ -673,7 +698,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     deps.onBroadcast({ type: "model-pick-cleared" });
   };
 
-  const startBuild = async (planFilename: string) => {
+  const startBuild = async (planFilename: string, git?: BuildGitOptions) => {
     if (isRunActive()) {
       deps.onBroadcast({ type: "notice", text: "A run is already in progress." });
       return;
@@ -685,13 +710,14 @@ export function createRunController(deps: RunControllerDeps): RunController {
       return;
     }
 
+    const gitOptions = git ?? defaultBuildGitOptions();
     const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-build");
     if (!model) {
-      await requestModelPick("shipper-build", { kind: "build", planFilename });
+      await requestModelPick("shipper-build", { kind: "build", planFilename, git: gitOptions });
       return;
     }
 
-    await runBuild(planFilename, model);
+    await runBuild(planFilename, model, gitOptions);
   };
 
   const startPlan = async (description: string) => {
@@ -768,7 +794,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
 
     if (pending.kind === "build" && skill === "shipper-build") {
-      await runBuild(pending.planFilename, modelId);
+      await runBuild(pending.planFilename, modelId, pending.git);
     } else if (pending.kind === "plan" && skill === "shipper-plan") {
       await runPlan(pending.description, modelId);
     } else if (pending.kind === "spike" && skill === "shipper-spike") {
@@ -825,6 +851,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       planFilename: null,
       activePhaseNumber: null,
       logPath: null,
+      agentTranscriptPath: null,
     };
     broadcastRunState();
     appendNotice("Demo mode — scripted agent run for UI verification.");
@@ -874,7 +901,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     handleClientMessage(msg: ClientMessage) {
       switch (msg.type) {
         case "start-build":
-          void startBuild(msg.planFilename);
+          void startBuild(msg.planFilename, msg.git);
           break;
         case "start-plan":
           void startPlan(msg.description);

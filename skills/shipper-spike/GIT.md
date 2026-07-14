@@ -2,7 +2,9 @@ This file is the authoritative git workflow for shipper-spike. Read and follow i
 
 ## Branching
 
-When the spike file is first created (PLAN step), create and check out a feature branch named `shipper/<spike-name>` from the current branch. Derive `<spike-name>` from the spike filename (kebab-case, without `.md`). Record in the spike file frontmatter:
+If the user asked to work directly on the current branch, skip branch creation entirely: stay on the checked-out branch and leave `branch` and `base_branch` unset in the frontmatter (shipper-ship will use the current branch).
+
+Otherwise, when the spike file is first created (PLAN step), create and check out a feature branch named `shipper/<spike-name>` from the current branch. Derive `<spike-name>` from the spike filename (kebab-case, without `.md`). Record in the spike file frontmatter:
 
 - `branch`: the feature branch (`shipper/<spike-name>`)
 - `base_branch`: the branch you branched from

@@ -611,6 +611,33 @@ input:focus-visible,
   margin: 0;
 }
 
+.build-git-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.build-git-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.build-git-option select {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+.build-git-checkbox input {
+  accent-color: var(--accent);
+}
+
 .build-chat {
   flex: 1;
   min-height: 0;
@@ -908,6 +935,45 @@ input:focus-visible,
 .phase-progress-line {
   font-size: 0.8125rem;
   color: var(--text-dim);
+}
+
+.session-paths-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.session-path-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.session-path-label {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.session-path-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-path-copy {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
 }
 
 .primary-button,

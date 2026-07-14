@@ -41,6 +41,17 @@ describe("parseClientMessage", () => {
     ).toEqual({ type: "start-build", planFilename: "foo.md" });
     expect(
       parseClientMessage({
+        type: "start-build",
+        planFilename: "foo.md",
+        git: { mode: "current-branch", commitEachPhase: false },
+      }),
+    ).toEqual({
+      type: "start-build",
+      planFilename: "foo.md",
+      git: { mode: "current-branch", commitEachPhase: false },
+    });
+    expect(
+      parseClientMessage({
         type: "save-plan",
         planFilename: "foo.md",
         markdown: "# Plan",
@@ -51,6 +62,13 @@ describe("parseClientMessage", () => {
   it("rejects unknown or malformed messages", () => {
     expect(parseClientMessage({ type: "nope" })).toBeNull();
     expect(parseClientMessage({ type: "start-build" })).toBeNull();
+    expect(
+      parseClientMessage({
+        type: "start-build",
+        planFilename: "foo.md",
+        git: { mode: "worktree", commitEachPhase: true },
+      }),
+    ).toBeNull();
     expect(parseClientMessage("stop-run")).toBeNull();
   });
 });

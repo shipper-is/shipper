@@ -4,7 +4,11 @@ This file is the authoritative git workflow for shipper-ship. Read and follow it
 
 Read `branch` from the plan or spike file frontmatter in `.shipper/done/<filename>.md`.
 
-If the checkout is not on that branch, verify the working tree is clean before switching. If there are unrelated uncommitted changes, ask the user via the question tool (options like commit them, stash them, or abort) instead of proceeding. Record the current branch name, then `git checkout <branch>`.
+If frontmatter has no `branch` key, the work was done directly on a branch (current-branch mode) — use the currently checked-out branch. If that branch is the repository's default branch (e.g. `main` or `master`), ask the user via the question tool before proceeding: they can have you create a new branch for the PR (create it from the current branch, which carries the commits) or abort.
+
+If the working tree has uncommitted changes from the build (current-branch mode with committing disabled), ask the user via the question tool how to proceed (commit everything now, or abort) — a PR needs the work committed.
+
+If frontmatter has a `branch` and the checkout is not on it, verify the working tree is clean before switching. If there are unrelated uncommitted changes, ask the user via the question tool (options like commit them, stash them, or abort) instead of proceeding. Record the current branch name, then `git checkout <branch>`.
 
 ## Push and PR
 

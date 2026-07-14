@@ -195,6 +195,9 @@ export class CursorAdapter implements AgentAdapter {
       for (const line of lines) {
         void rawLogger?.logRaw("in", line.trim());
         for (const event of parser.handleLine(line)) {
+          if (parser.sessionId) {
+            this.chatId = parser.sessionId;
+          }
           this.bus.push(event);
         }
       }
@@ -203,6 +206,9 @@ export class CursorAdapter implements AgentAdapter {
     if (lineBuffer.trim()) {
       void rawLogger?.logRaw("in", lineBuffer.trim());
       for (const event of parser.handleLine(lineBuffer)) {
+        if (parser.sessionId) {
+          this.chatId = parser.sessionId;
+        }
         this.bus.push(event);
       }
     }
