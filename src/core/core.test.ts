@@ -33,6 +33,32 @@ describe("config", () => {
 });
 
 describe("model config", () => {
+  let previousHome: string | undefined;
+  let previousXdg: string | undefined;
+  let homeDir: string;
+
+  beforeEach(async () => {
+    homeDir = await mkdtemp(join(tmpdir(), "shipper-model-home-"));
+    previousHome = process.env["HOME"];
+    previousXdg = process.env["XDG_CONFIG_HOME"];
+    process.env["HOME"] = homeDir;
+    delete process.env["XDG_CONFIG_HOME"];
+  });
+
+  afterEach(async () => {
+    if (previousHome === undefined) {
+      delete process.env["HOME"];
+    } else {
+      process.env["HOME"] = previousHome;
+    }
+    if (previousXdg === undefined) {
+      delete process.env["XDG_CONFIG_HOME"];
+    } else {
+      process.env["XDG_CONFIG_HOME"] = previousXdg;
+    }
+    await rm(homeDir, { recursive: true, force: true });
+  });
+
   it("saves a model choice at project scope", async () => {
     const repo = await mkdtemp(join(tmpdir(), "shipper-model-save-"));
     await saveModelChoice(repo, "cursor", "shipper-plan", "composer-2.5");
@@ -59,6 +85,13 @@ describe("model config", () => {
   it("returns undefined when neither project nor global is set", async () => {
     const repo = await mkdtemp(join(tmpdir(), "shipper-model-missing-"));
     expect(await resolveDefaultModel(repo, "claude", "shipper-build")).toBeUndefined();
+    expect(await resolveDefaultModel(repo, "claude", "shipper-loop")).toBeUndefined();
+  });
+
+  it("falls back from shipper-loop to a legacy shipper-build model", async () => {
+    const repo = await mkdtemp(join(tmpdir(), "shipper-model-loop-fallback-"));
+    await saveModelChoice(repo, "cursor", "shipper-build", "legacy-build-model");
+    expect(await resolveDefaultModel(repo, "cursor", "shipper-loop")).toBe("legacy-build-model");
   });
 });
 
@@ -89,7 +122,7 @@ describe("installSkillsGlobally", () => {
     if (homeDir) await rm(homeDir, { recursive: true, force: true });
   });
 
-  it("writes all five skills with all files under the claude global directory", async () => {
+  it("writes all skills with all files under the claude global directory", async () => {
     const summaries = await installSkillsGlobally(["claude"]);
     expect(summaries).toEqual([{ agent: "claude", root: join(homeDir, ".claude", "skills") }]);
 

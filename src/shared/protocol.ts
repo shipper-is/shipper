@@ -112,6 +112,7 @@ export type ConfigInfo = {
   models?: {
     "shipper-plan"?: string;
     "shipper-build"?: string;
+    "shipper-loop"?: string;
     "shipper-spike"?: string;
   };
 };
@@ -128,7 +129,7 @@ export type ModelFamilyDto = {
 };
 
 export type ModelPickRequest = {
-  skill: "shipper-plan" | "shipper-build" | "shipper-spike";
+  skill: "shipper-plan" | "shipper-build" | "shipper-loop" | "shipper-spike";
   families: ModelFamilyDto[];
 };
 
@@ -290,13 +291,13 @@ export type ClientSendMessage = {
 
 export type ClientSelectModel = {
   type: "select-model";
-  skill: "shipper-plan" | "shipper-build" | "shipper-spike";
+  skill: "shipper-plan" | "shipper-build" | "shipper-loop" | "shipper-spike";
   modelId: string;
 };
 
 export type ClientConfigureModel = {
   type: "configure-model";
-  skill: "shipper-plan" | "shipper-build" | "shipper-spike";
+  skill: "shipper-plan" | "shipper-build" | "shipper-loop" | "shipper-spike";
 };
 
 export type ClientCancelModelPick = {
@@ -390,12 +391,12 @@ export const clientMessageSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("select-model"),
-    skill: z.enum(["shipper-plan", "shipper-build", "shipper-spike"]),
+    skill: z.enum(["shipper-plan", "shipper-build", "shipper-loop", "shipper-spike"]),
     modelId: z.string().min(1),
   }),
   z.object({
     type: z.literal("configure-model"),
-    skill: z.enum(["shipper-plan", "shipper-build", "shipper-spike"]),
+    skill: z.enum(["shipper-plan", "shipper-build", "shipper-loop", "shipper-spike"]),
   }),
   z.object({ type: z.literal("cancel-model-pick") }),
   z.object({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildBuildPrompt } from "./prompts.ts";
+import { buildBuildPrompt, buildLoopPrompt } from "./prompts.ts";
 
 describe("buildBuildPrompt git instructions", () => {
   it("omits git instructions when no options are given", () => {
@@ -13,7 +13,7 @@ describe("buildBuildPrompt git instructions", () => {
       commitEachPhase: true,
     });
     expect(prompt).toContain("work directly on the currently checked-out branch");
-    expect(prompt).toContain("Commit after completing the phase");
+    expect(prompt).toContain("Commit after completing each phase");
   });
 
   it("instructs feature-branch mode when requested", () => {
@@ -30,6 +30,24 @@ describe("buildBuildPrompt git instructions", () => {
       commitEachPhase: false,
     });
     expect(prompt).toContain("Do not make any git commits");
-    expect(prompt).not.toContain("Commit after completing the phase");
+    expect(prompt).not.toContain("Commit after completing each phase");
+  });
+});
+
+describe("buildLoopPrompt", () => {
+  it("points at the shipper-loop skill and the plan path", () => {
+    const prompt = buildLoopPrompt(".shipper/plans/open/foo.md", "cursor");
+    expect(prompt).toContain("shipper-loop");
+    expect(prompt).toContain("Complete the plan at `.shipper/plans/open/foo.md`");
+    expect(prompt).toContain("Orchestrate every remaining phase");
+  });
+
+  it("includes git preferences when provided", () => {
+    const prompt = buildLoopPrompt(".shipper/plans/open/foo.md", "cursor", {
+      mode: "new-branch",
+      commitEachPhase: true,
+    });
+    expect(prompt).toContain("feature-branch mode");
+    expect(prompt).toContain("Commit after completing each phase");
   });
 });

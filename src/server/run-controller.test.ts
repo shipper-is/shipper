@@ -323,7 +323,9 @@ describe("createRunController", () => {
     expect(controller.getQueuedMessages()).toEqual(["also fix the tests"]);
     expect(
       controller.getChatEntries().some(
-        (entry) => entry.text === "Message queued for the next agent session.",
+        (entry) =>
+          entry.text ===
+          "Message queued — it will be sent with the next agent session after this build.",
       ),
     ).toBe(true);
 

@@ -8,7 +8,7 @@ import { globalSkillPath } from "./skills.ts";
 
 function skillInstruction(
   agent: AgentKind,
-  skillName: "shipper-plan" | "shipper-build" | "shipper-spike",
+  skillName: "shipper-plan" | "shipper-build" | "shipper-loop" | "shipper-spike",
 ): string {
   const path = globalSkillPath(agent, skillName);
   return `Read and follow the skill at \`${path}\`.`;
@@ -57,7 +57,9 @@ export function gitWorkflowInstructions(git: BuildGitOptions): string[] {
   }
 
   if (git.commitEachPhase) {
-    lines.push("Commit after completing the phase, following the commit workflow in GIT.md.");
+    lines.push(
+      "Commit after completing each phase, following the commit workflow in GIT.md.",
+    );
   } else {
     lines.push(
       "Do not make any git commits — leave all changes uncommitted in the working tree, and do not write `phase_commits` to the plan frontmatter.",
@@ -78,6 +80,22 @@ export function buildBuildPrompt(
     "",
     `Implement Phase ${phaseNumber} of the plan at \`${planRelativePath}\`.`,
     `Work only on Phase ${phaseNumber} — do not ask which phase to implement.`,
+    ...(git ? gitWorkflowInstructions(git) : []),
+    "",
+    questionInstructions(agentKind),
+  ].join("\n");
+}
+
+export function buildLoopPrompt(
+  planRelativePath: string,
+  agentKind: AgentKind,
+  git?: BuildGitOptions,
+): string {
+  return [
+    skillInstruction(agentKind, "shipper-loop"),
+    "",
+    `Complete the plan at \`${planRelativePath}\`.`,
+    "Orchestrate every remaining phase to completion — do not ask which plan or phase to work on.",
     ...(git ? gitWorkflowInstructions(git) : []),
     "",
     questionInstructions(agentKind),

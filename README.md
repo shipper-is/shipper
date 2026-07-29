@@ -21,7 +21,7 @@ Shipper checks for updates once per day and shows the install command in the UI 
 ## What it does
 
 1. **Plan** — runs the `shipper-plan` skill through your coding agent to produce a structured markdown plan in `.shipper/plans/open/`.
-2. **Build** — loops the `shipper-build` skill phase-by-phase until the plan is complete, moving finished plans to `.shipper/plans/done/`.
+2. **Build** — runs the `shipper-loop` skill so the agent orchestrates every remaining phase (via `shipper-build` subagents) until the plan is complete, moving finished plans to `.shipper/plans/done/`.
 
 Running `shipper` starts a local web server and opens your browser at **`http://shipper.localhost`** (port 80, with fallback to `:8712` if 80 is unavailable). Browsers resolve `*.localhost` to your machine with no hosts-file setup. Shipper deliberately uses `.localhost`, not `.local` — the latter is reserved for Bonjour/mDNS and behaves unreliably.
 
@@ -41,9 +41,9 @@ The workspace has three sections:
 ### Build flow
 
 1. Select an open plan and click **Build** (or press `b`).
-2. Shipper runs one agent session per phase, auto-continuing until the plan is done.
-3. Progress updates live as the agent checks boxes in the plan file.
-4. Questions pause the loop; everything else continues automatically.
+2. Shipper starts one agent session with `shipper-loop`; that agent drives every remaining phase to completion.
+3. Progress updates live as the agent (and its subagents) check boxes in the plan file.
+4. Questions from the orchestrator pause the run; everything else continues in that single session.
 
 ## Supported agents
 
@@ -71,7 +71,7 @@ Agent choice is stored per project on your machine (`~/.config/shipper/`), not i
 | `~/.cursor/skills/shipper-*/` | Global skills for Cursor CLI (auto-discovered) |
 | `~/.config/opencode/skills/shipper-*/` | Global skills for opencode (auto-discovered) |
 
-Bundled `shipper-plan`, `shipper-build`, `shipper-spike`, `shipper-ship`, and `shipper-bug` skills are embedded in the binary and installed **globally** for each detected coding agent on startup (or via `shipper skills`). Repos no longer receive skill copies — stale per-repo copies from older versions are removed on boot.
+Bundled `shipper-plan`, `shipper-loop`, `shipper-build`, `shipper-spike`, `shipper-ship`, and `shipper-bug` skills are embedded in the binary and installed **globally** for each detected coding agent on startup (or via `shipper skills`). Repos no longer receive skill copies — stale per-repo copies from older versions are removed on boot.
 
 ## Debugging
 

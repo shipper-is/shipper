@@ -10,15 +10,21 @@ const skills = [
   {
     name: "shipper-plan",
     description:
-      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/open/. Also supports module URLs — install a Shipper module and plan building it into your repo.",
+      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/plans/open/. Also supports module URLs — install a Shipper module and plan building it into your repo.",
     example:
       "/shipper-plan https://shipper.is/modules/customer-support",
   },
   {
+    name: "shipper-loop",
+    description:
+      "Orchestrates an entire open plan in one chat. Spins up a fresh subagent per phase that runs shipper-build, monitors progress, and continues until the plan moves to .shipper/plans/done/. This is what the web console Build button uses.",
+    example: "/shipper-loop on .shipper/plans/open/my-feature.md",
+  },
+  {
     name: "shipper-build",
     description:
-      "Executes one phase per agent session until the plan is complete, then moves it to .shipper/done/.",
-    example: "use shipper-build on .shipper/open/my-feature.md Phase 2",
+      "Implements a single phase of an open plan in one agent session — checks off tasks and writes Completion Notes. Use when you want one phase at a time; prefer shipper-loop to finish the whole plan.",
+    example: "use shipper-build on .shipper/plans/open/my-feature.md Phase 2",
   },
   {
     name: "shipper-spike",
@@ -30,7 +36,7 @@ const skills = [
     name: "shipper-ship",
     description:
       "Scaffolds a reviewable pull request from a completed plan — what changed, how to verify, and known risks. Creates the PR via gh.",
-    example: "use shipper-ship on .shipper/done/my-feature.md",
+    example: "use shipper-ship on .shipper/plans/done/my-feature.md",
   },
   {
     name: "shipper-bug",
@@ -48,18 +54,19 @@ export default function SkillsDocsPage() {
           Agent skills
         </h1>
         <p className="mt-4 max-w-2xl text-white/60">
-          Every workflow the console uses is a plain agent skill installed in
-          your repo. Invoke them directly from Claude Code, Cursor, or opencode
-          — no console required.
+          Every workflow the console uses is a plain agent skill installed
+          globally for your coding agent. Invoke them directly from Claude Code,
+          Cursor, or opencode — no console required.
         </p>
 
         <p className="mt-6 max-w-2xl text-white/60">
           On your first{" "}
-          <span className="font-mono text-white">shipper</span> run, skills are
-          installed automatically into{" "}
-          <span className="font-mono text-white">.claude/skills/</span>,{" "}
-          <span className="font-mono text-white">.cursor/skills/</span>, or{" "}
-          <span className="font-mono text-white">.opencode/skill/</span>{" "}
+          <span className="font-mono text-white">shipper</span> run (or via{" "}
+          <span className="font-mono text-white">shipper skills</span>), skills
+          are installed into{" "}
+          <span className="font-mono text-white">~/.claude/skills/</span>,{" "}
+          <span className="font-mono text-white">~/.cursor/skills/</span>, or{" "}
+          <span className="font-mono text-white">~/.config/opencode/skills/</span>{" "}
           depending on your agent.
         </p>
 

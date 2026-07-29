@@ -19,7 +19,7 @@ import {
   type SpikeResult,
 } from "../core/orchestrator.ts";
 import { DEMO_SCRIPT, runDemoScript } from "../demo/script.ts";
-import { findPlanByFilename } from "../core/plan-store.ts";
+import { findPlanByFilename, getFirstIncompletePhase } from "../core/plan-store.ts";
 import type { OrchestratedSkillName } from "../core/skills.ts";
 import type {
   AgentQuestion as ProtocolQuestion,
@@ -208,7 +208,7 @@ function buildSuccessNotice(
 ): string {
   const lines = [
     `Build complete — ${planTitle}`,
-    `Phases run: ${result.phasesRun} · Sessions: ${result.sessionsUsed}`,
+    `Phases run: ${result.phasesRun}`,
     `Location: ${result.planLocation === "done" ? ".shipper/plans/done/" : ".shipper/plans/open/"}`,
   ];
   if (result.leftInOpen) {
@@ -453,7 +453,16 @@ export function createRunController(deps: RunControllerDeps): RunController {
             });
           }),
         onPhaseStart: (phaseNumber) => setRunState({ activePhaseNumber: phaseNumber }),
-        onPlanUpdate: () => deps.onPlanUpdate?.(),
+        onPlanUpdate: () => {
+          void (async () => {
+            const updated = await findPlanByFilename(deps.repoPath, planFilename);
+            const nextPhase = updated ? getFirstIncompletePhase(updated.parsed) : null;
+            setRunState({
+              activePhaseNumber: nextPhase?.number ?? null,
+            });
+          })();
+          deps.onPlanUpdate?.();
+        },
       },
       model,
       git,
@@ -576,7 +585,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
         ? "shipper-plan"
         : skill === "spike"
           ? "shipper-spike"
-          : "shipper-build";
+          : "shipper-loop";
     const model = await resolveDefaultModel(deps.repoPath, agent, skillName);
     if (!model) {
       appendNotice("Choose a default model in settings before sending follow-up messages.");
@@ -651,7 +660,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     if (isRunActive()) {
       followUpQueue.push(trimmed);
       broadcastQueuedMessages();
-      appendNotice("Message queued for the next agent session.");
+      appendNotice("Message queued — it will be sent with the next agent session after this build.");
       return;
     }
 
@@ -711,9 +720,9 @@ export function createRunController(deps: RunControllerDeps): RunController {
     }
 
     const gitOptions = git ?? defaultBuildGitOptions();
-    const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-build");
+    const model = await resolveDefaultModel(deps.repoPath, agent, "shipper-loop");
     if (!model) {
-      await requestModelPick("shipper-build", { kind: "build", planFilename, git: gitOptions });
+      await requestModelPick("shipper-loop", { kind: "build", planFilename, git: gitOptions });
       return;
     }
 
@@ -793,7 +802,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
       return;
     }
 
-    if (pending.kind === "build" && skill === "shipper-build") {
+    if (pending.kind === "build" && skill === "shipper-loop") {
       await runBuild(pending.planFilename, modelId, pending.git);
     } else if (pending.kind === "plan" && skill === "shipper-plan") {
       await runPlan(pending.description, modelId);
@@ -954,9 +963,9 @@ export async function enrichConfigInfo(
     return base;
   }
 
-  const [planModel, buildModel, spikeModel] = await Promise.all([
+  const [planModel, loopModel, spikeModel] = await Promise.all([
     resolveDefaultModel(repoPath, agent, "shipper-plan"),
-    resolveDefaultModel(repoPath, agent, "shipper-build"),
+    resolveDefaultModel(repoPath, agent, "shipper-loop"),
     resolveDefaultModel(repoPath, agent, "shipper-spike"),
   ]);
 
@@ -964,7 +973,7 @@ export async function enrichConfigInfo(
     ...base,
     models: {
       ...(planModel ? { "shipper-plan": planModel } : {}),
-      ...(buildModel ? { "shipper-build": buildModel } : {}),
+      ...(loopModel ? { "shipper-loop": loopModel } : {}),
       ...(spikeModel ? { "shipper-spike": spikeModel } : {}),
     },
   };

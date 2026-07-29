@@ -18,7 +18,7 @@ const cards = [
     href: "/docs/skills",
     title: "Use the skills directly",
     description:
-      "Invoke shipper-plan, shipper-build, and the other bundled skills from Claude Code, Cursor, or opencode — no console required.",
+      "Invoke shipper-plan, shipper-loop, shipper-build, and the other bundled skills from Claude Code, Cursor, or opencode — no console required.",
   },
   {
     href: "/modules",
