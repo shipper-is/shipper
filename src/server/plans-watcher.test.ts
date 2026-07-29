@@ -78,8 +78,9 @@ describe("planFileToSummary", () => {
     const parsed = parsePlan(SAMPLE_MARKDOWN);
     const plan: PlanFile = {
       filename: "test-plan.md",
-      path: "/repo/.shipper/open/test-plan.md",
+      path: "/repo/.shipper/plans/open/test-plan.md",
       folder: "open",
+      category: "plan",
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
@@ -89,7 +90,7 @@ describe("planFileToSummary", () => {
     const summary = planFileToSummary(plan, SAMPLE_MARKDOWN);
 
     expect(summary.filename).toBe("test-plan.md");
-    expect(summary.path).toBe("/repo/.shipper/open/test-plan.md");
+    expect(summary.path).toBe("/repo/.shipper/plans/open/test-plan.md");
     expect(summary.folder).toBe("open");
     expect(summary.title).toBe("Test Plan");
     expect(summary.rawMarkdown).toBe(SAMPLE_MARKDOWN);
@@ -114,8 +115,9 @@ ${SAMPLE_MARKDOWN}`;
     const meta = parseFrontmatter(markdownWithMeta);
     const plan: PlanFile = {
       filename: "done-plan.md",
-      path: "/repo/.shipper/done/done-plan.md",
+      path: "/repo/.shipper/plans/done/done-plan.md",
       folder: "done",
+      category: "plan",
       title: parsed.title,
       progress: getPlanProgress(parsed),
       parsed,
@@ -140,9 +142,9 @@ ${SAMPLE_MARKDOWN}`;
 describe("savePlanMarkdown", () => {
   it("writes to the plan path from the snapshot", async () => {
     const repoPath = await mkdtemp(join(tmpdir(), "shipper-plans-watcher-"));
-    const openDir = join(repoPath, ".shipper", "open");
+    const openDir = join(repoPath, ".shipper", "plans", "open");
     await mkdir(openDir, { recursive: true });
-    await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+    await mkdir(join(repoPath, ".shipper", "plans", "done"), { recursive: true });
     const planPath = join(openDir, "edit-me.md");
     const original = `---
 type: plan

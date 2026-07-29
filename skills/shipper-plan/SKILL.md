@@ -23,7 +23,7 @@ After install, the next step for the user is `/shipper-build` on the plan — sa
 
 This is a READ-ONLY process. You must not make edits, run non-readonly tools, change configs, or commit anything — **except** for the allowed writes listed below.
 
-**Allowed writes:** the plan markdown file in `.shipper/open/`, and module files installed into `.shipper/modules/<id>/` (via `shipper modules add` or the raw-GitHub fallback above). Running `shipper modules add` is explicitly permitted.
+**Allowed writes:** the plan markdown file in `.shipper/plans/open/`, and module files installed into `.shipper/modules/<id>/` (via `shipper modules add` or the raw-GitHub fallback above). Running `shipper modules add` is explicitly permitted.
 
 The first step is to gather just enough context from the existing codebase to try and better understand what the user is asking for. Use parallel subagents to look at different parts of the codebase or angles at once.
 
@@ -66,4 +66,4 @@ Plan quality requirements:
 
 The junior engineer will use this plan as a roadmap to see everything that needs to be completed.
 
-The markdown file you create should go in a folder at the root of the repository (committed to the repository) called ".shipper". Inside of this folder there should be an "open" and "done" folders. You'll place this new plan in the "open" folder.
+The markdown file you create should go in a folder at the root of the repository (committed to the repository) called ".shipper". Inside of this folder there should be a "plans" folder with "open" and "done" folders. You'll place this new plan in the "open" folder. Also (if they don't exist already) scaffold out a "bugs" and "spikes" folder as well with their own "open" and "done" folders.

@@ -14,7 +14,7 @@ import {
 
 const fixturePath = join(
   import.meta.dirname,
-  "../../.shipper/done/shipper-cli-foundation.md",
+  "../../.shipper/plans/done/shipper-cli-foundation.md",
 );
 const fixture = readFileSync(fixturePath, "utf8");
 
@@ -306,8 +306,8 @@ describe("parsePlan with frontmatter", () => {
 describe("listPlans", () => {
   async function makeRepoLayout(): Promise<string> {
     const repoPath = await mkdtemp(join(tmpdir(), "shipper-plan-store-"));
-    await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
-    await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+    await mkdir(join(repoPath, ".shipper", "plans", "open"), { recursive: true });
+    await mkdir(join(repoPath, ".shipper", "plans", "done"), { recursive: true });
     return repoPath;
   }
 
@@ -325,28 +325,29 @@ type: plan
 
   it("lists plans from the main checkout open and done folders", async () => {
     const repoPath = await makeRepoLayout();
-    await writeFile(join(repoPath, ".shipper", "open", "my-plan.md"), SIMPLE_PLAN, "utf8");
+    await writeFile(join(repoPath, ".shipper", "plans", "open", "my-plan.md"), SIMPLE_PLAN, "utf8");
 
     const plans = await listPlans(repoPath);
     expect(plans.open).toHaveLength(1);
     expect(plans.open[0]!.filename).toBe("my-plan.md");
-    expect(plans.open[0]!.path).toBe(join(repoPath, ".shipper", "open", "my-plan.md"));
+    expect(plans.open[0]!.path).toBe(join(repoPath, ".shipper", "plans", "open", "my-plan.md"));
+    expect(plans.open[0]!.category).toBe("plan");
 
     await rm(repoPath, { recursive: true, force: true });
   });
 
   it("removes leftover symlinks in open, done, and plans folders", async () => {
     const repoPath = await makeRepoLayout();
-    const realPlanPath = join(repoPath, ".shipper", "open", "real-plan.md");
+    const realPlanPath = join(repoPath, ".shipper", "plans", "open", "real-plan.md");
     await writeFile(realPlanPath, SIMPLE_PLAN, "utf8");
 
-    const danglingLink = join(repoPath, ".shipper", "open", "stale-link.md");
-    await symlink("../worktrees/gone/.shipper/open/stale-link.md", danglingLink);
+    const danglingLink = join(repoPath, ".shipper", "plans", "open", "stale-link.md");
+    await symlink("../worktrees/gone/.shipper/plans/open/stale-link.md", danglingLink);
 
-    const plansDir = join(repoPath, ".shipper", "plans");
-    await mkdir(plansDir, { recursive: true });
-    const legacyLink = join(plansDir, "legacy.md");
-    await symlink("../worktrees/old/.shipper/open/legacy.md", legacyLink);
+    const legacyFlatPlans = join(repoPath, ".shipper", "plans");
+    await mkdir(legacyFlatPlans, { recursive: true });
+    const legacyLink = join(legacyFlatPlans, "legacy.md");
+    await symlink("../worktrees/old/.shipper/plans/open/legacy.md", legacyLink);
 
     const plans = await listPlans(repoPath);
     expect(plans.open).toHaveLength(1);
@@ -361,11 +362,11 @@ type: plan
 
   it("findPlanByFilename resolves main-checkout plans", async () => {
     const repoPath = await makeRepoLayout();
-    await writeFile(join(repoPath, ".shipper", "open", "find-me.md"), SIMPLE_PLAN, "utf8");
+    await writeFile(join(repoPath, ".shipper", "plans", "open", "find-me.md"), SIMPLE_PLAN, "utf8");
 
     const plan = await findPlanByFilename(repoPath, "find-me.md");
     expect(plan).not.toBeNull();
-    expect(plan!.path).toBe(join(repoPath, ".shipper", "open", "find-me.md"));
+    expect(plan!.path).toBe(join(repoPath, ".shipper", "plans", "open", "find-me.md"));
 
     await rm(repoPath, { recursive: true, force: true });
   });

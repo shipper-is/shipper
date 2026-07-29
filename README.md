@@ -20,8 +20,8 @@ Shipper checks for updates once per day and shows the install command in the UI 
 
 ## What it does
 
-1. **Plan** — runs the `shipper-plan` skill through your coding agent to produce a structured markdown plan in `.shipper/open/`.
-2. **Build** — loops the `shipper-build` skill phase-by-phase until the plan is complete, moving finished plans to `.shipper/done/`.
+1. **Plan** — runs the `shipper-plan` skill through your coding agent to produce a structured markdown plan in `.shipper/plans/open/`.
+2. **Build** — loops the `shipper-build` skill phase-by-phase until the plan is complete, moving finished plans to `.shipper/plans/done/`.
 
 Running `shipper` starts a local web server and opens your browser at **`http://shipper.localhost`** (port 80, with fallback to `:8712` if 80 is unavailable). Browsers resolve `*.localhost` to your machine with no hosts-file setup. Shipper deliberately uses `.localhost`, not `.local` — the latter is reserved for Bonjour/mDNS and behaves unreliably.
 
@@ -36,7 +36,7 @@ The workspace has three sections:
 1. Click **New plan** (or press `n`), describe the feature.
 2. Confirm the agent and model if prompted; Shipper refreshes bundled skills in your global agent directories and starts a headless agent session.
 3. Answer clarifying questions inline when prompted.
-4. A new plan file appears in `.shipper/open/`.
+4. A new plan file appears in `.shipper/plans/open/`.
 
 ### Build flow
 
@@ -59,8 +59,12 @@ Agent choice is stored per project on your machine (`~/.config/shipper/`), not i
 
 | Path | Contents |
 |------|----------|
-| `<repo>/.shipper/open/` | Active plans (commit these) |
-| `<repo>/.shipper/done/` | Completed plans |
+| `<repo>/.shipper/plans/open/` | Active plans (commit these) |
+| `<repo>/.shipper/plans/done/` | Completed plans |
+| `<repo>/.shipper/spikes/open/` | Active spikes |
+| `<repo>/.shipper/spikes/done/` | Completed spikes |
+| `<repo>/.shipper/bugs/open/` | Open bug reports |
+| `<repo>/.shipper/bugs/done/` | Fixed bugs |
 | `~/.config/shipper/config.json` | Per-project agent preference, last plan |
 | `~/.config/shipper/logs/` | NDJSON session logs (last 20 retained) |
 | `~/.claude/skills/shipper-*/` | Global skills for Claude Code (auto-discovered) |
@@ -122,7 +126,7 @@ Then plan the build in your coding agent:
 /shipper-plan https://shipper.is/modules/customer-support
 ```
 
-The `shipper-plan` skill installs the module (or uses files already in `.shipper/modules/`), reads the spec, maps it to your stack, and writes a tailored plan to `.shipper/open/`. Commit `.shipper/modules/` alongside your plans — it is the long-term reference for maintaining the feature.
+The `shipper-plan` skill installs the module (or uses files already in `.shipper/modules/`), reads the spec, maps it to your stack, and writes a tailored plan to `.shipper/plans/open/`. Commit `.shipper/modules/` alongside your plans — it is the long-term reference for maintaining the feature.
 
 ## CLI
 

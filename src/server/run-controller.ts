@@ -209,7 +209,7 @@ function buildSuccessNotice(
   const lines = [
     `Build complete — ${planTitle}`,
     `Phases run: ${result.phasesRun} · Sessions: ${result.sessionsUsed}`,
-    `Location: ${result.planLocation === "done" ? ".shipper/done/" : ".shipper/open/"}`,
+    `Location: ${result.planLocation === "done" ? ".shipper/plans/done/" : ".shipper/plans/open/"}`,
   ];
   if (result.leftInOpen) {
     lines.push(
@@ -377,7 +377,7 @@ export function createRunController(deps: RunControllerDeps): RunController {
     if (result.status === "success") {
       lastPlanFilename = result.filename;
       const locationLabel =
-        result.location === "done" ? ".shipper/done/" : ".shipper/open/";
+        result.location === "done" ? ".shipper/spikes/done/" : ".shipper/spikes/open/";
       const locationNote =
         result.location === "open"
           ? "\nThe spike file was left in open/ (the agent did not move it to done/)."

@@ -142,15 +142,27 @@ export function parseFrontmatter(markdown: string): PlanMeta {
   }
 }
 
+export type PlanCategory = "plan" | "spike";
+
 export type PlanFile = {
   filename: string;
   path: string;
   folder: "open" | "done";
+  category: PlanCategory;
   title: string;
   progress: PlanProgress;
   parsed: ParsedPlan;
   meta: PlanMeta;
 };
+
+const PLAN_ROOTS: Record<PlanCategory, string> = {
+  plan: "plans",
+  spike: "spikes",
+};
+
+export function planRelativePath(plan: Pick<PlanFile, "category" | "folder" | "filename">): string {
+  return `.shipper/${PLAN_ROOTS[plan.category]}/${plan.folder}/${plan.filename}`;
+}
 
 const PHASE_RE = /^## Phase (\d+)(?::\s*(.*))?$/;
 const SECTION_RE = /^### (.+)$/;
@@ -373,8 +385,10 @@ export function getPlanProgress(parsed: ParsedPlan): PlanProgress {
 }
 
 export async function ensureShipperDirs(repoPath: string): Promise<void> {
-  await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
-  await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+  for (const root of ["plans", "spikes", "bugs"] as const) {
+    await mkdir(join(repoPath, ".shipper", root, "open"), { recursive: true });
+    await mkdir(join(repoPath, ".shipper", root, "done"), { recursive: true });
+  }
 }
 
 async function isSymlink(path: string): Promise<boolean> {
@@ -387,8 +401,18 @@ async function isSymlink(path: string): Promise<boolean> {
 
 /** Unlink leftover .md symlinks from the old worktree workflow. */
 async function removeLeftoverPlanSymlinks(repoPath: string): Promise<void> {
-  for (const folder of ["open", "done", "plans"] as const) {
-    const dir = join(repoPath, ".shipper", folder);
+  const dirs: string[] = [
+    join(repoPath, ".shipper", "open"),
+    join(repoPath, ".shipper", "done"),
+    join(repoPath, ".shipper", "plans"),
+  ];
+  for (const root of ["plans", "spikes"] as const) {
+    for (const folder of ["open", "done"] as const) {
+      dirs.push(join(repoPath, ".shipper", root, folder));
+    }
+  }
+
+  for (const dir of dirs) {
     let entries: string[];
     try {
       entries = await readdir(dir);
@@ -412,25 +436,32 @@ async function readPlanFileAt(
   path: string,
   folder: "open" | "done",
   filename: string,
+  category: PlanCategory,
 ): Promise<PlanFile> {
   const markdown = await readFile(path, "utf8");
   const parsed = parsePlan(markdown);
+  const meta = parseFrontmatter(markdown);
+  if (category === "spike") {
+    meta.type = "spike";
+  }
   return {
     filename,
     path,
     folder,
+    category,
     title: parsed.title,
     progress: getPlanProgress(parsed),
     parsed,
-    meta: parseFrontmatter(markdown),
+    meta,
   };
 }
 
 async function readFolderPlans(
   shipperRoot: string,
+  category: PlanCategory,
   folder: "open" | "done",
 ): Promise<PlanFile[]> {
-  const dir = join(shipperRoot, folder);
+  const dir = join(shipperRoot, PLAN_ROOTS[category], folder);
   let entries: string[];
   try {
     entries = await readdir(dir);
@@ -446,12 +477,55 @@ async function readFolderPlans(
       continue;
     }
     try {
-      plans.push(await readPlanFileAt(filePath, folder, filename));
+      plans.push(await readPlanFileAt(filePath, folder, filename, category));
     } catch {
       // skip unreadable files
     }
   }
   return plans;
+}
+
+/** Pre–plans/spikes split layout: `.shipper/open` and `.shipper/done` at repo root. */
+async function readLegacyRootFolderPlans(
+  repoPath: string,
+  folder: "open" | "done",
+): Promise<PlanFile[]> {
+  const dir = join(repoPath, ".shipper", folder);
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch {
+    return [];
+  }
+
+  const mdFiles = entries.filter((f) => f.endsWith(".md")).sort();
+  const plans: PlanFile[] = [];
+  for (const filename of mdFiles) {
+    const filePath = join(dir, filename);
+    if (await isSymlink(filePath)) {
+      continue;
+    }
+    try {
+      const markdown = await readFile(filePath, "utf8");
+      const category: PlanCategory =
+        parseFrontmatter(markdown).type === "spike" ? "spike" : "plan";
+      plans.push(await readPlanFileAt(filePath, folder, filename, category));
+    } catch {
+      // skip unreadable files
+    }
+  }
+  return plans;
+}
+
+function mergeByFilename(primary: PlanFile[], fallback: PlanFile[]): PlanFile[] {
+  const seen = new Set(primary.map((p) => p.filename));
+  const merged = [...primary];
+  for (const plan of fallback) {
+    if (!seen.has(plan.filename)) {
+      merged.push(plan);
+    }
+  }
+  return merged.sort((a, b) => a.filename.localeCompare(b.filename));
 }
 
 export async function listPlans(repoPath: string): Promise<{
@@ -462,9 +536,27 @@ export async function listPlans(repoPath: string): Promise<{
   await removeLeftoverPlanSymlinks(repoPath);
 
   const mainShipper = join(repoPath, ".shipper");
+  const legacyOpen = await readLegacyRootFolderPlans(repoPath, "open");
+  const legacyDone = await readLegacyRootFolderPlans(repoPath, "done");
+  const openPlans = mergeByFilename(
+    await readFolderPlans(mainShipper, "plan", "open"),
+    legacyOpen.filter((plan) => plan.category === "plan"),
+  );
+  const donePlans = mergeByFilename(
+    await readFolderPlans(mainShipper, "plan", "done"),
+    legacyDone.filter((plan) => plan.category === "plan"),
+  );
+  const openSpikes = mergeByFilename(
+    await readFolderPlans(mainShipper, "spike", "open"),
+    legacyOpen.filter((plan) => plan.category === "spike"),
+  );
+  const doneSpikes = mergeByFilename(
+    await readFolderPlans(mainShipper, "spike", "done"),
+    legacyDone.filter((plan) => plan.category === "spike"),
+  );
   return {
-    open: await readFolderPlans(mainShipper, "open"),
-    done: await readFolderPlans(mainShipper, "done"),
+    open: [...openPlans, ...openSpikes],
+    done: [...donePlans, ...doneSpikes],
   };
 }
 
@@ -485,6 +577,10 @@ export function watchPlans(
   onChange: () => void,
 ): FSWatcher {
   const patterns = [
+    join(repoPath, ".shipper", "plans", "open", "*.md"),
+    join(repoPath, ".shipper", "plans", "done", "*.md"),
+    join(repoPath, ".shipper", "spikes", "open", "*.md"),
+    join(repoPath, ".shipper", "spikes", "done", "*.md"),
     join(repoPath, ".shipper", "open", "*.md"),
     join(repoPath, ".shipper", "done", "*.md"),
   ];

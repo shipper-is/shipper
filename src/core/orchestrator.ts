@@ -12,6 +12,7 @@ import {
   getFirstIncompletePhase,
   isPhaseComplete,
   listPlans,
+  planRelativePath,
   type PlanFile,
   type PlanPhase,
 } from "./plan-store.ts";
@@ -93,8 +94,12 @@ function madePhaseProgress(before: PhaseSnapshot, after: PhaseSnapshot): boolean
   );
 }
 
-function planRelativePath(folder: "open" | "done", filename: string): string {
-  return `.shipper/${folder}/${filename}`;
+function isPlanTrack(file: PlanFile): boolean {
+  return file.category === "plan";
+}
+
+function isSpikeTrack(file: PlanFile): boolean {
+  return file.category === "spike";
 }
 
 function isPlanFullyComplete(plan: PlanFile): boolean {
@@ -219,7 +224,9 @@ export async function runPlanCreation(
   model?: string,
 ): Promise<PlanCreationResult> {
   const beforePlans = await listPlans(repoPath);
-  const beforeFilenames = new Set(beforePlans.open.map((plan) => plan.filename));
+  const beforeFilenames = new Set(
+    beforePlans.open.filter(isPlanTrack).map((plan) => plan.filename),
+  );
 
   await installSkillsGlobally([agent]);
 
@@ -235,7 +242,10 @@ export async function runPlanCreation(
   const lastSessionId = adapter.sessionId;
 
   const afterPlans = await listPlans(repoPath);
-  const newPlan = findNewOpenPlan(beforeFilenames, afterPlans.open);
+  const newPlan = findNewOpenPlan(
+    beforeFilenames,
+    afterPlans.open.filter(isPlanTrack),
+  );
 
   if (newPlan) {
     await setProjectConfig(repoPath, { lastPlan: newPlan.filename });
@@ -252,7 +262,7 @@ export async function runPlanCreation(
 
   return {
     status: "error",
-    message: "Agent finished but no new plan file appeared in .shipper/open/",
+    message: "Agent finished but no new plan file appeared in .shipper/plans/open/",
     lastSessionId,
   };
 }
@@ -266,8 +276,8 @@ export async function runSpike(
 ): Promise<SpikeResult> {
   const beforePlans = await listPlans(repoPath);
   const beforeFilenames = new Set([
-    ...beforePlans.open.map((plan) => plan.filename),
-    ...beforePlans.done.map((plan) => plan.filename),
+    ...beforePlans.open.filter(isSpikeTrack).map((plan) => plan.filename),
+    ...beforePlans.done.filter(isSpikeTrack).map((plan) => plan.filename),
   ]);
 
   await installSkillsGlobally([agent]);
@@ -286,7 +296,11 @@ export async function runSpike(
   handlers.onPlanUpdate?.();
 
   const afterPlans = await listPlans(repoPath);
-  const newSpike = findNewPlan(beforeFilenames, afterPlans.open, afterPlans.done);
+  const newSpike = findNewPlan(
+    beforeFilenames,
+    afterPlans.open.filter(isSpikeTrack),
+    afterPlans.done.filter(isSpikeTrack),
+  );
 
   if (newSpike) {
     await setProjectConfig(repoPath, { lastPlan: newSpike.plan.filename });
@@ -309,7 +323,8 @@ export async function runSpike(
 
   return {
     status: "error",
-    message: "Agent finished but no new spike file appeared in .shipper/open/ or .shipper/done/",
+    message:
+      "Agent finished but no new spike file appeared in .shipper/spikes/open/ or .shipper/spikes/done/",
     lastSessionId,
   };
 }
@@ -404,7 +419,7 @@ export async function runBuildLoop(
 
     const pendingMessages = handlers.pendingUserMessages?.() ?? [];
     let prompt = buildBuildPrompt(
-      planRelativePath(plan.folder, planFilename),
+      planRelativePath(plan),
       targetPhase.number,
       agent,
       git,
@@ -509,7 +524,7 @@ export async function runFollowUp(
   if (options?.planFilename) {
     const plan = await findPlanByFilename(repoPath, options.planFilename);
     if (plan) {
-      planRelative = planRelativePath(plan.folder, plan.filename);
+      planRelative = planRelativePath(plan);
     }
   }
 

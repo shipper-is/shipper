@@ -7,7 +7,7 @@ The goal of this skill is to take an existing Shipper plan (in the .shipper fold
 
 ## Step 1: Identify the plan
 
-The user will direct you to which plan they want completed. If they don't specify and there is exactly one plan in `.shipper/open/`, use it. If there are multiple open plans, use the tool you have available to ask the user which plan to run.
+The user will direct you to which plan they want completed. If they don't specify and there is exactly one plan in `.shipper/plans/open/`, use it. If there are multiple open plans, use the tool you have available to ask the user which plan to run.
 
 ## Step 2: Assess plan state
 
@@ -56,7 +56,7 @@ For each remaining phase, in order, one at a time:
 
 ## Step 4: Completion
 
-After the final phase's subagent finishes, verify the plan-completion steps from the shipper-build GIT.md were done: `completed_at` is set in frontmatter, the plan file was moved from `.shipper/open/` to `.shipper/done/`, and (if committing is enabled) a final completion commit exists. If any were missed, spin up one last subagent to finish them.
+After the final phase's subagent finishes, verify the plan-completion steps from the shipper-build GIT.md were done: `completed_at` is set in frontmatter, the plan file was moved from `.shipper/plans/open/` to `.shipper/plans/done/`, and (if committing is enabled) a final completion commit exists. If any were missed, spin up one last subagent to finish them.
 
 Close out by summarizing for the user: the phases completed, the branch the work lives on (and whether changes were left uncommitted), and that the plan is ready for shipper-ship to open a PR.
 

@@ -7,7 +7,7 @@ Guidance for coding agents maintaining Customer Support after the initial build.
 | Artifact | Typical location |
 |----------|------------------|
 | Module spec (source of truth for behavior) | `.shipper/modules/customer-support/` in the host repo — **commit this folder**. |
-| Implementation plan | `.shipper/open/` or `.shipper/done/` plan that referenced module `customer-support` v1. |
+| Implementation plan | `.shipper/plans/open/` or `.shipper/plans/done/` plan that referenced module `customer-support` v1. |
 | Application code | Wherever the plan placed migrations, APIs, widget, and inbox — follow host repo conventions. |
 
 When fixing bugs or adding features, read the module files first, then the original plan for integration decisions (routes, table names, component paths).

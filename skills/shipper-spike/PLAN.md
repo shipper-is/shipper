@@ -12,7 +12,7 @@ At the end of these three steps you should have:
 - A good understanding of which parts of the codebase we need to reuse rather than build our own version
 - Some high level pitfalls to watch out for
 
-4. Write a lightweight spike file named after the spike (kebab-case). This file is the single source of truth for the spike's status. Create it in the main checkout's `.shipper/open/`. Follow [./GIT.md](./GIT.md) for branch frontmatter. Format:
+4. Write a lightweight spike file named after the spike (kebab-case). This file is the single source of truth for the spike's status. Create it in the main checkout's `.shipper/spikes/open/`. Follow [./GIT.md](./GIT.md) for branch frontmatter. Format:
 
 ```markdown
 ---
