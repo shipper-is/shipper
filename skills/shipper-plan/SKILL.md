@@ -17,7 +17,7 @@ If the user's request contains a Shipper module reference — a `https://shipper
 4. **Ask integration questions.** Use the tool you have available to ask clarifying questions focused on choices the module leaves open (placement, naming, which optional features to include). Do not re-ask things the module already decides.
 5. **Write the plan.** Cite both module files (as the spec) and host repo files (as the integration points). In the Plan Overview, include a line such as: `Built from module \`customer-support\` v1` (use the module's actual `id` and `version` from its frontmatter). State that `.shipper/modules/` should be committed to the repo alongside the plan.
 
-After install, the next step for the user is `/shipper-build` on the plan — same as the standard flow.
+After install, the next step for the user is `/shipper-loop` on the plan (or `/shipper-build` for a single phase) — same as the standard flow.
 
 ## Standard flow
 

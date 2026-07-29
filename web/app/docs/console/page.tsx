@@ -29,7 +29,7 @@ const steps = [
         Your browser opens at{" "}
         <span className="font-mono text-white">http://shipper.localhost</span>.
         On first run, pick your agent (Claude Code, Cursor CLI, or opencode) —
-        Shipper auto-installs all five bundled skills into the repo.
+        Shipper auto-installs all six bundled skills globally for that agent.
       </p>
     ),
   },
@@ -39,7 +39,7 @@ const steps = [
       <p className="text-white/60">
         Press <span className="font-mono text-white">n</span>, describe the
         feature, and answer clarifying questions inline. A phased plan lands in{" "}
-        <span className="font-mono text-white">.shipper/open/</span>.
+        <span className="font-mono text-white">.shipper/plans/open/</span>.
       </p>
     ),
   },
@@ -48,10 +48,13 @@ const steps = [
     content: (
       <p className="text-white/60">
         Press <span className="font-mono text-white">b</span> on an open plan.
-        Shipper runs one agent session per phase until the plan is complete, then
-        moves it to{" "}
-        <span className="font-mono text-white">.shipper/done/</span>. Progress
-        updates live as the agent checks boxes in the plan file.
+        Shipper starts one agent session with the{" "}
+        <span className="font-mono text-white">shipper-loop</span> skill — the
+        agent orchestrates every remaining phase (spinning up a fresh{" "}
+        <span className="font-mono text-white">shipper-build</span> subagent per
+        phase) until the plan moves to{" "}
+        <span className="font-mono text-white">.shipper/plans/done/</span>. Progress
+        updates live as checkboxes land in the plan file.
       </p>
     ),
   },
@@ -62,7 +65,7 @@ const steps = [
         Press <span className="font-mono text-white">s</span> for small one-off
         tasks. A single agent session gathers context, writes a lightweight plan,
         implements the work, and moves the file to{" "}
-        <span className="font-mono text-white">.shipper/done/</span>.
+        <span className="font-mono text-white">.shipper/spikes/done/</span>.
       </p>
     ),
   },

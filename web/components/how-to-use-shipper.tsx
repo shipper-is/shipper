@@ -25,27 +25,27 @@ const skillGuides = [
     title: "Plan",
     skill: "shipper-plan",
     description:
-      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/open/.",
+      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/plans/open/.",
     command: "/shipper-plan add a user settings page",
     steps: [
       "Open your coding agent in the repo.",
       "Run the slash command with a short description of the feature.",
       "Answer clarifying questions inline.",
-      "A phased plan lands in .shipper/open/ — commit it so the team stays aligned.",
+      "A phased plan lands in .shipper/plans/open/ — commit it so the team stays aligned.",
     ],
   },
   {
     number: "2",
     title: "Build",
-    skill: "shipper-build",
+    skill: "shipper-loop",
     description:
-      "Executes one phase per agent session until the plan is complete, then moves it to .shipper/done/.",
-    command: "/shipper-build on .shipper/open/my-feature.md",
+      "Orchestrates the full plan in one chat: a fresh subagent runs shipper-build for each phase until the plan moves to .shipper/plans/done/.",
+    command: "/shipper-loop on .shipper/plans/open/my-feature.md",
     steps: [
       "Run the slash command with the path to an open plan file.",
-      "The agent runs one phase, checking off tasks in the plan as it goes.",
-      "Run again for the next phase until every checkbox is done.",
-      "The finished plan moves to .shipper/done/.",
+      "The orchestrator spins up a new subagent per phase (via shipper-build).",
+      "Progress updates as checkboxes and Completion Notes land in the plan.",
+      "When every phase is done, the plan moves to .shipper/plans/done/.",
     ],
   },
   {
@@ -54,9 +54,9 @@ const skillGuides = [
     skill: "shipper-ship",
     description:
       "Scaffolds a reviewable pull request from a completed plan — what changed, how to verify, and known risks.",
-    command: "/shipper-ship on .shipper/done/my-feature.md",
+    command: "/shipper-ship on .shipper/plans/done/my-feature.md",
     steps: [
-      "Run the slash command with the path to a completed plan in .shipper/done/.",
+      "Run the slash command with the path to a completed plan in .shipper/plans/done/.",
       "The agent writes a PR summary with verification steps and test evidence.",
       "A pull request is created via gh — ready for review.",
     ],
@@ -64,6 +64,18 @@ const skillGuides = [
 ] as const;
 
 const alternateSkills = [
+  {
+    title: "Single phase",
+    skill: "shipper-build",
+    description:
+      "Implement one phase of an open plan in a single agent session. Prefer shipper-loop when you want the whole plan done.",
+    command: "/shipper-build on .shipper/plans/open/my-feature.md Phase 2",
+    steps: [
+      "Run the slash command with the plan path and optional phase number.",
+      "The agent implements that phase, checks off tasks, and writes Completion Notes.",
+      "Re-run for the next phase, or switch to shipper-loop to finish the rest.",
+    ],
+  },
   {
     title: "Spike",
     skill: "shipper-spike",
@@ -73,7 +85,7 @@ const alternateSkills = [
     steps: [
       "Describe a small change that fits in one session.",
       "The agent gathers context, writes a lightweight spike plan, and implements it.",
-      "The spike file moves to .shipper/done/ when finished.",
+      "The spike file moves to .shipper/spikes/done/ when finished.",
     ],
   },
   {
@@ -194,10 +206,10 @@ export function HowToUseShipper() {
           <div className="border-t border-white/20 pt-12">
             <h3 className="text-xl font-bold">Also available</h3>
             <p className="mt-2 max-w-2xl text-white/60">
-              Smaller tasks and bug fixes have dedicated skills with the same
-              agent-first workflow.
+              Single-phase builds, small spikes, and bug fixes have dedicated
+              skills with the same agent-first workflow.
             </p>
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
+            <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {alternateSkills.map((skill) => (
                 <SkillCard key={skill.skill} {...skill} />
               ))}

@@ -10,6 +10,7 @@ const agentKindSchema = z.enum(["claude", "cursor", "opencode"]);
 const skillModelsSchema = z.object({
   "shipper-plan": z.string().optional(),
   "shipper-build": z.string().optional(),
+  "shipper-loop": z.string().optional(),
   "shipper-spike": z.string().optional(),
 });
 
@@ -106,10 +107,17 @@ export async function resolveDefaultModel(
   skill: OrchestratedSkillName,
 ): Promise<string | undefined> {
   const config = await readConfig();
-  return (
-    config.projects[repoPath]?.models?.[agent]?.[skill] ??
-    config.defaults?.models?.[agent]?.[skill]
-  );
+  const projectModels = config.projects[repoPath]?.models?.[agent];
+  const defaultModels = config.defaults?.models?.[agent];
+  const direct = projectModels?.[skill] ?? defaultModels?.[skill];
+  if (direct) {
+    return direct;
+  }
+  // Legacy: Build used to key off shipper-build before the console switched to shipper-loop.
+  if (skill === "shipper-loop") {
+    return projectModels?.["shipper-build"] ?? defaultModels?.["shipper-build"];
+  }
+  return undefined;
 }
 
 export async function saveModelChoice(

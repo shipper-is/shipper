@@ -43,6 +43,15 @@ function runningTitle(skill: RunState["skill"]): string {
   return "Build in progress";
 }
 
+/** Prefer the first incomplete phase from the live plan while a build is running. */
+function activeBuildPhase(plan: PlanSummary | null, runState: RunState): number | null {
+  if (runState.skill !== "build") {
+    return runState.activePhaseNumber;
+  }
+  const incomplete = plan?.phases.find((phase) => !phase.complete);
+  return incomplete?.number ?? runState.activePhaseNumber;
+}
+
 export function MainPane({
   plan,
   runState,
@@ -175,6 +184,7 @@ export function MainPane({
   }
 
   const displayPlan = plan;
+  const activePhaseNumber = activeBuildPhase(displayPlan, runState);
   const showTabs = Boolean(displayPlan) || isRunning;
   const showChatInput =
     tab === "build" && (Boolean(displayPlan) || isRunning || chatEntries.length > 0);
@@ -200,8 +210,8 @@ export function MainPane({
           <span className={`skill-pill skill-${runState.skill ?? "idle"}`}>
             {runState.skill ?? "idle"}
           </span>
-          {isRunning && runState.activePhaseNumber !== null && (
-            <span className="phase-progress-line">Phase {runState.activePhaseNumber}</span>
+          {isRunning && activePhaseNumber !== null && (
+            <span className="phase-progress-line">Phase {activePhaseNumber}</span>
           )}
           {isRunning && (
             <button
@@ -270,7 +280,7 @@ export function MainPane({
 
       <div className="main-tab-panel">
         {tab === "phases" && displayPlan && (
-          <PlanView plan={displayPlan} activePhaseNumber={runState.activePhaseNumber} />
+          <PlanView plan={displayPlan} activePhaseNumber={activePhaseNumber} />
         )}
 
         {tab === "plan" && displayPlan && (

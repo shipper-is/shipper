@@ -51,7 +51,11 @@ const SKILLS = {
 
 export type SkillName = keyof typeof SKILLS;
 
-export type OrchestratedSkillName = "shipper-plan" | "shipper-build" | "shipper-spike";
+export type OrchestratedSkillName =
+  | "shipper-plan"
+  | "shipper-build"
+  | "shipper-loop"
+  | "shipper-spike";
 
 export const SKILL_NAMES = Object.keys(SKILLS) as SkillName[];
 

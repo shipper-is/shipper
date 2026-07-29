@@ -9,14 +9,12 @@ import type {
 import { setProjectConfig } from "./config.ts";
 import {
   findPlanByFilename,
-  getFirstIncompletePhase,
   isPhaseComplete,
   listPlans,
   planRelativePath,
   type PlanFile,
-  type PlanPhase,
 } from "./plan-store.ts";
-import { buildBuildPrompt, buildFollowUpPrompt, buildPlanPrompt, buildSpikePrompt, appendPendingUserMessages } from "./prompts.ts";
+import { buildFollowUpPrompt, buildLoopPrompt, buildPlanPrompt, buildSpikePrompt, appendPendingUserMessages } from "./prompts.ts";
 import { RunLogger } from "./run-logger.ts";
 import { installSkillsGlobally } from "./skills.ts";
 import { defaultBuildGitOptions, type BuildGitOptions } from "../shared/protocol.ts";
@@ -75,25 +73,6 @@ export type BuildLoopResult =
 
 export type FollowUpResult = AgentRunResult & { lastSessionId: string | null };
 
-type PhaseSnapshot = {
-  checkedCount: number;
-  hasCompletionNotes: boolean;
-};
-
-function phaseSnapshot(phase: PlanPhase | undefined): PhaseSnapshot {
-  return {
-    checkedCount: phase?.checkedCount ?? 0,
-    hasCompletionNotes: phase?.hasCompletionNotes ?? false,
-  };
-}
-
-function madePhaseProgress(before: PhaseSnapshot, after: PhaseSnapshot): boolean {
-  return (
-    after.checkedCount > before.checkedCount ||
-    (!before.hasCompletionNotes && after.hasCompletionNotes)
-  );
-}
-
 function isPlanTrack(file: PlanFile): boolean {
   return file.category === "plan";
 }
@@ -110,6 +89,10 @@ function isPlanFullyComplete(plan: PlanFile): boolean {
     return false;
   }
   return plan.parsed.phases.every(isPhaseComplete);
+}
+
+function countIncompletePhases(plan: PlanFile): number {
+  return plan.parsed.phases.filter((phase) => !isPhaseComplete(phase)).length;
 }
 
 export async function consumeAgentRun(
@@ -354,159 +337,76 @@ export async function runBuildLoop(
     };
   }
 
-  const maxSessions = initialPlan.parsed.phases.length * 2 + 2;
-  let sessionsUsed = 0;
-  let lastSessionId: string | null = null;
-  const phasesRun = new Set<number>();
-  let consecutiveStrikes = 0;
-  let lastStrikingPhase: number | null = null;
+  if (handlers.signal?.aborted) {
+    return { status: "cancelled", sessionsUsed: 0, lastSessionId: null };
+  }
 
-  while (sessionsUsed < maxSessions) {
-    if (handlers.signal?.aborted) {
-      return { status: "cancelled", sessionsUsed, lastSessionId };
-    }
+  const incompleteAtStart = countIncompletePhases(initialPlan);
+  const firstPhase = initialPlan.parsed.phases.find((phase) => !isPhaseComplete(phase));
+  if (firstPhase) {
+    handlers.onPhaseStart?.(firstPhase.number);
+  }
 
-    const plan = await findPlanByFilename(repoPath, planFilename);
-    if (!plan) {
-      return {
-        status: "error",
-        message: "Plan file disappeared",
-        sessionsUsed,
-        lastSessionId,
-      };
-    }
+  await installSkillsGlobally([agent]);
 
-    if (plan.folder === "done") {
-      return {
-        status: "success",
-        sessionsUsed,
-        phasesRun: phasesRun.size,
-        planLocation: "done",
-        lastSessionId,
-      };
-    }
+  const pendingMessages = handlers.pendingUserMessages?.() ?? [];
+  let prompt = buildLoopPrompt(planRelativePath(initialPlan), agent, git);
+  if (pendingMessages.length > 0) {
+    prompt = appendPendingUserMessages(prompt, pendingMessages);
+  }
 
-    if (isPlanFullyComplete(plan)) {
-      return {
-        status: "success",
-        sessionsUsed,
-        phasesRun: phasesRun.size,
-        planLocation: "open",
-        leftInOpen: true,
-        lastSessionId,
-      };
-    }
+  const adapter = createAdapter(agent);
+  const sessionLogger = handlers.logger ?? (await RunLogger.create(agent));
+  handlers.onSessionLog?.(sessionLogger.path);
+  const runResult = await consumeAgentRun(
+    adapter,
+    { cwd: repoPath, prompt, ...(model ? { model } : {}) },
+    { ...handlers, logger: sessionLogger },
+  );
+  const lastSessionId = adapter.sessionId;
+  const sessionsUsed = 1;
 
-    const targetPhase = getFirstIncompletePhase(plan.parsed);
-    if (!targetPhase) {
-      return {
-        status: "success",
-        sessionsUsed,
-        phasesRun: phasesRun.size,
-        planLocation: plan.folder,
-        leftInOpen: plan.folder === "open",
-        lastSessionId,
-      };
-    }
+  if (handlers.signal?.aborted) {
+    return { status: "cancelled", sessionsUsed, lastSessionId };
+  }
 
-    handlers.onPhaseStart?.(targetPhase.number);
+  if (!runResult.ok) {
+    return {
+      status: "error",
+      message: runResult.error ?? "Agent session failed",
+      sessionsUsed,
+      lastSessionId,
+    };
+  }
 
-    const beforeSnapshot = phaseSnapshot(
-      plan.parsed.phases.find((phase) => phase.number === targetPhase.number),
-    );
+  handlers.onPlanUpdate?.();
 
-    await installSkillsGlobally([agent]);
+  const afterPlan = await findPlanByFilename(repoPath, planFilename);
+  if (!afterPlan) {
+    return {
+      status: "error",
+      message: "Plan file disappeared after session",
+      sessionsUsed,
+      lastSessionId,
+    };
+  }
 
-    const pendingMessages = handlers.pendingUserMessages?.() ?? [];
-    let prompt = buildBuildPrompt(
-      planRelativePath(plan),
-      targetPhase.number,
-      agent,
-      git,
-    );
-    if (pendingMessages.length > 0) {
-      prompt = appendPendingUserMessages(prompt, pendingMessages);
-    }
-    const adapter = createAdapter(agent);
-    const sessionLogger = handlers.logger ?? (await RunLogger.create(agent));
-    handlers.onSessionLog?.(sessionLogger.path);
-    const runResult = await consumeAgentRun(
-      adapter,
-      { cwd: repoPath, prompt, ...(model ? { model } : {}) },
-      { ...handlers, logger: sessionLogger },
-    );
-    sessionsUsed++;
-    phasesRun.add(targetPhase.number);
-    lastSessionId = adapter.sessionId;
-
-    if (handlers.signal?.aborted) {
-      return { status: "cancelled", sessionsUsed, lastSessionId };
-    }
-
-    if (!runResult.ok) {
-      return {
-        status: "error",
-        message: runResult.error ?? "Agent session failed",
-        sessionsUsed,
-        lastSessionId,
-      };
-    }
-
-    const afterPlan = await findPlanByFilename(repoPath, planFilename);
-    if (!afterPlan) {
-      return {
-        status: "error",
-        message: "Plan file disappeared after session",
-        sessionsUsed,
-        lastSessionId,
-      };
-    }
-
-    handlers.onPlanUpdate?.();
-
-    const afterPhase = afterPlan.parsed.phases.find(
-      (phase) => phase.number === targetPhase.number,
-    );
-    const afterSnapshot = phaseSnapshot(afterPhase);
-
-    if (!madePhaseProgress(beforeSnapshot, afterSnapshot)) {
-      if (lastStrikingPhase === targetPhase.number) {
-        consecutiveStrikes++;
-      } else {
-        consecutiveStrikes = 1;
-        lastStrikingPhase = targetPhase.number;
-      }
-
-      if (consecutiveStrikes >= 2) {
-        return {
-          status: "error",
-          message: `Build stalled on Phase ${targetPhase.number}: no progress after two consecutive sessions. Inspect the plan file and re-run build.`,
-          sessionsUsed,
-          lastSessionId,
-        };
-      }
-    } else {
-      consecutiveStrikes = 0;
-      lastStrikingPhase = null;
-    }
-
-    handlers.onPhaseComplete?.(targetPhase.number);
-
-    if (afterPlan.folder === "done" || isPlanFullyComplete(afterPlan)) {
-      return {
-        status: "success",
-        sessionsUsed,
-        phasesRun: phasesRun.size,
-        planLocation: afterPlan.folder,
-        leftInOpen: afterPlan.folder === "open",
-        lastSessionId,
-      };
-    }
+  if (afterPlan.folder === "done" || isPlanFullyComplete(afterPlan)) {
+    const remaining = countIncompletePhases(afterPlan);
+    return {
+      status: "success",
+      sessionsUsed,
+      phasesRun: Math.max(0, incompleteAtStart - remaining),
+      planLocation: afterPlan.folder,
+      leftInOpen: afterPlan.folder === "open",
+      lastSessionId,
+    };
   }
 
   return {
     status: "error",
-    message: `Build loop exceeded session limit (${maxSessions}). Inspect the plan and re-run build.`,
+    message:
+      "Build finished before the plan was complete. Inspect the plan file and re-run build, or continue with a follow-up message.",
     sessionsUsed,
     lastSessionId,
   };

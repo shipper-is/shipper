@@ -44,21 +44,6 @@ const SIMPLE_PLAN = `# Test Plan
 - [ ] task three
 `;
 
-const PHASE1_DONE_PLAN = `# Test Plan
-
-## Phase 1: First
-### Section
-- [x] task one
-- [x] task two
-
-### Completion Notes
-- done
-
-## Phase 2: Second
-### Section
-- [ ] task three
-`;
-
 const ALL_DONE_PLAN = `# Test Plan
 
 ## Phase 1: First
@@ -78,8 +63,8 @@ const ALL_DONE_PLAN = `# Test Plan
 `;
 
 async function writePlan(repoPath: string, markdown: string, folder: "open" | "done" = "open") {
-  await mkdir(join(repoPath, ".shipper", "plans", folder), { recursive: true });
-  await writeFile(join(repoPath, ".shipper", "plans", folder, "test-plan.md"), markdown, "utf8");
+  await mkdir(join(repoPath, ".shipper", folder), { recursive: true });
+  await writeFile(join(repoPath, ".shipper", folder, "test-plan.md"), markdown, "utf8");
 }
 
 describe("consumeAgentRun", () => {
@@ -199,24 +184,18 @@ describe("runBuildLoop", () => {
     expect(mockCreateAdapter).not.toHaveBeenCalled();
   });
 
-  it("completes phases sequentially and detects done folder", async () => {
+  it("runs a single shipper-loop session and detects done folder", async () => {
     await writePlan(repoPath, SIMPLE_PLAN);
-    let call = 0;
 
     mockCreateAdapter.mockImplementation(() => ({
-      sessionId: null,
+      sessionId: "loop-session",
       async *start() {
-        call++;
-        if (call === 1) {
-          await writePlan(repoPath, PHASE1_DONE_PLAN);
-        } else if (call === 2) {
-          await writePlan(repoPath, ALL_DONE_PLAN);
-          await mkdir(join(repoPath, ".shipper", "plans", "done"), { recursive: true });
-          await rename(
-            join(repoPath, ".shipper", "plans", "open", "test-plan.md"),
-            join(repoPath, ".shipper", "plans", "done", "test-plan.md"),
-          );
-        }
+        await writePlan(repoPath, ALL_DONE_PLAN);
+        await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+        await rename(
+          join(repoPath, ".shipper", "open", "test-plan.md"),
+          join(repoPath, ".shipper", "done", "test-plan.md"),
+        );
         yield { type: "done", result: "ok" };
       },
       answer() {},
@@ -228,11 +207,13 @@ describe("runBuildLoop", () => {
       onQuestion: async () => ({}),
     });
 
+    expect(mockCreateAdapter).toHaveBeenCalledTimes(1);
     expect(result.status).toBe("success");
     if (result.status === "success") {
       expect(result.planLocation).toBe("done");
-      expect(result.sessionsUsed).toBe(2);
+      expect(result.sessionsUsed).toBe(1);
       expect(result.phasesRun).toBe(2);
+      expect(result.lastSessionId).toBe("loop-session");
     }
   });
 
@@ -258,14 +239,15 @@ describe("runBuildLoop", () => {
     if (result.status === "success") {
       expect(result.leftInOpen).toBe(true);
       expect(result.planLocation).toBe("open");
+      expect(result.sessionsUsed).toBe(1);
     }
   });
 
-  it("aborts after two consecutive no-progress sessions on the same phase", async () => {
+  it("errors when the agent session ends with the plan still incomplete", async () => {
     await writePlan(repoPath, SIMPLE_PLAN);
 
     mockCreateAdapter.mockImplementation(() =>
-      mockAdapter([{ type: "done", result: "no changes" }]),
+      mockAdapter([{ type: "done", result: "stopped early" }]),
     );
 
     const result = await runBuildLoop(repoPath, "cursor", "test-plan.md", {
@@ -275,83 +257,12 @@ describe("runBuildLoop", () => {
 
     expect(result.status).toBe("error");
     if (result.status === "error") {
-      expect(result.message).toContain("stalled on Phase 1");
-      expect(result.sessionsUsed).toBe(2);
+      expect(result.message).toContain("before the plan was complete");
+      expect(result.sessionsUsed).toBe(1);
     }
   });
 
-  it("resets stall counter when progress is made", async () => {
-    await writePlan(repoPath, SIMPLE_PLAN);
-    let call = 0;
-
-    mockCreateAdapter.mockImplementation(() => ({
-      sessionId: null,
-      async *start() {
-        call++;
-        if (call === 2) {
-          await writePlan(repoPath, PHASE1_DONE_PLAN);
-        }
-        yield { type: "done", result: "ok" };
-      },
-      answer() {},
-      async stop() {},
-    }));
-
-    const result = await runBuildLoop(repoPath, "cursor", "test-plan.md", {
-      onEvent: () => {},
-      onQuestion: async () => ({}),
-    });
-
-    expect(mockCreateAdapter.mock.calls.length).toBeGreaterThanOrEqual(2);
-    if (result.status === "error") {
-      expect(result.message).not.toContain("stalled on Phase 1");
-    }
-  });
-
-  it("respects the session cap", async () => {
-    const tasks = Array.from({ length: 10 }, (_, i) => `- [ ] task ${i + 1}`).join("\n");
-    const bigPhasePlan = `# Test Plan
-
-## Phase 1: Big
-### Section
-${tasks}
-`;
-    await writePlan(repoPath, bigPhasePlan);
-
-    let call = 0;
-    mockCreateAdapter.mockImplementation(() => ({
-      sessionId: null,
-      async *start() {
-        call++;
-        const checked = Array.from({ length: call }, (_, i) => `- [x] task ${i + 1}`).join("\n");
-        const unchecked = Array.from({ length: 10 - call }, (_, i) => `- [ ] task ${call + i + 1}`).join("\n");
-        const markdown = `# Test Plan
-
-## Phase 1: Big
-### Section
-${checked}
-${unchecked}
-`;
-        await writePlan(repoPath, markdown);
-        yield { type: "done", result: "ok" };
-      },
-      answer() {},
-      async stop() {},
-    }));
-
-    const result = await runBuildLoop(repoPath, "cursor", "test-plan.md", {
-      onEvent: () => {},
-      onQuestion: async () => ({}),
-    });
-
-    expect(result.status).toBe("error");
-    if (result.status === "error") {
-      expect(result.message).toContain("session limit");
-      expect(result.sessionsUsed).toBe(4);
-    }
-  });
-
-  it("reports cancellation", async () => {
+  it("reports cancellation before starting a session", async () => {
     await writePlan(repoPath, SIMPLE_PLAN);
     const controller = new AbortController();
     controller.abort();
@@ -366,6 +277,7 @@ ${unchecked}
     if (result.status === "cancelled") {
       expect(result.sessionsUsed).toBe(0);
     }
+    expect(mockCreateAdapter).not.toHaveBeenCalled();
   });
 });
 
@@ -423,8 +335,8 @@ type: spike
     mockCreateAdapter.mockImplementation(() => ({
       sessionId: "spike-session-1",
       async *start() {
-        await mkdir(join(repoPath, ".shipper", "spikes", "open"), { recursive: true });
-        await writeFile(join(repoPath, ".shipper", "spikes", "open", "my-spike.md"), SPIKE_FILE, "utf8");
+        await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
+        await writeFile(join(repoPath, ".shipper", "open", "my-spike.md"), SPIKE_FILE, "utf8");
         yield { type: "done", result: "ok" };
       },
       answer() {},
@@ -449,8 +361,8 @@ type: spike
     mockCreateAdapter.mockImplementation(() => ({
       sessionId: "spike-session-2",
       async *start() {
-        await mkdir(join(repoPath, ".shipper", "spikes", "done"), { recursive: true });
-        await writeFile(join(repoPath, ".shipper", "spikes", "done", "finished-spike.md"), SPIKE_FILE, "utf8");
+        await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+        await writeFile(join(repoPath, ".shipper", "done", "finished-spike.md"), SPIKE_FILE, "utf8");
         yield { type: "done", result: "ok" };
       },
       answer() {},
