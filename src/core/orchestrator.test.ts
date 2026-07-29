@@ -78,8 +78,8 @@ const ALL_DONE_PLAN = `# Test Plan
 `;
 
 async function writePlan(repoPath: string, markdown: string, folder: "open" | "done" = "open") {
-  await mkdir(join(repoPath, ".shipper", folder), { recursive: true });
-  await writeFile(join(repoPath, ".shipper", folder, "test-plan.md"), markdown, "utf8");
+  await mkdir(join(repoPath, ".shipper", "plans", folder), { recursive: true });
+  await writeFile(join(repoPath, ".shipper", "plans", folder, "test-plan.md"), markdown, "utf8");
 }
 
 describe("consumeAgentRun", () => {
@@ -211,10 +211,10 @@ describe("runBuildLoop", () => {
           await writePlan(repoPath, PHASE1_DONE_PLAN);
         } else if (call === 2) {
           await writePlan(repoPath, ALL_DONE_PLAN);
-          await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
+          await mkdir(join(repoPath, ".shipper", "plans", "done"), { recursive: true });
           await rename(
-            join(repoPath, ".shipper", "open", "test-plan.md"),
-            join(repoPath, ".shipper", "done", "test-plan.md"),
+            join(repoPath, ".shipper", "plans", "open", "test-plan.md"),
+            join(repoPath, ".shipper", "plans", "done", "test-plan.md"),
           );
         }
         yield { type: "done", result: "ok" };
@@ -423,8 +423,8 @@ type: spike
     mockCreateAdapter.mockImplementation(() => ({
       sessionId: "spike-session-1",
       async *start() {
-        await mkdir(join(repoPath, ".shipper", "open"), { recursive: true });
-        await writeFile(join(repoPath, ".shipper", "open", "my-spike.md"), SPIKE_FILE, "utf8");
+        await mkdir(join(repoPath, ".shipper", "spikes", "open"), { recursive: true });
+        await writeFile(join(repoPath, ".shipper", "spikes", "open", "my-spike.md"), SPIKE_FILE, "utf8");
         yield { type: "done", result: "ok" };
       },
       answer() {},
@@ -449,8 +449,8 @@ type: spike
     mockCreateAdapter.mockImplementation(() => ({
       sessionId: "spike-session-2",
       async *start() {
-        await mkdir(join(repoPath, ".shipper", "done"), { recursive: true });
-        await writeFile(join(repoPath, ".shipper", "done", "finished-spike.md"), SPIKE_FILE, "utf8");
+        await mkdir(join(repoPath, ".shipper", "spikes", "done"), { recursive: true });
+        await writeFile(join(repoPath, ".shipper", "spikes", "done", "finished-spike.md"), SPIKE_FILE, "utf8");
         yield { type: "done", result: "ok" };
       },
       answer() {},
@@ -498,17 +498,17 @@ describe("prompt helpers", () => {
 
   it("builds follow-up prompt with plan context when not resuming", () => {
     const prompt = buildFollowUpPrompt("ship it", "cursor", {
-      planRelativePath: ".shipper/open/foo.md",
+      planRelativePath: ".shipper/plans/open/foo.md",
       resuming: false,
     });
     expect(prompt).toContain("continues work on the plan");
-    expect(prompt).toContain(".shipper/open/foo.md");
+    expect(prompt).toContain(".shipper/plans/open/foo.md");
     expect(prompt).toContain("ship it");
   });
 
   it("omits plan context when resuming", () => {
     const prompt = buildFollowUpPrompt("ship it", "cursor", {
-      planRelativePath: ".shipper/open/foo.md",
+      planRelativePath: ".shipper/plans/open/foo.md",
       resuming: true,
     });
     expect(prompt).not.toContain("continues work on the plan");

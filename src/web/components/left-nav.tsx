@@ -182,8 +182,8 @@ export function LeftNav({
           <p>{mode === "spike" ? "No spikes yet." : "No plans yet."}</p>
           <p className="empty-nav-hint">
             {mode === "spike"
-              ? "Use + New spike to start a one-off task."
-              : "Create one to get started, or add markdown files to `.shipper/open/`."}
+              ? "Use + New spike to start a one-off task, or add markdown files to `.shipper/spikes/open/`."
+              : "Create one to get started, or add markdown files to `.shipper/plans/open/`."}
           </p>
         </div>
       ) : (

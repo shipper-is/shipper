@@ -2,7 +2,7 @@ This file is the authoritative git workflow for shipper-ship. Read and follow it
 
 ## Locating the branch
 
-Read `branch` from the plan or spike file frontmatter in `.shipper/done/<filename>.md`.
+Read `branch` from the plan file frontmatter in `.shipper/plans/done/<filename>.md`, or from the spike file in `.shipper/spikes/done/<filename>.md`.
 
 If frontmatter has no `branch` key, the work was done directly on a branch (current-branch mode) — use the currently checked-out branch. If that branch is the repository's default branch (e.g. `main` or `master`), ask the user via the question tool before proceeding: they can have you create a new branch for the PR (create it from the current branch, which carries the commits) or abort.
 

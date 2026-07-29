@@ -3,12 +3,12 @@ import { buildBuildPrompt } from "./prompts.ts";
 
 describe("buildBuildPrompt git instructions", () => {
   it("omits git instructions when no options are given", () => {
-    const prompt = buildBuildPrompt(".shipper/open/foo.md", 1, "cursor");
+    const prompt = buildBuildPrompt(".shipper/plans/open/foo.md", 1, "cursor");
     expect(prompt).not.toContain("Git workflow:");
   });
 
   it("instructs current-branch mode without branch frontmatter", () => {
-    const prompt = buildBuildPrompt(".shipper/open/foo.md", 1, "cursor", {
+    const prompt = buildBuildPrompt(".shipper/plans/open/foo.md", 1, "cursor", {
       mode: "current-branch",
       commitEachPhase: true,
     });
@@ -17,7 +17,7 @@ describe("buildBuildPrompt git instructions", () => {
   });
 
   it("instructs feature-branch mode when requested", () => {
-    const prompt = buildBuildPrompt(".shipper/open/foo.md", 2, "cursor", {
+    const prompt = buildBuildPrompt(".shipper/plans/open/foo.md", 2, "cursor", {
       mode: "new-branch",
       commitEachPhase: true,
     });
@@ -25,7 +25,7 @@ describe("buildBuildPrompt git instructions", () => {
   });
 
   it("instructs no commits when commitEachPhase is false", () => {
-    const prompt = buildBuildPrompt(".shipper/open/foo.md", 1, "cursor", {
+    const prompt = buildBuildPrompt(".shipper/plans/open/foo.md", 1, "cursor", {
       mode: "current-branch",
       commitEachPhase: false,
     });

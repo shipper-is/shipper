@@ -6,7 +6,7 @@ Here are the actions you'll take to complete the BUILD step of the Shipper Spike
 
 1. Create a Todo List using the tool you have available to create Todo lists
 2. Iterate over each step of the todo list checking off each step once you've completed it. Also check off the corresponding `- [ ]` item in the spike markdown file as you complete each task. If it is a commit-worthy amount of work you can commit after each item but if it is a relatively small body of work then you can wait to just commit everything at the end.
-3. When all tasks are complete, follow GIT.md: set `completed_at`, move the file from `.shipper/open/` to `.shipper/done/`, and commit.
+3. When all tasks are complete, follow GIT.md: set `completed_at`, move the file from `.shipper/spikes/open/` to `.shipper/spikes/done/`, and commit.
 4. If the user opted for an automatic PR, invoke shipper-ship (see GIT.md).
 5. Return a brief summary back to the user once you've finished implementation with any follow up steps the user needs to take to fully complete their request.
 

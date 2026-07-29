@@ -57,7 +57,7 @@ After completing a phase (all section checkboxes checked, Completion Notes writt
 When you complete the **final phase** of the plan:
 
 1. Set `completed_at` in frontmatter to the current time as a quoted ISO 8601 timestamp.
-2. Move the plan file from `.shipper/open/` to `.shipper/done/`.
+2. Move the plan file from `.shipper/plans/open/` to `.shipper/plans/done/`.
 3. If committing is enabled, make a final commit with an appropriate message (e.g. `Complete plan: <plan title>`).
 
 In feature-branch mode, do not delete the feature branch here. The branch persists for PR creation via shipper-ship.

@@ -27,7 +27,7 @@ Regardless, the **final state must be fully committed** before handoff to shippe
 When all spike tasks are complete:
 
 1. Set `completed_at` in frontmatter to a quoted ISO 8601 timestamp.
-2. Move the spike file from `.shipper/open/` to `.shipper/done/`.
+2. Move the spike file from `.shipper/spikes/open/` to `.shipper/spikes/done/`.
 3. Commit the completion.
 
 If the user requested an automatic PR, invoke shipper-ship so `pr_url` and `pr_number` can be written to the spike file on the branch.
