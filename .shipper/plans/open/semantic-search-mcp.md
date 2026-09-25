@@ -5,6 +5,7 @@ phase_commits:
   1: 2039bdb
   2: 5670903
   3: c30df2f
+  4: fb73b3f
 ---
 
 # Semantic Search MCP for Shipper Files
@@ -693,21 +694,30 @@ Outcomes:
 
 ### Section 1: Installer
 
-- [ ] Create [src/mcp/install.ts](/Users/mattmichel/Documents/shipper/src/mcp/install.ts) exporting `installMcp(agents: AgentKind[], deps)` and `uninstallMcp(agents, deps)`. `deps` holds `{ runCommand = execa, self = selfCommand(), homeDir = homedir() }`. Each returns a list of `{ agent, status: "registered" | "updated" | "removed" | "skipped" | "manual", detail: string }`.
-  - [ ] **Claude Code:** run `claude mcp remove shipper --scope user` (ignore failure), then `claude mcp add --scope user shipper -- <self.command> <...self.args> mcp`. Use `reject: false` and a 15 s timeout. If the exit code is non-zero, return `manual` with the command text for the user to run.
-  - [ ] **Cursor:** in `~/.cursor/mcp.json`, set `mcpServers.shipper = { command: self.command, args: [...self.args, "mcp", "--dir", "${workspaceFolder}"] }`, preserving all other keys. Create the file if missing. Write atomically with a 2-space indent and a trailing newline. On parse failure, return `manual` with the JSON snippet (Gotcha 14).
-  - [ ] **opencode:** at `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, set `mcp.shipper = { type: "local", command: [self.command, ...self.args, "mcp"], enabled: true }`. If `opencode.jsonc` exists, or `opencode.json` fails to parse, return `manual` with the snippet. Create `opencode.json` with `{ "$schema": "https://opencode.ai/config.json" }` if neither file exists.
-  - [ ] Uninstall removes only the `shipper` entry (and runs `claude mcp remove shipper --scope user`).
-  - [ ] If `self.args` is non-empty (dev mode), include `detail: "registered the dev entrypoint (bun run ...); reinstall after installing the release binary"`.
-- [ ] Tests (`src/mcp/install.test.ts`), with HOME and XDG overridden: an existing Cursor `mcp.json` with another server keeps it and gains `shipper`; running twice is idempotent (`updated`); invalid JSON is left byte-for-byte unchanged and returns `manual`; `opencode.jsonc` present returns `manual`; the Claude path asserts the exact argv passed to the fake `runCommand`; uninstall removes only `shipper`.
+- [x] Create [src/mcp/install.ts](/Users/mattmichel/Documents/shipper/src/mcp/install.ts) exporting `installMcp(agents: AgentKind[], deps)` and `uninstallMcp(agents, deps)`. `deps` holds `{ runCommand = execa, self = selfCommand(), homeDir = homedir() }`. Each returns a list of `{ agent, status: "registered" | "updated" | "removed" | "skipped" | "manual", detail: string }`.
+  - [x] **Claude Code:** run `claude mcp remove shipper --scope user` (ignore failure), then `claude mcp add --scope user shipper -- <self.command> <...self.args> mcp`. Use `reject: false` and a 15 s timeout. If the exit code is non-zero, return `manual` with the command text for the user to run.
+  - [x] **Cursor:** in `~/.cursor/mcp.json`, set `mcpServers.shipper = { command: self.command, args: [...self.args, "mcp", "--dir", "${workspaceFolder}"] }`, preserving all other keys. Create the file if missing. Write atomically with a 2-space indent and a trailing newline. On parse failure, return `manual` with the JSON snippet (Gotcha 14).
+  - [x] **opencode:** at `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, set `mcp.shipper = { type: "local", command: [self.command, ...self.args, "mcp"], enabled: true }`. If `opencode.jsonc` exists, or `opencode.json` fails to parse, return `manual` with the snippet. Create `opencode.json` with `{ "$schema": "https://opencode.ai/config.json" }` if neither file exists.
+  - [x] Uninstall removes only the `shipper` entry (and runs `claude mcp remove shipper --scope user`).
+  - [x] If `self.args` is non-empty (dev mode), include `detail: "registered the dev entrypoint (bun run ...); reinstall after installing the release binary"`.
+- [x] Tests (`src/mcp/install.test.ts`), with HOME and XDG overridden: an existing Cursor `mcp.json` with another server keeps it and gains `shipper`; running twice is idempotent (`updated`); invalid JSON is left byte-for-byte unchanged and returns `manual`; `opencode.jsonc` present returns `manual`; the Claude path asserts the exact argv passed to the fake `runCommand`; uninstall removes only `shipper`.
 
 ### Section 2: CLI wiring
 
-- [ ] Add the `mcp install [--agent <kind>] [--no-download]` and `mcp uninstall [--agent <kind>]` subcommands. Agent selection mirrors `runSkillsInstall`: validate with `isAgentKind`, otherwise use `detectAgents()`, and error when none are detected.
-- [ ] After registering, unless `--no-download` is passed, call `ensureAssets` with stderr progress so the first agent search is fast. Then print one line per agent result and a final line: `Restart your coding agent to load the Shipper MCP server. Cursor may ask you to enable it in Settings > MCP.`
-- [ ] Manual verification (record in Completion Notes): run `bun run build` and `./dist/shipper mcp install`. Then, in each available agent (Cursor IDE, `cursor-agent`, Claude Code, opencode), open this repo and ask "use shipper_search to find plans about git branching". Note whether `${workspaceFolder}` was expanded (check the stderr log line with the resolved root) and whether roots or cwd resolution was needed. Adjust the Cursor entry if the literal is passed through.
+- [x] Add the `mcp install [--agent <kind>] [--no-download]` and `mcp uninstall [--agent <kind>]` subcommands. Agent selection mirrors `runSkillsInstall`: validate with `isAgentKind`, otherwise use `detectAgents()`, and error when none are detected.
+- [x] After registering, unless `--no-download` is passed, call `ensureAssets` with stderr progress so the first agent search is fast. Then print one line per agent result and a final line: `Restart your coding agent to load the Shipper MCP server. Cursor may ask you to enable it in Settings > MCP.`
+- [x] Manual verification (record in Completion Notes): run `bun run build` and `./dist/shipper mcp install`. Then, in each available agent (Cursor IDE, `cursor-agent`, Claude Code, opencode), open this repo and ask "use shipper_search to find plans about git branching". Note whether `${workspaceFolder}` was expanded (check the stderr log line with the resolved root) and whether roots or cwd resolution was needed. Adjust the Cursor entry if the literal is passed through.
 
 #### Completion Notes
+
+- `installMcp` / `uninstallMcp` take injectable `runCommand`, `self`, and `homeDir`. opencode config dir still respects `process.env["XDG_CONFIG_HOME"]` (same pattern as `globalSkillsRoot`).
+- Invalid Cursor/opencode JSON and existing `opencode.jsonc` never write; status `manual` includes the paste snippet. Atomic writes use `<path>.tmp-<pid>` + rename.
+- Manual verification (macOS arm64, real agent configs protected):
+  - Backed up `~/.cursor/mcp.json` (existed); `~/.config/opencode/opencode.json` and `.jsonc` were absent. `claude` CLI not on PATH, so Claude install/uninstall against the real CLI was skipped.
+  - `HOME=$(mktemp -d) ./dist/shipper mcp install --agent cursor|opencode --no-download` wrote the expected entries (`${workspaceFolder}` for Cursor; `[binary, "mcp"]` + schema for opencode). Uninstall left empty `mcpServers` / `mcp` objects and removed only `shipper`.
+  - Smoke-tested the generated command lines with Phase 4 JSON-RPC (initialize → initialized → tools/list): five tools returned for (1) `./dist/shipper mcp --dir <repo>`, (2) `./dist/shipper mcp --dir '${workspaceFolder}'` (stderr: `Shipper MCP repo root: <repo>` — literal `${` ignored, fell back to cwd), and (3) `./dist/shipper mcp` (opencode-style, cwd).
+  - Post-check: real `~/.cursor/mcp.json` byte-identical to backup; opencode configs still absent. No leftover `llama-server`.
+  - Real in-agent verification (whether Cursor IDE expands `${workspaceFolder}`, and live `shipper_search` from Cursor / cursor-agent / Claude Code / opencode) is left for the user.
 
 ## Phase 6: Skills and Documentation
 

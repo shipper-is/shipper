@@ -13,7 +13,7 @@ import {
 } from "./core/modules.ts";
 import { ensureShipperDirs } from "./core/plan-store.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
-import { formatProgress } from "./embeddings/assets.ts";
+import { ensureAssets, formatProgress } from "./embeddings/assets.ts";
 import { createLlamaEmbedder } from "./embeddings/client.ts";
 import { runEmbedDaemon } from "./embeddings/daemon.ts";
 import { indexPathForRepo } from "./embeddings/paths.ts";
@@ -22,11 +22,12 @@ import {
   getEmbedServerStatus,
   stopEmbedServer,
 } from "./embeddings/server-manager.ts";
+import { installMcp, uninstallMcp } from "./mcp/install.ts";
+import { runMcpStdio } from "./mcp/server.ts";
 import type { DocType } from "./search/documents.ts";
 import { syncIndex, syncIndexIfStale } from "./search/indexer.ts";
 import { resolveRepoRoot } from "./search/repo-root.ts";
 import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
-import { runMcpStdio } from "./mcp/server.ts";
 import { startServer } from "./server/http.ts";
 import { getVersion } from "./version.ts";
 
@@ -123,30 +124,102 @@ async function runServe(opts: ServeOptions): Promise<void> {
   });
 }
 
-async function runSkillsInstall(agentOverride?: string): Promise<void> {
-  let agents: AgentKind[];
-
+async function resolveAgentsOrExit(
+  agentOverride: string | undefined,
+  usageHint: string,
+): Promise<AgentKind[]> {
   if (agentOverride !== undefined) {
     if (!isAgentKind(agentOverride)) {
       console.error(`Unknown agent: ${agentOverride}`);
       console.error(`Supported agents: ${AGENT_KINDS.join(", ")}`);
       process.exit(1);
     }
-    agents = [agentOverride];
-  } else {
-    const detected = await detectAgents();
-    if (detected.length === 0) {
-      console.error("No coding agents detected on this machine.");
-      console.error(`Supported agents: ${AGENT_KINDS.join(", ")}`);
-      console.error("Install an agent, or run: shipper skills --agent <kind>");
-      process.exit(1);
-    }
-    agents = detected.map((agent) => agent.kind);
+    return [agentOverride];
   }
+
+  const detected = await detectAgents();
+  if (detected.length === 0) {
+    console.error("No coding agents detected on this machine.");
+    console.error(`Supported agents: ${AGENT_KINDS.join(", ")}`);
+    console.error(usageHint);
+    process.exit(1);
+  }
+  return detected.map((agent) => agent.kind);
+}
+
+async function runSkillsInstall(agentOverride?: string): Promise<void> {
+  const agents = await resolveAgentsOrExit(
+    agentOverride,
+    "Install an agent, or run: shipper skills --agent <kind>",
+  );
 
   const summaries = await installSkillsGlobally(agents);
   for (const { agent, root } of summaries) {
     console.log(`${agent}: ${root}`);
+  }
+}
+
+function printProgressToStderr(): (received: number, total: number | null) => void {
+  let lastPct = -1;
+  let lastTotal: number | null = null;
+  return (received, total) => {
+    if (total !== lastTotal) {
+      lastTotal = total;
+      lastPct = -1;
+      if (lastTotal !== null) {
+        process.stderr.write("\n");
+      }
+    }
+    if (total === null || total <= 0) {
+      process.stderr.write(`\r${formatProgress("assets", received, total)}`);
+      return;
+    }
+    const pct = Math.min(100, Math.round((received / total) * 100));
+    if (pct === 100 || pct - lastPct >= 5) {
+      lastPct = pct;
+      process.stderr.write(`\r${formatProgress("assets", received, total)}`);
+    }
+  };
+}
+
+async function runMcpInstall(opts: { agent?: string; download?: boolean }): Promise<void> {
+  const agents = await resolveAgentsOrExit(
+    opts.agent,
+    "Install an agent, or run: shipper mcp install --agent <kind>",
+  );
+
+  const results = await installMcp(agents);
+  for (const result of results) {
+    console.log(`${result.agent}: ${result.status} — ${result.detail}`);
+  }
+
+  if (opts.download !== false) {
+    const onProgress = printProgressToStderr();
+    let printed = false;
+    const wrapped = (received: number, total: number | null) => {
+      printed = true;
+      onProgress(received, total);
+    };
+    await ensureAssets({ onProgress: wrapped });
+    if (printed) {
+      process.stderr.write("\n");
+    }
+  }
+
+  console.log(
+    "Restart your coding agent to load the Shipper MCP server. Cursor may ask you to enable it in Settings > MCP.",
+  );
+}
+
+async function runMcpUninstall(opts: { agent?: string }): Promise<void> {
+  const agents = await resolveAgentsOrExit(
+    opts.agent,
+    "Install an agent, or run: shipper mcp uninstall --agent <kind>",
+  );
+
+  const results = await uninstallMcp(agents);
+  for (const result of results) {
+    console.log(`${result.agent}: ${result.status} — ${result.detail}`);
   }
 }
 
@@ -444,7 +517,7 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       },
     );
 
-  // Default action (no subcommand) runs the stdio MCP server. Phase 5 adds install/uninstall.
+  // Default action (no subcommand) runs the stdio MCP server.
   const mcpCmd = program
     .command("mcp")
     .description("run the Shipper MCP server (stdio), or manage agent registration")
@@ -469,8 +542,34 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       }
     });
 
-  // Reserved for Phase 5: mcpCmd.command("install"|"uninstall").
-  void mcpCmd;
+  mcpCmd
+    .command("install")
+    .description("register the Shipper MCP server with coding agents")
+    .option("--agent <kind>", "register for a specific agent (claude, cursor, opencode)")
+    .option("--no-download", "skip prefetching the embedding model")
+    .action(async (opts: { agent?: string; download?: boolean }) => {
+      try {
+        await runMcpInstall(opts);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  mcpCmd
+    .command("uninstall")
+    .description("unregister the Shipper MCP server from coding agents")
+    .option("--agent <kind>", "unregister for a specific agent (claude, cursor, opencode)")
+    .action(async (opts: { agent?: string }) => {
+      try {
+        await runMcpUninstall(opts);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
 
   await program.parseAsync(argv);
 }
