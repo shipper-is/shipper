@@ -1,6 +1,8 @@
 ---
 type: plan
 started_at: "2026-09-25T14:31:50-04:00"
+phase_commits:
+  1: 2039bdb
 ---
 
 # Semantic Search MCP for Shipper Files
@@ -404,37 +406,37 @@ sequenceDiagram
 
 ### Section 1: Config setting
 
-- [ ] In [src/core/config.ts](/Users/mattmichel/Documents/shipper/src/core/config.ts), extend the `defaults` object schema with `embeddings: z.object({ idleMinutes: z.number().int().positive().optional() }).optional()`.
-- [ ] Add `getEmbedIdleMinutes(): Promise<number>` (returns the configured value or `DEFAULT_EMBED_IDLE_MINUTES`) and `setEmbedIdleMinutes(n)`, using the existing `readConfig`/`writeConfig`.
-- [ ] Add a test in [src/core/core.test.ts](/Users/mattmichel/Documents/shipper/src/core/core.test.ts), or a new `src/core/config.test.ts` if cleaner, for the default and a persisted value.
+- [x] In [src/core/config.ts](/Users/mattmichel/Documents/shipper/src/core/config.ts), extend the `defaults` object schema with `embeddings: z.object({ idleMinutes: z.number().int().positive().optional() }).optional()`.
+- [x] Add `getEmbedIdleMinutes(): Promise<number>` (returns the configured value or `DEFAULT_EMBED_IDLE_MINUTES`) and `setEmbedIdleMinutes(n)`, using the existing `readConfig`/`writeConfig`.
+- [x] Add a test in [src/core/core.test.ts](/Users/mattmichel/Documents/shipper/src/core/core.test.ts), or a new `src/core/config.test.ts` if cleaner, for the default and a persisted value.
 
 ### Section 2: Self command and supervisor
 
-- [ ] Create [src/embeddings/self-command.ts](/Users/mattmichel/Documents/shipper/src/embeddings/self-command.ts) exporting `selfCommand(): { command: string; args: string[] }`, per Gotcha 3. Test both branches by making it accept `{ execPath, argv1 }` overrides.
-- [ ] Create [src/embeddings/daemon.ts](/Users/mattmichel/Documents/shipper/src/embeddings/daemon.ts) exporting `runEmbedDaemon({ idleMinutes })`, the body of the hidden `shipper embed daemon` command. It should:
-  - [ ] Truncate and open `daemon.log`, and write timestamped lines there (not to stdout).
-  - [ ] Pick a free port by listening on port 0 with `node:net` `createServer()`, reading `address().port`, and closing.
-  - [ ] Spawn `llama-server` with `-m <modelPath> --embedding --host 127.0.0.1 --port <port> --ctx-size 4096 --parallel 2 --batch-size 2048 --ubatch-size 2048 --no-webui`. Pipe its stdout and stderr into the log. Set `LD_LIBRARY_PATH` on Linux.
-  - [ ] Poll `GET http://127.0.0.1:<port>/health` every 250 ms for up to 60 s. On timeout or early child exit, write the failure, remove any state file, and `process.exit(1)`.
-  - [ ] Write `server.json` atomically: `{ supervisorPid: process.pid, llamaPid, port, modelId: EMBEDDING_MODEL.id, llamaBuild: LLAMA_CPP_BUILD, startedAt: new Date().toISOString(), idleMinutes }`. Touch `last-used` so the idle clock starts now.
-  - [ ] Every 30 s, check the `mtime` of `last-used`. If `now - mtime > idleMinutes`, shut down: SIGTERM the child, wait up to 5 s, SIGKILL if still alive, remove `server.json`, and exit 0.
-  - [ ] On SIGTERM or SIGINT, run the same shutdown. If the child exits unexpectedly, remove `server.json` and exit 1.
-- [ ] Put the idle decision in a pure helper, `shouldShutDown(lastUsedMs, nowMs, idleMinutes)`, and unit test it.
+- [x] Create [src/embeddings/self-command.ts](/Users/mattmichel/Documents/shipper/src/embeddings/self-command.ts) exporting `selfCommand(): { command: string; args: string[] }`, per Gotcha 3. Test both branches by making it accept `{ execPath, argv1 }` overrides.
+- [x] Create [src/embeddings/daemon.ts](/Users/mattmichel/Documents/shipper/src/embeddings/daemon.ts) exporting `runEmbedDaemon({ idleMinutes })`, the body of the hidden `shipper embed daemon` command. It should:
+  - [x] Truncate and open `daemon.log`, and write timestamped lines there (not to stdout).
+  - [x] Pick a free port by listening on port 0 with `node:net` `createServer()`, reading `address().port`, and closing.
+  - [x] Spawn `llama-server` with `-m <modelPath> --embedding --host 127.0.0.1 --port <port> --ctx-size 4096 --parallel 2 --batch-size 2048 --ubatch-size 2048 --no-webui`. Pipe its stdout and stderr into the log. Set `LD_LIBRARY_PATH` on Linux.
+  - [x] Poll `GET http://127.0.0.1:<port>/health` every 250 ms for up to 60 s. On timeout or early child exit, write the failure, remove any state file, and `process.exit(1)`.
+  - [x] Write `server.json` atomically: `{ supervisorPid: process.pid, llamaPid, port, modelId: EMBEDDING_MODEL.id, llamaBuild: LLAMA_CPP_BUILD, startedAt: new Date().toISOString(), idleMinutes }`. Touch `last-used` so the idle clock starts now.
+  - [x] Every 30 s, check the `mtime` of `last-used`. If `now - mtime > idleMinutes`, shut down: SIGTERM the child, wait up to 5 s, SIGKILL if still alive, remove `server.json`, and exit 0.
+  - [x] On SIGTERM or SIGINT, run the same shutdown. If the child exits unexpectedly, remove `server.json` and exit 1.
+- [x] Put the idle decision in a pure helper, `shouldShutDown(lastUsedMs, nowMs, idleMinutes)`, and unit test it.
 
 ### Section 3: Server manager
 
-- [ ] Create [src/embeddings/server-manager.ts](/Users/mattmichel/Documents/shipper/src/embeddings/server-manager.ts) with:
-  - [ ] `readServerState()` (zod-validated; returns `null` on missing or invalid) and `isPidAlive(pid)` (Gotcha 10).
-  - [ ] `probeServer(state, fetchFn)`, which returns true only if both pids are alive, `/health` is ok within 1 s, and `modelId`/`llamaBuild` match the constants.
-  - [ ] `ensureEmbedServer({ fetchFn, onProgress, spawnDaemon, idleMinutes })`, which returns `{ baseUrl: string }`. It implements the sequence diagram above, including stale-lock recovery (Gotcha 9), `ensureAssets()` before spawning, and a 90 s readiness timeout. On timeout, the error message includes the last 20 lines of `daemon.log` (Gotcha 8). `spawnDaemon` defaults to spawning `selfCommand()` + `["embed", "daemon", "--idle-minutes", String(n)]` detached (Gotcha 11). It is injectable for tests.
-  - [ ] Dedupe `ensureEmbedServer` within one process with a module-level in-flight promise, and cache a healthy `baseUrl` for 10 s to avoid a `/health` round trip on every query.
-  - [ ] `stopEmbedServer()`: SIGTERM `supervisorPid`, wait up to 10 s for `server.json` to disappear, and report whether it was running.
-  - [ ] `getEmbedServerStatus()`: `{ running, port, pid, modelId, llamaBuild, startedAt, idleMinutes, lastUsedAt, assets: { serverBinary: boolean, model: boolean }, cacheDir }`.
-- [ ] `src/embeddings/server-manager.test.ts`: use an overridden HOME/XDG cache and a fake `spawnDaemon` that writes a `server.json` pointing at a tiny local HTTP server started in the test with `node:http` (`/health` returns ok). Cover: healthy reuse without spawning; a stale `server.json` with a dead pid triggers a spawn; a model id mismatch triggers a spawn; a stale lock with a dead pid is recovered; two concurrent `ensureEmbedServer()` calls spawn only once. Use `process.pid` as the "alive" pid in fixtures, and a very large number such as `2 ** 22 + 12345` as the "dead" pid.
+- [x] Create [src/embeddings/server-manager.ts](/Users/mattmichel/Documents/shipper/src/embeddings/server-manager.ts) with:
+  - [x] `readServerState()` (zod-validated; returns `null` on missing or invalid) and `isPidAlive(pid)` (Gotcha 10).
+  - [x] `probeServer(state, fetchFn)`, which returns true only if both pids are alive, `/health` is ok within 1 s, and `modelId`/`llamaBuild` match the constants.
+  - [x] `ensureEmbedServer({ fetchFn, onProgress, spawnDaemon, idleMinutes })`, which returns `{ baseUrl: string }`. It implements the sequence diagram above, including stale-lock recovery (Gotcha 9), `ensureAssets()` before spawning, and a 90 s readiness timeout. On timeout, the error message includes the last 20 lines of `daemon.log` (Gotcha 8). `spawnDaemon` defaults to spawning `selfCommand()` + `["embed", "daemon", "--idle-minutes", String(n)]` detached (Gotcha 11). It is injectable for tests.
+  - [x] Dedupe `ensureEmbedServer` within one process with a module-level in-flight promise, and cache a healthy `baseUrl` for 10 s to avoid a `/health` round trip on every query.
+  - [x] `stopEmbedServer()`: SIGTERM `supervisorPid`, wait up to 10 s for `server.json` to disappear, and report whether it was running.
+  - [x] `getEmbedServerStatus()`: `{ running, port, pid, modelId, llamaBuild, startedAt, idleMinutes, lastUsedAt, assets: { serverBinary: boolean, model: boolean }, cacheDir }`.
+- [x] `src/embeddings/server-manager.test.ts`: use an overridden HOME/XDG cache and a fake `spawnDaemon` that writes a `server.json` pointing at a tiny local HTTP server started in the test with `node:http` (`/health` returns ok). Cover: healthy reuse without spawning; a stale `server.json` with a dead pid triggers a spawn; a model id mismatch triggers a spawn; a stale lock with a dead pid is recovered; two concurrent `ensureEmbedServer()` calls spawn only once. Use `process.pid` as the "alive" pid in fixtures, and a very large number such as `2 ** 22 + 12345` as the "dead" pid.
 
 ### Section 4: Embed client
 
-- [ ] Create [src/embeddings/client.ts](/Users/mattmichel/Documents/shipper/src/embeddings/client.ts):
+- [x] Create [src/embeddings/client.ts](/Users/mattmichel/Documents/shipper/src/embeddings/client.ts):
 
 ```ts
 export type Embedder = {
@@ -450,24 +452,34 @@ export function createLlamaEmbedder(opts?: {
 }): Embedder;
 ```
 
-- [ ] `embedDocuments` prefixes each text with `EMBEDDING_MODEL.documentPrefix` and posts batches of 16 to `${baseUrl}/v1/embeddings` with body `{ input: string[] }`. It asserts `data.length === input.length` and every vector's length equals `EMBEDDING_MODEL.dims`, and applies the per-item retry and truncate fallback from Gotcha 4. A skipped item returns a zero-length `Float32Array`, which the indexer must drop.
-- [ ] `embedQuery` uses `queryPrefix` and keeps an in-process LRU of the last 100 queries.
-- [ ] Every request touches `last-used` (`utimes`, creating the file if missing) before sending.
-- [ ] If a request fails with a connection error (server idled out between the health cache and the request), clear the cached `baseUrl`, call `ensureServer()` once more, and retry.
-- [ ] `src/embeddings/client.test.ts`: a stub `fetchFn` covers prefixes, batching (40 texts should produce 3 requests), the dimension check, the fallback when one item errors, the LRU hit (no second fetch), and the `last-used` touch.
+- [x] `embedDocuments` prefixes each text with `EMBEDDING_MODEL.documentPrefix` and posts batches of 16 to `${baseUrl}/v1/embeddings` with body `{ input: string[] }`. It asserts `data.length === input.length` and every vector's length equals `EMBEDDING_MODEL.dims`, and applies the per-item retry and truncate fallback from Gotcha 4. A skipped item returns a zero-length `Float32Array`, which the indexer must drop.
+- [x] `embedQuery` uses `queryPrefix` and keeps an in-process LRU of the last 100 queries.
+- [x] Every request touches `last-used` (`utimes`, creating the file if missing) before sending.
+- [x] If a request fails with a connection error (server idled out between the health cache and the request), clear the cached `baseUrl`, call `ensureServer()` once more, and retry.
+- [x] `src/embeddings/client.test.ts`: a stub `fetchFn` covers prefixes, batching (40 texts should produce 3 requests), the dimension check, the fallback when one item errors, the LRU hit (no second fetch), and the `last-used` touch.
 
 ### Section 5: CLI commands
 
-- [ ] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), add an `embed` command group:
-  - [ ] `embed start [--idle-minutes <n>]`: if a value is given, persist it via `setEmbedIdleMinutes`. Call `ensureEmbedServer` with stderr progress output, then print `Embedding server running at http://127.0.0.1:<port> (model nomic-embed-text-v1.5, idle shutdown after N min)`.
-  - [ ] `embed stop`: print `Stopped embedding server.` or `Embedding server is not running.`
-  - [ ] `embed status`: print status fields one per line, including cache dir and whether assets are downloaded.
-  - [ ] Hidden `embed daemon --idle-minutes <n>` (`.command("daemon", { hidden: true })`), which calls `runEmbedDaemon`.
-- [ ] Wrap each action in the existing try/catch + `console.error` + `process.exit(1)` style.
-- [ ] Manual verification (record results in Completion Notes): `bun run dev -- embed start` downloads on the first run and is instant on the second; `embed status` shows running; `ps` shows one `llama-server`; `embed stop` stops it. Then run `embed start --idle-minutes 1`, wait about 90 s, and confirm the server exits on its own. Reset the idle setting to 15 afterwards.
+- [x] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), add an `embed` command group:
+  - [x] `embed start [--idle-minutes <n>]`: if a value is given, persist it via `setEmbedIdleMinutes`. Call `ensureEmbedServer` with stderr progress output, then print `Embedding server running at http://127.0.0.1:<port> (model nomic-embed-text-v1.5, idle shutdown after N min)`.
+  - [x] `embed stop`: print `Stopped embedding server.` or `Embedding server is not running.`
+  - [x] `embed status`: print status fields one per line, including cache dir and whether assets are downloaded.
+  - [x] Hidden `embed daemon --idle-minutes <n>` (`.command("daemon", { hidden: true })`), which calls `runEmbedDaemon`.
+- [x] Wrap each action in the existing try/catch + `console.error` + `process.exit(1)` style.
+- [x] Manual verification (record results in Completion Notes): `bun run dev -- embed start` downloads on the first run and is instant on the second; `embed status` shows running; `ps` shows one `llama-server`; `embed stop` stops it. Then run `embed start --idle-minutes 1`, wait about 90 s, and confirm the server exits on its own. Reset the idle setting to 15 afterwards.
 
 #### Completion Notes
 
+- `FetchFn` in the client/manager is the same narrow `(input, init?) => Promise<Response>` shape as Phase 1 (not `typeof fetch`) so stubs typecheck under Node.
+- Idle decision: `shouldShutDown` uses strict `>` (`now - mtime > idleMinutes * 60_000`), so exactly N minutes of idle does not shut down until the next tick past that boundary. Daemon polls every 30 s.
+- `ensureEmbedServer` tests seed a sparse model file via `truncate(sizeBytes)` under an overridden `XDG_CACHE_HOME` so `ensureAssets` skips the network.
+- Manual verification (macOS arm64):
+  - `bun run dev -- embed start`: first run downloaded llama (~10.7 MB) + model (~80.2 MB), became ready at `http://127.0.0.1:53583` in ~26 s; second start was instant (reused healthy server).
+  - `embed status`: `running: true`, one `llama-server` + one `embed daemon` in `ps`.
+  - `embed stop`: printed `Stopped embedding server.` and cleared processes/state.
+  - `embed start --idle-minutes 1`, waited 90 s: status became `running: false`, no leftover processes (idle shutdown worked).
+  - Reset with `embed start --idle-minutes 15` then `embed stop`. Idle config left at 15. No `llama-server` left running.
+- `createLlamaEmbedder` skips failed document items with a zero-length `Float32Array` (Gotcha 4); Phase 3 indexer must drop those.
 ## Phase 3: Document Discovery, Chunking, Index, and Search
 
 Outcomes:

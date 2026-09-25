@@ -3,6 +3,8 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { detectAgents } from "./agents/detect.ts";
 import type { AgentKind } from "./agents/types.ts";
+import { DEFAULT_EMBED_IDLE_MINUTES } from "./constants.ts";
+import { getEmbedIdleMinutes, setEmbedIdleMinutes } from "./core/config.ts";
 import {
   installModule,
   listRemoteModules,
@@ -11,6 +13,13 @@ import {
 } from "./core/modules.ts";
 import { ensureShipperDirs } from "./core/plan-store.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
+import { formatProgress } from "./embeddings/assets.ts";
+import { runEmbedDaemon } from "./embeddings/daemon.ts";
+import {
+  ensureEmbedServer,
+  getEmbedServerStatus,
+  stopEmbedServer,
+} from "./embeddings/server-manager.ts";
 import { startServer } from "./server/http.ts";
 import { getVersion } from "./version.ts";
 
@@ -208,6 +217,121 @@ export async function main(argv: string[] = process.argv): Promise<void> {
       const globalOpts = cmd.optsWithGlobals() as { dir?: string };
       try {
         await runModulesAdd(moduleRef, globalOpts.dir ?? process.cwd());
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  const embedCmd = program.command("embed").description("manage the shared local embedding server");
+
+  embedCmd
+    .command("start")
+    .description("download assets if needed and start the embedding server")
+    .option("--idle-minutes <n>", "idle shutdown minutes (persisted)", (value) => {
+      const n = Number.parseInt(value, 10);
+      if (!Number.isInteger(n) || n <= 0) {
+        throw new Error(`--idle-minutes must be a positive integer, got ${value}`);
+      }
+      return n;
+    })
+    .action(async (opts: { idleMinutes?: number }) => {
+      try {
+        if (opts.idleMinutes !== undefined) {
+          await setEmbedIdleMinutes(opts.idleMinutes);
+        }
+        const idleMinutes = await getEmbedIdleMinutes();
+        let lastPct = -1;
+        let lastTotal: number | null = null;
+        const { baseUrl } = await ensureEmbedServer({
+          idleMinutes,
+          onProgress: (received, total) => {
+            if (total !== lastTotal) {
+              lastTotal = total;
+              lastPct = -1;
+              if (lastTotal !== null) {
+                process.stderr.write("\n");
+              }
+            }
+            if (total === null || total <= 0) {
+              process.stderr.write(`\r${formatProgress("assets", received, total)}`);
+              return;
+            }
+            const pct = Math.min(100, Math.round((received / total) * 100));
+            if (pct === 100 || pct - lastPct >= 5) {
+              lastPct = pct;
+              process.stderr.write(`\r${formatProgress("assets", received, total)}`);
+            }
+          },
+        });
+        if (lastPct >= 0) {
+          process.stderr.write("\n");
+        }
+        const port = new URL(baseUrl).port;
+        console.log(
+          `Embedding server running at http://127.0.0.1:${port} (model nomic-embed-text-v1.5, idle shutdown after ${idleMinutes} min)`,
+        );
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  embedCmd
+    .command("stop")
+    .description("stop the shared embedding server")
+    .action(async () => {
+      try {
+        const { wasRunning } = await stopEmbedServer();
+        console.log(wasRunning ? "Stopped embedding server." : "Embedding server is not running.");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  embedCmd
+    .command("status")
+    .description("print embedding server status")
+    .action(async () => {
+      try {
+        const status = await getEmbedServerStatus();
+        console.log(`running: ${status.running}`);
+        console.log(`port: ${status.port ?? "-"}`);
+        console.log(`pid: ${status.pid ?? "-"}`);
+        console.log(`modelId: ${status.modelId ?? "-"}`);
+        console.log(`llamaBuild: ${status.llamaBuild ?? "-"}`);
+        console.log(`startedAt: ${status.startedAt ?? "-"}`);
+        console.log(`idleMinutes: ${status.idleMinutes}`);
+        console.log(`lastUsedAt: ${status.lastUsedAt ?? "-"}`);
+        console.log(`serverBinary: ${status.assets.serverBinary}`);
+        console.log(`model: ${status.assets.model}`);
+        console.log(`cacheDir: ${status.cacheDir}`);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  embedCmd
+    .command("daemon", { hidden: true })
+    .description("run the embedding server supervisor (internal)")
+    .option("--idle-minutes <n>", "idle shutdown minutes", (value) => {
+      const n = Number.parseInt(value, 10);
+      if (!Number.isInteger(n) || n <= 0) {
+        throw new Error(`--idle-minutes must be a positive integer, got ${value}`);
+      }
+      return n;
+    })
+    .action(async (opts: { idleMinutes?: number }) => {
+      try {
+        await runEmbedDaemon({
+          idleMinutes: opts.idleMinutes ?? DEFAULT_EMBED_IDLE_MINUTES,
+        });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(message);
