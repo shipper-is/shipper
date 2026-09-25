@@ -6,6 +6,7 @@ phase_commits:
   2: 5670903
   3: c30df2f
   4: fb73b3f
+  5: 7d75145
 ---
 
 # Semantic Search MCP for Shipper Files
@@ -727,34 +728,39 @@ Outcomes:
 
 ### Section 1: Skill updates
 
-- [ ] Add this paragraph (adapt the wording to each skill's context, keeping the tool names exact) to [skills/shipper-plan/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-plan/SKILL.md) (Standard flow, first step), [skills/shipper-spike/PLAN.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/PLAN.md) (step 1), and [skills/shipper-build/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-build/SKILL.md) (the "do your own context gathering" paragraph, aimed at Completion Notes from related done plans):
+- [x] Add this paragraph (adapt the wording to each skill's context, keeping the tool names exact) to [skills/shipper-plan/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-plan/SKILL.md) (Standard flow, first step), [skills/shipper-spike/PLAN.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/PLAN.md) (step 1), and [skills/shipper-build/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-build/SKILL.md) (the "do your own context gathering" paragraph, aimed at Completion Notes from related done plans):
 
 ```markdown
 If the `shipper_search` MCP tool is available, start by searching with a short natural-language description of the request to find related plans, spikes, bugs, and reviews (open and done), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over `.shipper/`. Treat hits as leads, not truth — verify against the current code.
 ```
 
-- [ ] In [skills/shipper-bug/CATALOG.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/CATALOG.md) step 1, extend the duplicate check: "If the `shipper_search` MCP tool is available, search with the symptom (`types: ["bug"]`, `status: "any"`) to find duplicates in `open/` and possible regressions in `done/`; use `shipper_similar` on an existing bug file for near-duplicates. Otherwise, check `.shipper/bugs/open` manually."
-- [ ] Keep the edits short. The skills are intentionally terse. Do not touch the module-flow section of `shipper-plan`.
-- [ ] Run `bun run test` to confirm the skill-embedding tests in `core.test.ts` still pass.
+- [x] In [skills/shipper-bug/CATALOG.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/CATALOG.md) step 1, extend the duplicate check: "If the `shipper_search` MCP tool is available, search with the symptom (`types: ["bug"]`, `status: "any"`) to find duplicates in `open/` and possible regressions in `done/`; use `shipper_similar` on an existing bug file for near-duplicates. Otherwise, check `.shipper/bugs/open` manually."
+- [x] Keep the edits short. The skills are intentionally terse. Do not touch the module-flow section of `shipper-plan`.
+- [x] Run `bun run test` to confirm the skill-embedding tests in `core.test.ts` still pass.
 
 ### Section 2: README
 
-- [ ] In [README.md](/Users/mattmichel/Documents/shipper/README.md), add rows to the **Commands** table for `shipper embed start|stop|status`, `shipper index`, `shipper search <query>`, `shipper mcp`, and `shipper mcp install|uninstall`.
-- [ ] Add rows to **Where things live** for `~/.cache/shipper/llama/`, `~/.cache/shipper/models/`, `~/.cache/shipper/embed/`, and `~/.cache/shipper/index/`.
-- [ ] Add a **Semantic search (MCP)** section covering: what it is; `shipper mcp install` as the one-step setup; the first-run download (about 12-17 MB llama.cpp build from GitHub plus an 84 MB model from Hugging Face, both checksum-verified); that everything runs locally on `127.0.0.1` with no data leaving the machine; idle shutdown and `shipper embed start --idle-minutes <n>`; the five tool names with a one-line description each; a manual config snippet for each agent; and removal (`shipper mcp uninstall`, `shipper embed stop`, `rm -rf ~/.cache/shipper`).
+- [x] In [README.md](/Users/mattmichel/Documents/shipper/README.md), add rows to the **Commands** table for `shipper embed start|stop|status`, `shipper index`, `shipper search <query>`, `shipper mcp`, and `shipper mcp install|uninstall`.
+- [x] Add rows to **Where things live** for `~/.cache/shipper/llama/`, `~/.cache/shipper/models/`, `~/.cache/shipper/embed/`, and `~/.cache/shipper/index/`.
+- [x] Add a **Semantic search (MCP)** section covering: what it is; `shipper mcp install` as the one-step setup; the first-run download (about 12-17 MB llama.cpp build from GitHub plus an 84 MB model from Hugging Face, both checksum-verified); that everything runs locally on `127.0.0.1` with no data leaving the machine; idle shutdown and `shipper embed start --idle-minutes <n>`; the five tool names with a one-line description each; a manual config snippet for each agent; and removal (`shipper mcp uninstall`, `shipper embed stop`, `rm -rf ~/.cache/shipper`).
 
 ### Section 3: Web docs
 
-- [ ] Create [web/app/docs/search/page.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/search/page.tsx), titled "Semantic search". Follow the `console/page.tsx` structure: `metadata` plus a numbered `steps` array for Install, Register (`shipper mcp install`), Use, and Manage (`shipper embed status|stop`, `--idle-minutes`), followed by a short "Tools" list and a "What gets downloaded" paragraph.
-- [ ] Add a `Search` link to [web/app/docs/layout.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/layout.tsx) between Skills and Modules.
-- [ ] Add a card to the `cards` array in [web/app/docs/page.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/page.tsx): `{ href: "/docs/search", title: "Semantic search", description: "Give your coding agent an MCP tool that semantically searches every plan, spike, bug, and review in .shipper/ — powered by a small local embeddings model." }`.
-- [ ] In [web/app/docs/skills/page.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/skills/page.tsx), add one paragraph after the install-paths paragraph: when the Shipper MCP server is installed, the skills use `shipper_search` to find related prior work before exploring. Link it to `/docs/search`.
-- [ ] Run `bun run build` inside `web/` (or the site's existing build script) to confirm the pages compile.
+- [x] Create [web/app/docs/search/page.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/search/page.tsx), titled "Semantic search". Follow the `console/page.tsx` structure: `metadata` plus a numbered `steps` array for Install, Register (`shipper mcp install`), Use, and Manage (`shipper embed status|stop`, `--idle-minutes`), followed by a short "Tools" list and a "What gets downloaded" paragraph.
+- [x] Add a `Search` link to [web/app/docs/layout.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/layout.tsx) between Skills and Modules.
+- [x] Add a card to the `cards` array in [web/app/docs/page.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/page.tsx): `{ href: "/docs/search", title: "Semantic search", description: "Give your coding agent an MCP tool that semantically searches every plan, spike, bug, and review in .shipper/ — powered by a small local embeddings model." }`.
+- [x] In [web/app/docs/skills/page.tsx](/Users/mattmichel/Documents/shipper/web/app/docs/skills/page.tsx), add one paragraph after the install-paths paragraph: when the Shipper MCP server is installed, the skills use `shipper_search` to find related prior work before exploring. Link it to `/docs/search`.
+- [x] Run `bun run build` inside `web/` (or the site's existing build script) to confirm the pages compile.
 
 ### Section 4: Final checks
 
-- [ ] `bun run typecheck`, `bun run lint`, and `bun run test` all pass.
-- [ ] `bun run build`; `./dist/shipper embed status`; `./dist/shipper search "question protocol for cursor"` returns sensible hits in this repo.
-- [ ] Note in Completion Notes that `skills-lock.json` hashes may need regenerating (Gotcha 18).
+- [x] `bun run typecheck`, `bun run lint`, and `bun run test` all pass.
+- [x] `bun run build`; `./dist/shipper embed status`; `./dist/shipper search "question protocol for cursor"` returns sensible hits in this repo.
+- [x] Note in Completion Notes that `skills-lock.json` hashes may need regenerating (Gotcha 18).
 
 #### Completion Notes
+
+- Skills: short conditional `shipper_search` / `shipper_get_doc` guidance added to plan (Standard flow first step), spike (step 1), build (context-gathering paragraph, aimed at done-plan Completion Notes), and bug CATALOG (step 1 duplicate/regression check with `types: ["bug"]`, `status: "any"`, plus `shipper_similar`). Module-flow section of `shipper-plan` untouched. `skills-lock.json` left alone — its `computedHash` values may need regenerating with the external skills tool (Gotcha 18).
+- README: Commands + Where-things-live rows; new **Semantic search (MCP)** section with install, download sizes (12–17 MB llama + 84 MB model), local-only note, idle/`--idle-minutes`, five tools, manual Cursor/opencode/Claude snippets matching `src/mcp/install.ts` release-binary shape, and removal steps.
+- Web: `/docs/search` page; nav link between Skills and Modules; docs index card; skills page mention + link. `bun install` + `bun run build` in `web/` succeeded (Next.js 16.2.10; `/docs/search` in route table). Also committed `web/bun.lock` from that install if present.
+- Final checks (repo root): `typecheck`, `lint`, `test` (31 files / 207 tests) all pass. `bun run build` → `dist/shipper`. `embed status` before search: `running: false`, assets present, `idleMinutes: 15`, `cacheDir: ~/.cache/shipper`. Search `"question protocol for cursor"` top hits: (1) `shipper-cli-foundation.md` 0.76, (2) `cursor-cli-passthrough.md` 0.76, (3) `default-models-per-skill.md` 0.69. `embed stop` afterward; no leftover `llama-server` or embed daemon processes.

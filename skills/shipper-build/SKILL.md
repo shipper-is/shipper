@@ -13,7 +13,7 @@ Before starting a phase, read and follow [./GIT.md](./GIT.md) for branching, com
 
 When you begin executing a Phase, ensure the plan file has a YAML frontmatter block at the very top of the file (before the `#` title). Preserve any existing `type` key in the frontmatter (do not remove or change it). For all other frontmatter keys (`branch`, `base_branch`, `started_at`, `completed_at`, `phase_commits`, `pr_url`, `pr_number`), follow GIT.md: set them when instructed, never overwrite keys that earlier phases already set.
 
-From there do your own context gathering/research from the codebase to gain a better understanding of what you'll be needing to do in the execution of the Phase you've been assigned to.
+From there do your own context gathering/research from the codebase to gain a better understanding of what you'll be needing to do in the execution of the Phase you've been assigned to. If the `shipper_search` MCP tool is available, search with a short natural-language description of the phase to find related plans, spikes, bugs, and reviews (especially Completion Notes from done plans), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over `.shipper/`. Treat hits as leads, not truth — verify against the current code.
 
 If you need any further clarifications from the user you can use the tool you have to ask the user a question again to gather that information from the user.
 

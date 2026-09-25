@@ -1,6 +1,6 @@
 The CATALOG step turns a bug report of any quality — even a single sentence — into a structured bug file that the FIX step (or a future engineer) can pick up cold.
 
-1. Gather just enough context from the codebase to understand what the user is describing: find the feature area involved, and check ".shipper/bugs/open" for an existing file describing the same bug (if one exists, update it instead of creating a duplicate).
+1. Gather just enough context from the codebase to understand what the user is describing: find the feature area involved, and check for an existing file describing the same bug (if one exists, update it instead of creating a duplicate). If the `shipper_search` MCP tool is available, search with the symptom (`types: ["bug"]`, `status: "any"`) to find duplicates in `open/` and possible regressions in `done/`; use `shipper_similar` on an existing bug file for near-duplicates. Otherwise, check `.shipper/bugs/open` manually.
 
 2. If the report is missing information you cannot recover yourself — exact steps they took, what they expected to see, which environment it happened in — use the tool you have available to ask the user clarifying questions. Only ask for what you genuinely cannot reconstruct; prefer reproducing it yourself over interrogating the user.
 

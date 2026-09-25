@@ -1,6 +1,6 @@
 When planning a Shipper Spike you'll follow these steps:
 
-1. Gather just enough context from the existing codebase to try and better understand what the user is asking for. Use parallel subagents to look at different parts of the codebase or angles at once.
+1. Gather just enough context from the existing codebase to try and better understand what the user is asking for. If the `shipper_search` MCP tool is available, start by searching with a short natural-language description of the request to find related plans, spikes, bugs, and reviews (open and done), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over `.shipper/`. Treat hits as leads, not truth — verify against the current code. Use parallel subagents to look at different parts of the codebase or angles at once.
 
 2. Use the tool you have available to ask the user clarifying questions about their request. This will help to ensure that the plan is tailored to their specific needs and requirements. The goal is to gain a clear understanding of the user's objectives, push back on anywhere that their request dissents with the existing codebase, and ensure that there is mutual understanding of the outcomes. Even if you don't need clarity from the user on their request you should at least ask if they want a standalone PR created from this spike automatically once the build phase has finished. For branching and frontmatter mechanics, follow [./GIT.md](./GIT.md).
 
