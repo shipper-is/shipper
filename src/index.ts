@@ -14,14 +14,26 @@ import {
 import { ensureShipperDirs } from "./core/plan-store.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
 import { formatProgress } from "./embeddings/assets.ts";
+import { createLlamaEmbedder } from "./embeddings/client.ts";
 import { runEmbedDaemon } from "./embeddings/daemon.ts";
+import { indexPathForRepo } from "./embeddings/paths.ts";
 import {
   ensureEmbedServer,
   getEmbedServerStatus,
   stopEmbedServer,
 } from "./embeddings/server-manager.ts";
+import type { DocType } from "./search/documents.ts";
+import { syncIndex, syncIndexIfStale } from "./search/indexer.ts";
+import { resolveRepoRoot } from "./search/repo-root.ts";
+import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
 import { startServer } from "./server/http.ts";
 import { getVersion } from "./version.ts";
+
+const DOC_TYPES = ["plan", "spike", "bug", "review"] as const satisfies readonly DocType[];
+
+function isDocType(value: string): value is DocType {
+  return (DOC_TYPES as readonly string[]).includes(value);
+}
 
 const AGENT_KINDS = ["claude", "cursor", "opencode"] as const satisfies readonly AgentKind[];
 
@@ -338,6 +350,98 @@ export async function main(argv: string[] = process.argv): Promise<void> {
         process.exit(1);
       }
     });
+
+  program
+    .command("index")
+    .description("build or refresh the semantic search index for a repository")
+    .option("--force", "rebuild the index from scratch")
+    .action(async (opts: { force?: boolean }, cmd) => {
+      const globalOpts = cmd.optsWithGlobals() as { dir?: string };
+      try {
+        const repoRoot = await resolveRepoRoot({
+          explicitDir: globalOpts.dir,
+          cwd: process.cwd(),
+        });
+        const embedder = createLlamaEmbedder();
+        const { index, stats } = await syncIndex({
+          repoRoot,
+          embedder,
+          force: Boolean(opts.force),
+        });
+        console.log(
+          `Indexed ${stats.files} files (${stats.chunks} chunks): embedded ${stats.embedded}, reused ${stats.reused}, removed ${stats.removed} in ${stats.ms} ms`,
+        );
+        console.log(indexPathForRepo(index.header.repoPath));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  program
+    .command("search")
+    .description("semantically search Shipper plans, spikes, bugs, and reviews")
+    .argument("<query...>", "natural-language search query")
+    .option("--type <types>", "comma-separated doc types: plan,spike,bug,review")
+    .option("--status <status>", "open, done, or any")
+    .option("--limit <n>", "max results (1-25)", (value) => Number.parseInt(value, 10))
+    .option("--json", "print results as JSON")
+    .action(
+      async (
+        queryParts: string[],
+        opts: { type?: string; status?: string; limit?: number; json?: boolean },
+        cmd,
+      ) => {
+        const globalOpts = cmd.optsWithGlobals() as { dir?: string };
+        try {
+          const query = queryParts.join(" ").trim();
+          if (!query) {
+            throw new Error("Search query must not be empty");
+          }
+
+          const filters: SearchFilters = {};
+          if (opts.type) {
+            const types = opts.type.split(",").map((t) => t.trim()).filter(Boolean);
+            for (const t of types) {
+              if (!isDocType(t)) {
+                throw new Error(
+                  `Unknown type: ${t}. Supported types: ${DOC_TYPES.join(", ")}`,
+                );
+              }
+            }
+            filters.types = types as DocType[];
+          }
+          if (opts.status !== undefined) {
+            if (opts.status !== "open" && opts.status !== "done" && opts.status !== "any") {
+              throw new Error(`--status must be open, done, or any (got ${opts.status})`);
+            }
+            filters.status = opts.status;
+          }
+          if (opts.limit !== undefined) {
+            filters.limit = opts.limit;
+          }
+
+          const repoRoot = await resolveRepoRoot({
+            explicitDir: globalOpts.dir,
+            cwd: process.cwd(),
+          });
+          const embedder = createLlamaEmbedder();
+          const { index } = await syncIndexIfStale({ repoRoot, embedder });
+          const queryVector = await embedder.embedQuery(query);
+          const hits = searchIndex(index, queryVector, filters);
+          if (opts.json) {
+            console.log(JSON.stringify(hits, null, 2));
+          } else {
+            console.log(formatHits(hits));
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(message);
+          process.exit(1);
+        }
+      },
+    );
 
   await program.parseAsync(argv);
 }

@@ -3,6 +3,7 @@ type: plan
 started_at: "2026-09-25T14:31:50-04:00"
 phase_commits:
   1: 2039bdb
+  2: 5670903
 ---
 
 # Semantic Search MCP for Shipper Files
@@ -490,14 +491,14 @@ Outcomes:
 
 ### Section 1: Repo root resolution
 
-- [ ] Create [src/search/repo-root.ts](/Users/mattmichel/Documents/shipper/src/search/repo-root.ts) exporting `resolveRepoRoot({ explicitDir?: string, rootUris?: string[], cwd: string }): Promise<string>`:
-  - [ ] Candidate order: `explicitDir` (ignored if it contains `${`, per Gotcha 12), then the first `file://` root URI converted with `fileURLToPath`, then `cwd`.
-  - [ ] From the candidate, walk up to the nearest ancestor containing a `.shipper` directory. If none is found, walk up to the nearest ancestor containing `.git`. Otherwise, use the candidate itself. Return the `realpath`.
-- [ ] Tests: explicit dir wins; a `${workspaceFolder}` literal is ignored; a root URI is used over cwd; walking up from a nested folder finds `.shipper`.
+- [x] Create [src/search/repo-root.ts](/Users/mattmichel/Documents/shipper/src/search/repo-root.ts) exporting `resolveRepoRoot({ explicitDir?: string, rootUris?: string[], cwd: string }): Promise<string>`:
+  - [x] Candidate order: `explicitDir` (ignored if it contains `${`, per Gotcha 12), then the first `file://` root URI converted with `fileURLToPath`, then `cwd`.
+  - [x] From the candidate, walk up to the nearest ancestor containing a `.shipper` directory. If none is found, walk up to the nearest ancestor containing `.git`. Otherwise, use the candidate itself. Return the `realpath`.
+- [x] Tests: explicit dir wins; a `${workspaceFolder}` literal is ignored; a root URI is used over cwd; walking up from a nested folder finds `.shipper`.
 
 ### Section 2: Document discovery
 
-- [ ] Create [src/search/documents.ts](/Users/mattmichel/Documents/shipper/src/search/documents.ts):
+- [x] Create [src/search/documents.ts](/Users/mattmichel/Documents/shipper/src/search/documents.ts):
 
 ```ts
 export type DocType = "plan" | "spike" | "bug" | "review";
@@ -515,13 +516,13 @@ export type ShipperDoc = {
 export async function discoverDocs(repoRoot: string): Promise<ShipperDoc[]>;
 ```
 
-- [ ] Scan `.shipper/plans|spikes|bugs/{open,done}/*.md` and `.shipper/reviews/*.md`. Also scan the legacy `.shipper/open` and `.shipper/done`, classifying each file as plan or spike via `parseFrontmatter(markdown).type` (import it from `plan-store.ts`). Skip symlinks, non-`.md` files, and files over 1 MB. Tolerate missing folders (Gotcha 19). Sort by `relPath`.
-- [ ] Add `readDocMetadata(markdown, doc)`, which returns `{ title, frontmatter: Record<string, string | number> }`. The title comes from the first `# ` line outside frontmatter, falling back to the filename without `.md`. Frontmatter keeps only scalar values of `branch`, `base_branch`, `pr_url`, `pr_number`, `severity`, `started_at`, `completed_at`, `fixed_at`, `reported_at`, `reviewed_at`, `merge_risk`, and `production_risk`.
-- [ ] Tests: build a temp repo containing one of each type plus a legacy file, a symlink, and a `.txt` file, and assert the discovered list and metadata.
+- [x] Scan `.shipper/plans|spikes|bugs/{open,done}/*.md` and `.shipper/reviews/*.md`. Also scan the legacy `.shipper/open` and `.shipper/done`, classifying each file as plan or spike via `parseFrontmatter(markdown).type` (import it from `plan-store.ts`). Skip symlinks, non-`.md` files, and files over 1 MB. Tolerate missing folders (Gotcha 19). Sort by `relPath`.
+- [x] Add `readDocMetadata(markdown, doc)`, which returns `{ title, frontmatter: Record<string, string | number> }`. The title comes from the first `# ` line outside frontmatter, falling back to the filename without `.md`. Frontmatter keeps only scalar values of `branch`, `base_branch`, `pr_url`, `pr_number`, `severity`, `started_at`, `completed_at`, `fixed_at`, `reported_at`, `reviewed_at`, `merge_risk`, and `production_risk`.
+- [x] Tests: build a temp repo containing one of each type plus a legacy file, a symlink, and a `.txt` file, and assert the discovered list and metadata.
 
 ### Section 3: Chunker
 
-- [ ] Create [src/search/chunker.ts](/Users/mattmichel/Documents/shipper/src/search/chunker.ts) exporting `CHUNKER_VERSION = 1` and:
+- [x] Create [src/search/chunker.ts](/Users/mattmichel/Documents/shipper/src/search/chunker.ts) exporting `CHUNKER_VERSION = 1` and:
 
 ```ts
 export type Chunk = {
@@ -536,18 +537,18 @@ export type Chunk = {
 export function chunkMarkdown(markdown: string, opts: { title: string; type: DocType }): Chunk[];
 ```
 
-- [ ] Rules:
-  - [ ] Skip the frontmatter block, but keep line numbers relative to the original file.
-  - [ ] Split on `## ` and `### ` headings outside code fences (Gotcha 16). The `# ` title line belongs to the preamble. `headingPath` joins the current `##` and `###` headings with ` > `.
-  - [ ] Merge sections under 300 characters into the next section (or the previous one, if last), keeping the first heading path and extending the line range.
-  - [ ] Split sections over 4000 characters at blank lines, then at line boundaries, with each piece keeping the same heading path and its own line range.
-  - [ ] Drop chunks whose trimmed text is empty.
-  - [ ] `typeLabel` values are `Plan`, `Spike`, `Bug`, and `Review`.
-- [ ] Tests: a small plan with phases and sections gives the expected heading paths and line ranges; `## Phase 9` inside a fenced block does not split; tiny sections merge; a 10,000-character section splits into pieces of at most 4000 characters; a spike with only a flat checklist yields one chunk; a bug's `## Symptom` and `## Root Cause` sections become separate chunks. Also load a real done plan fixture via `import.meta.dirname`, as `plan-store.test.ts` does, and assert that no chunk exceeds 4000 characters.
+- [x] Rules:
+  - [x] Skip the frontmatter block, but keep line numbers relative to the original file.
+  - [x] Split on `## ` and `### ` headings outside code fences (Gotcha 16). The `# ` title line belongs to the preamble. `headingPath` joins the current `##` and `###` headings with ` > `.
+  - [x] Merge sections under 300 characters into the next section (or the previous one, if last), keeping the first heading path and extending the line range.
+  - [x] Split sections over 4000 characters at blank lines, then at line boundaries, with each piece keeping the same heading path and its own line range.
+  - [x] Drop chunks whose trimmed text is empty.
+  - [x] `typeLabel` values are `Plan`, `Spike`, `Bug`, and `Review`.
+- [x] Tests: a small plan with phases and sections gives the expected heading paths and line ranges; `## Phase 9` inside a fenced block does not split; tiny sections merge; a 10,000-character section splits into pieces of at most 4000 characters; a spike with only a flat checklist yields one chunk; a bug's `## Symptom` and `## Root Cause` sections become separate chunks. Also load a real done plan fixture via `import.meta.dirname`, as `plan-store.test.ts` does, and assert that no chunk exceeds 4000 characters.
 
 ### Section 4: Index file format
 
-- [ ] Create [src/search/index-file.ts](/Users/mattmichel/Documents/shipper/src/search/index-file.ts). Layout: 8-byte magic `SHIPIDX1`, a `uint32 LE` header byte length, UTF-8 JSON header, zero padding to a 4-byte boundary, then `chunkCount * dims` float32 values.
+- [x] Create [src/search/index-file.ts](/Users/mattmichel/Documents/shipper/src/search/index-file.ts). Layout: 8-byte magic `SHIPIDX1`, a `uint32 LE` header byte length, UTF-8 JSON header, zero padding to a 4-byte boundary, then `chunkCount * dims` float32 values.
 
 ```ts
 export type IndexHeader = {
@@ -571,24 +572,24 @@ export async function readIndex(path: string): Promise<LoadedIndex | null>; // n
 export async function writeIndex(path: string, index: LoadedIndex): Promise<void>; // atomic: `${path}.tmp-${process.pid}` then rename
 ```
 
-- [ ] `preview` holds the first 400 characters of the chunk text, whitespace collapsed.
-- [ ] Follow Gotcha 17 for alignment when reading.
-- [ ] Tests: round trip; corrupt magic returns null; truncated vectors return null; a Buffer with a non-zero `byteOffset` still loads correctly.
+- [x] `preview` holds the first 400 characters of the chunk text, whitespace collapsed.
+- [x] Follow Gotcha 17 for alignment when reading.
+- [x] Tests: round trip; corrupt magic returns null; truncated vectors return null; a Buffer with a non-zero `byteOffset` still loads correctly.
 
 ### Section 5: Incremental sync
 
-- [ ] Create [src/search/indexer.ts](/Users/mattmichel/Documents/shipper/src/search/indexer.ts) exporting `syncIndex({ repoRoot, embedder, force = false, onProgress })`, which returns `{ index: LoadedIndex; stats: { files: number; chunks: number; embedded: number; reused: number; removed: number; ms: number } }`.
-  - [ ] Load the existing index. Treat it as empty if `force`, or if `modelId`, `dims`, `chunkerVersion`, or `repoPath` differ.
-  - [ ] `discoverDocs`. For each doc whose `mtimeMs` and `size` match the header, keep its chunks and vectors as they are. Otherwise, read the file, compute `contentHash`, and if the hash is unchanged just update `mtimeMs`. If it changed, re-chunk it.
-  - [ ] Build a `Map<textHash, Float32Array>` from the old index and reuse vectors for chunks with a matching `textHash`, so moving a file between `open/` and `done/` re-embeds nothing. Only the remaining chunks go to `embedder.embedDocuments` (drop the zero-length results).
-  - [ ] Drop files that no longer exist.
-  - [ ] Write the index only if something changed.
-  - [ ] Dedupe concurrent `syncIndex` calls for the same repo within a process with a `Map<repoRoot, Promise>`. Also export `syncIndexIfStale`, which skips `discoverDocs` entirely when the last completed sync for that repo was under 2 seconds ago.
-- [ ] Tests, using a fake embedder that deterministically hashes text into a normalized 8-dimension vector: a first sync embeds all chunks; a second sync embeds 0; editing one file re-embeds only its changed chunks; moving a file from `open/` to `done/` re-embeds 0 and updates `status`; deleting a file removes its chunks; a model id change forces a full rebuild.
+- [x] Create [src/search/indexer.ts](/Users/mattmichel/Documents/shipper/src/search/indexer.ts) exporting `syncIndex({ repoRoot, embedder, force = false, onProgress })`, which returns `{ index: LoadedIndex; stats: { files: number; chunks: number; embedded: number; reused: number; removed: number; ms: number } }`.
+  - [x] Load the existing index. Treat it as empty if `force`, or if `modelId`, `dims`, `chunkerVersion`, or `repoPath` differ.
+  - [x] `discoverDocs`. For each doc whose `mtimeMs` and `size` match the header, keep its chunks and vectors as they are. Otherwise, read the file, compute `contentHash`, and if the hash is unchanged just update `mtimeMs`. If it changed, re-chunk it.
+  - [x] Build a `Map<textHash, Float32Array>` from the old index and reuse vectors for chunks with a matching `textHash`, so moving a file between `open/` and `done/` re-embeds nothing. Only the remaining chunks go to `embedder.embedDocuments` (drop the zero-length results).
+  - [x] Drop files that no longer exist.
+  - [x] Write the index only if something changed.
+  - [x] Dedupe concurrent `syncIndex` calls for the same repo within a process with a `Map<repoRoot, Promise>`. Also export `syncIndexIfStale`, which skips `discoverDocs` entirely when the last completed sync for that repo was under 2 seconds ago.
+- [x] Tests, using a fake embedder that deterministically hashes text into a normalized 8-dimension vector: a first sync embeds all chunks; a second sync embeds 0; editing one file re-embeds only its changed chunks; moving a file from `open/` to `done/` re-embeds 0 and updates `status`; deleting a file removes its chunks; a model id change forces a full rebuild.
 
 ### Section 6: Search
 
-- [ ] Create [src/search/search.ts](/Users/mattmichel/Documents/shipper/src/search/search.ts):
+- [x] Create [src/search/search.ts](/Users/mattmichel/Documents/shipper/src/search/search.ts):
 
 ```ts
 export type SearchFilters = { types?: DocType[]; status?: "open" | "done" | "any"; limit?: number };
@@ -604,9 +605,9 @@ export function findSimilar(index: LoadedIndex, relPath: string, filters?: Searc
 export function formatHits(hits: SearchHit[]): string; // markdown text for MCP and CLI output
 ```
 
-- [ ] Score each chunk with a dot product (vectors are normalized). Apply the filters: a `status` filter excludes reviews unless `"any"`. Group by file, where the file score is its best chunk score, and keep the top 2 chunks per file. Sort descending and slice to `limit` (default 8, clamp 1 to 25).
-- [ ] `findSimilar` uses the normalized mean of the target file's chunk vectors as the query. It throws `Not indexed: <relPath>` if the file is missing.
-- [ ] `formatHits` output shape, one block per hit:
+- [x] Score each chunk with a dot product (vectors are normalized). Apply the filters: a `status` filter excludes reviews unless `"any"`. Group by file, where the file score is its best chunk score, and keep the top 2 chunks per file. Sort descending and slice to `limit` (default 8, clamp 1 to 25).
+- [x] `findSimilar` uses the normalized mean of the target file's chunk vectors as the query. It throws `Not indexed: <relPath>` if the file is missing.
+- [x] `formatHits` output shape, one block per hit:
 
 ```
 1. [plan, done] Git First-Class Workflow — .shipper/plans/done/git-first-class-workflow.md (score 0.71)
@@ -614,15 +615,23 @@ export function formatHits(hits: SearchHit[]): string; // markdown text for MCP 
    Section A: Plan Overview (lines 5-30): <preview>
 ```
 
-- [ ] Tests: ranking order with hand-built vectors, type and status filters, the limit clamp, the grouping keeping 2 matches, `findSimilar` excluding itself, and `formatHits` snapshot-style string assertions.
+- [x] Tests: ranking order with hand-built vectors, type and status filters, the limit clamp, the grouping keeping 2 matches, `findSimilar` excluding itself, and `formatHits` snapshot-style string assertions.
 
 ### Section 7: CLI commands
 
-- [ ] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), add `index [--force]`. It resolves the repo via `resolveRepoRoot({ explicitDir: globalOpts.dir, cwd: process.cwd() })`, runs `syncIndex` with `createLlamaEmbedder()`, and prints `Indexed <files> files (<chunks> chunks): embedded <n>, reused <n>, removed <n> in <ms> ms`, plus the index path.
-- [ ] Add `search <query...> [--type <types>] [--status <open|done|any>] [--limit <n>] [--json]`. `--type` accepts comma-separated values and is validated against the `DocType` list. The command runs `syncIndexIfStale` and then `searchIndex`, printing `formatHits` or `JSON.stringify(hits, null, 2)` with `--json`.
-- [ ] Manual verification: in this repo, run `bun run dev -- index`, then `bun run dev -- search "moving plans between open and done folders"`. The top hits should include `plan-completion-metadata.md` or `git-first-class-workflow.md`. Record the output in Completion Notes.
+- [x] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), add `index [--force]`. It resolves the repo via `resolveRepoRoot({ explicitDir: globalOpts.dir, cwd: process.cwd() })`, runs `syncIndex` with `createLlamaEmbedder()`, and prints `Indexed <files> files (<chunks> chunks): embedded <n>, reused <n>, removed <n> in <ms> ms`, plus the index path.
+- [x] Add `search <query...> [--type <types>] [--status <open|done|any>] [--limit <n>] [--json]`. `--type` accepts comma-separated values and is validated against the `DocType` list. The command runs `syncIndexIfStale` and then `searchIndex`, printing `formatHits` or `JSON.stringify(hits, null, 2)` with `--json`.
+- [x] Manual verification: in this repo, run `bun run dev -- index`, then `bun run dev -- search "moving plans between open and done folders"`. The top hits should include `plan-completion-metadata.md` or `git-first-class-workflow.md`. Record the output in Completion Notes.
 
 #### Completion Notes
+
+- Tiny-section merge: a section under 300 chars is absorbed into the **next** section (last into previous). The survivor keeps the **next** section's `headingPath` (not the tiny preamble's empty path), so short preambles do not wipe real headings. Line range still extends backward to the tiny section's start.
+- Indexer drops zero-length `Float32Array` results from `embedDocuments` (Phase 2 Gotcha 4 skip path).
+- `contentHash()` lives in `documents.ts` (sha256 of full markdown) for mtime-mismatch / unchanged-content detection.
+- Manual verification (this repo, macOS arm64):
+  - `bun run dev -- index`: `Indexed 20 files (333 chunks): embedded 333, reused 0, removed 0 in 8311 ms` → `~/.cache/shipper/index/ebc949c425ce4942.idx`
+  - `bun run dev -- search "moving plans between open and done folders"`: top hits included `#2 plan-completion-metadata.md` (0.69) and `#4 git-first-class-workflow.md` (0.68); `#1` was `done-plan-cursor-tagging.md` (bug about open→done moves, 0.78).
+  - `bun run dev -- embed stop` afterward; no leftover `llama-server` processes.
 
 ## Phase 4: MCP Server
 
