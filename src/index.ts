@@ -26,6 +26,7 @@ import type { DocType } from "./search/documents.ts";
 import { syncIndex, syncIndexIfStale } from "./search/indexer.ts";
 import { resolveRepoRoot } from "./search/repo-root.ts";
 import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
+import { runMcpStdio } from "./mcp/server.ts";
 import { startServer } from "./server/http.ts";
 import { getVersion } from "./version.ts";
 
@@ -442,6 +443,34 @@ export async function main(argv: string[] = process.argv): Promise<void> {
         }
       },
     );
+
+  // Default action (no subcommand) runs the stdio MCP server. Phase 5 adds install/uninstall.
+  const mcpCmd = program
+    .command("mcp")
+    .description("run the Shipper MCP server (stdio), or manage agent registration")
+    .action(async (_opts, cmd) => {
+      // stdout belongs to JSON-RPC; redirect casual logs to stderr (Gotcha 1).
+      console.log = console.error;
+      console.info = console.error;
+
+      const dirFromCli = program.getOptionValueSource("dir") === "cli";
+      const globalOpts = cmd.optsWithGlobals() as { dir?: string };
+      const explicitDir = dirFromCli ? globalOpts.dir : undefined;
+
+      try {
+        await runMcpStdio({
+          explicitDir,
+          cwd: process.cwd(),
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  // Reserved for Phase 5: mcpCmd.command("install"|"uninstall").
+  void mcpCmd;
 
   await program.parseAsync(argv);
 }

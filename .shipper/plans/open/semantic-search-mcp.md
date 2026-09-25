@@ -4,6 +4,7 @@ started_at: "2026-09-25T14:31:50-04:00"
 phase_commits:
   1: 2039bdb
   2: 5670903
+  3: c30df2f
 ---
 
 # Semantic Search MCP for Shipper Files
@@ -643,39 +644,46 @@ Outcomes:
 
 ### Section 1: Dependency
 
-- [ ] Run `bun add @modelcontextprotocol/sdk@^1.30.1`, and confirm `bun run typecheck` still passes with zod v4.
+- [x] Run `bun add @modelcontextprotocol/sdk@^1.30.1`, and confirm `bun run typecheck` still passes with zod v4.
 
 ### Section 2: Server and tools
 
-- [ ] Create [src/mcp/server.ts](/Users/mattmichel/Documents/shipper/src/mcp/server.ts) exporting `createShipperMcpServer({ embedder, resolveRoot, log })`, which returns an `McpServer`, and `runMcpStdio(opts)`, which connects `StdioServerTransport`.
-  - [ ] Server info: `{ name: "shipper", version: getVersion() }`. Set `instructions` to a short string such as: "Semantic search over this repository's Shipper plans, spikes, bugs, and reviews in .shipper/. Use shipper_search before grepping .shipper/."
-  - [ ] Root resolution: after initialization, if `server.server.getClientCapabilities()?.roots` is set, call `server.server.listRoots()` and pass the URIs to `resolveRepoRoot`. Cache the resolved root for the process lifetime. Log it to stderr.
-  - [ ] Warm-up: start `warmUp()` (ensure server, then `syncIndex`) right after connect, without awaiting it (Gotcha 2). Record progress text from `ensureAssets` `onProgress` so the "warming up" message can include a percentage.
-- [ ] Register the tools with `server.registerTool(name, { title, description, inputSchema: { ...zod shape }, annotations }, handler)`. Every handler returns `{ content: [{ type: "text", text }], structuredContent }`. The read-only tools set `annotations: { readOnlyHint: true }`.
-  - [ ] `shipper_search`: `{ query: z.string().min(1), types: z.array(z.enum(["plan","spike","bug","review"])).optional(), status: z.enum(["open","done","any"]).optional(), limit: z.number().int().min(1).max(25).optional() }`. Description: "Semantic search across this repo's Shipper plans, spikes, bugs, and reviews (open and done). Returns the most relevant files with matching sections and line ranges. Prefer this over grep for questions like 'have we planned/fixed something like X before?'" It runs `syncIndexIfStale`, then `embedder.embedQuery`, then `searchIndex`, then `formatHits`.
-  - [ ] `shipper_similar`: `{ path: z.string(), types?, status?, limit? }`, which finds documents similar to an existing Shipper file (for example, a likely duplicate or regression bug).
-  - [ ] `shipper_get_doc`: `{ path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() }`. It returns file content (optionally a line range) with a `path:line` header, and enforces Gotcha 15.
-  - [ ] `shipper_list_docs`: `{ types?, status? }`. It returns one line per doc (`[type, status] title — relPath`) from the index header after `syncIndexIfStale`.
-  - [ ] `shipper_reindex`: `{ force: z.boolean().optional() }`. It returns the `syncIndex` stats text. Do not set `readOnlyHint`, since it writes the cache.
-  - [ ] Errors inside handlers return `{ isError: true, content: [{ type: "text", text: message }] }` rather than throwing.
-- [ ] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), add the `mcp` command. Its action (the default, with no subcommand) first redirects `console.log`/`console.info` to `console.error` (Gotcha 1), then computes `explicitDir` using `program.getOptionValueSource("dir") === "cli"` (Gotcha 13), then calls `runMcpStdio`. It must not call `ensureShipperDirs` or `installGlobalSkillsForServe`, because an MCP server should not mutate the repo. Exit cleanly when stdin closes, and do not stop the shared embedding server.
+- [x] Create [src/mcp/server.ts](/Users/mattmichel/Documents/shipper/src/mcp/server.ts) exporting `createShipperMcpServer({ embedder, resolveRoot, log })`, which returns an `McpServer`, and `runMcpStdio(opts)`, which connects `StdioServerTransport`.
+  - [x] Server info: `{ name: "shipper", version: getVersion() }`. Set `instructions` to a short string such as: "Semantic search over this repository's Shipper plans, spikes, bugs, and reviews in .shipper/. Use shipper_search before grepping .shipper/."
+  - [x] Root resolution: after initialization, if `server.server.getClientCapabilities()?.roots` is set, call `server.server.listRoots()` and pass the URIs to `resolveRepoRoot`. Cache the resolved root for the process lifetime. Log it to stderr.
+  - [x] Warm-up: start `warmUp()` (ensure server, then `syncIndex`) right after connect, without awaiting it (Gotcha 2). Record progress text from `ensureAssets` `onProgress` so the "warming up" message can include a percentage.
+- [x] Register the tools with `server.registerTool(name, { title, description, inputSchema: { ...zod shape }, annotations }, handler)`. Every handler returns `{ content: [{ type: "text", text }], structuredContent }`. The read-only tools set `annotations: { readOnlyHint: true }`.
+  - [x] `shipper_search`: `{ query: z.string().min(1), types: z.array(z.enum(["plan","spike","bug","review"])).optional(), status: z.enum(["open","done","any"]).optional(), limit: z.number().int().min(1).max(25).optional() }`. Description: "Semantic search across this repo's Shipper plans, spikes, bugs, and reviews (open and done). Returns the most relevant files with matching sections and line ranges. Prefer this over grep for questions like 'have we planned/fixed something like X before?'" It runs `syncIndexIfStale`, then `embedder.embedQuery`, then `searchIndex`, then `formatHits`.
+  - [x] `shipper_similar`: `{ path: z.string(), types?, status?, limit? }`, which finds documents similar to an existing Shipper file (for example, a likely duplicate or regression bug).
+  - [x] `shipper_get_doc`: `{ path: z.string(), startLine: z.number().int().min(1).optional(), endLine: z.number().int().min(1).optional() }`. It returns file content (optionally a line range) with a `path:line` header, and enforces Gotcha 15.
+  - [x] `shipper_list_docs`: `{ types?, status? }`. It returns one line per doc (`[type, status] title — relPath`) from the index header after `syncIndexIfStale`.
+  - [x] `shipper_reindex`: `{ force: z.boolean().optional() }`. It returns the `syncIndex` stats text. Do not set `readOnlyHint`, since it writes the cache.
+  - [x] Errors inside handlers return `{ isError: true, content: [{ type: "text", text: message }] }` rather than throwing.
+- [x] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), add the `mcp` command. Its action (the default, with no subcommand) first redirects `console.log`/`console.info` to `console.error` (Gotcha 1), then computes `explicitDir` using `program.getOptionValueSource("dir") === "cli"` (Gotcha 13), then calls `runMcpStdio`. It must not call `ensureShipperDirs` or `installGlobalSkillsForServe`, because an MCP server should not mutate the repo. Exit cleanly when stdin closes, and do not stop the shared embedding server.
 
 ### Section 3: Tests
 
-- [ ] `src/mcp/server.test.ts`: create the server with a fake embedder and a temp repo fixture. Link it to a `Client` with `InMemoryTransport.createLinkedPair()`. Assert that `listTools` returns exactly the five names; `shipper_search` returns the expected top file for a query the fake embedder maps close to it; `status: "done"` filtering works; `shipper_get_doc` rejects `../../etc/passwd` and a non-`.md` path under `.shipper/`; `shipper_get_doc` with a line range returns only those lines; and the warm-up message is returned while `ensureServer` is a never-resolving promise and the wait cap is overridden to about 50 ms.
+- [x] `src/mcp/server.test.ts`: create the server with a fake embedder and a temp repo fixture. Link it to a `Client` with `InMemoryTransport.createLinkedPair()`. Assert that `listTools` returns exactly the five names; `shipper_search` returns the expected top file for a query the fake embedder maps close to it; `status: "done"` filtering works; `shipper_get_doc` rejects `../../etc/passwd` and a non-`.md` path under `.shipper/`; `shipper_get_doc` with a line range returns only those lines; and the warm-up message is returned while `ensureServer` is a never-resolving promise and the wait cap is overridden to about 50 ms.
 
 ### Section 4: Compiled binary verification
 
-- [ ] Run `bun run build`, then:
+- [x] Run `bun run build`, then:
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}' '{"jsonrpc":"2.0","method":"notifications/initialized"}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | ./dist/shipper mcp --dir .
 ```
 
-- [ ] Confirm that stdout contains only two JSON-RPC responses (tool list with five tools) and that the logs went to stderr. Record the binary size before and after the SDK in Completion Notes.
-- [ ] Run `bun run build:release` once to confirm cross-compiling to all four targets still succeeds.
+- [x] Confirm that stdout contains only two JSON-RPC responses (tool list with five tools) and that the logs went to stderr. Record the binary size before and after the SDK in Completion Notes.
+- [x] Run `bun run build:release` once to confirm cross-compiling to all four targets still succeeds.
 
 #### Completion Notes
+
+- Dependency: `@modelcontextprotocol/sdk@1.30.1`. Typecheck passes with zod v4. Imports only `server/mcp.js` and `server/stdio.js` (plus client/inMemory in tests) so HTTP transports stay out of the bundle.
+- Warm-up is kicked off from `server.server.oninitialized` (not literally the line after `connect()`), so `listRoots` / capabilities are available and the handshake is never blocked. Tool handlers still await the same promise with a 45s cap (`warmUpTimeoutMs` injectable for tests).
+- `createShipperMcpServer` accepts injectable `embedder`, `resolveRoot`, `log`, `ensureServer`, `explicitDir`, `cwd`, and `warmUpTimeoutMs`. Default `ensureServer` is `ensureEmbedServer` with stderr progress.
+- Binary size: before SDK `67825570` (~65M); after SDK `68568610` (~65M, +~743 KB). Smoke test: 2 JSON-RPC lines on stdout (initialize + tools/list with five tools); repo-root / sync logs on stderr only. `bun run build:release` succeeded for all four targets.
+- `mcp` command is structured as a parent command with a default action; Phase 5 can attach `install`/`uninstall` subcommands on the same `mcpCmd`.
+- Stopped embed server after verification; no leftover `llama-server` processes.
 
 ## Phase 5: Agent Registration (`shipper mcp install` / `uninstall`)
 
