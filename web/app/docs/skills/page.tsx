@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Agent skills — Shipper docs",
@@ -68,6 +69,20 @@ export default function SkillsDocsPage() {
           <span className="font-mono text-white">~/.cursor/skills/</span>, or{" "}
           <span className="font-mono text-white">~/.config/opencode/skills/</span>{" "}
           depending on your agent.
+        </p>
+
+        <p className="mt-6 max-w-2xl text-white/60">
+          When the{" "}
+          <Link
+            href="/docs/search"
+            className="underline underline-offset-4 hover:text-white/60"
+          >
+            Shipper MCP server
+          </Link>{" "}
+          is installed, the skills use{" "}
+          <span className="font-mono text-white">shipper_search</span> to find
+          related prior work before exploring the codebase, and fall back to
+          grep/glob when the tool is not available.
         </p>
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">

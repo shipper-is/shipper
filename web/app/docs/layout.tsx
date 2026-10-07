@@ -25,6 +25,9 @@ export default function DocsLayout({
             <Link href="/docs/skills" className={linkClass}>
               Skills
             </Link>
+            <Link href="/docs/search" className={linkClass}>
+              Search
+            </Link>
             <Link href="/modules" className={linkClass}>
               Modules
             </Link>

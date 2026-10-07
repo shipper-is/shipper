@@ -11,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh 
 Pin a version:
 
 ```bash
-SHIPPER_VERSION=0.2.1 sh -c 'curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh | sh'
+SHIPPER_VERSION=0.2.2 sh -c 'curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh | sh'
 ```
 
 macOS binaries are **unsigned** in v1. Installing via `curl | sh` avoids Gatekeeper quarantine; downloading the binary directly in a browser may require removing the quarantine attribute or allowing it in System Settings.
@@ -67,6 +67,10 @@ Agent choice is stored per project on your machine (`~/.config/shipper/`), not i
 | `<repo>/.shipper/bugs/done/` | Fixed bugs |
 | `~/.config/shipper/config.json` | Per-project agent preference, last plan |
 | `~/.config/shipper/logs/` | NDJSON session logs (last 20 retained) |
+| `~/.cache/shipper/llama/` | Pinned llama.cpp `llama-server` binary (per platform) |
+| `~/.cache/shipper/models/` | Embedding GGUF (`nomic-embed-text-v1.5` Q4_K_M) |
+| `~/.cache/shipper/embed/` | Embedding server state, lock, idle timer, daemon log |
+| `~/.cache/shipper/index/` | Per-repo semantic search index files |
 | `~/.claude/skills/shipper-*/` | Global skills for Claude Code (auto-discovered) |
 | `~/.cursor/skills/shipper-*/` | Global skills for Cursor CLI (auto-discovered) |
 | `~/.config/opencode/skills/shipper-*/` | Global skills for opencode (auto-discovered) |
@@ -106,7 +110,7 @@ bun run build:release          # all four release targets → dist/shipper-*
 Push a `v*` tag to trigger `.github/workflows/release.yml`, which builds `shipper-darwin-arm64`, `shipper-darwin-x64`, `shipper-linux-x64`, and `shipper-linux-arm64` with SHA256 checksums attached to the GitHub Release.
 
 ```bash
-git tag v0.2.1 && git push origin v0.2.1
+git tag v0.2.2 && git push origin v0.2.2
 ```
 
 ## Modules
@@ -128,6 +132,80 @@ Then plan the build in your coding agent:
 
 The `shipper-plan` skill installs the module (or uses files already in `.shipper/modules/`), reads the spec, maps it to your stack, and writes a tailored plan to `.shipper/plans/open/`. Commit `.shipper/modules/` alongside your plans — it is the long-term reference for maintaining the feature.
 
+## Semantic search (MCP)
+
+Shipper can give your coding agent semantic search over every plan, spike, bug, and review in `.shipper/` — open and done. An MCP server embeds chunks with a small local model and ranks results by meaning, so questions like "have we planned something like this before?" or "is this a regression of an old bug?" take one tool call instead of grepping hundreds of files.
+
+### One-step setup
+
+```bash
+shipper mcp install
+```
+
+This registers the MCP server with every detected agent (Claude Code, Cursor, opencode), prefetches the embedding assets, and prints a reminder to restart your agent. Use `--agent <claude|cursor|opencode>` to target one agent, or `--no-download` to skip the prefetch.
+
+On first use, Shipper downloads a pinned llama.cpp build from GitHub (about 12–17 MB depending on platform) and an 84 MB GGUF embedding model from Hugging Face (`nomic-embed-text-v1.5` Q4_K_M). Both are SHA-256 verified into `~/.cache/shipper/`. Everything runs on `127.0.0.1` — no embeddings or document text leave your machine.
+
+The shared embedding server shuts down after 15 idle minutes by default. Change that with `shipper embed start --idle-minutes <n>` (persisted in config), or manage it manually with `shipper embed start|stop|status`.
+
+### MCP tools
+
+| Tool | Purpose |
+|------|---------|
+| `shipper_search` | Semantic search across plans, spikes, bugs, and reviews |
+| `shipper_similar` | Find documents similar to an existing Shipper file |
+| `shipper_get_doc` | Read a Shipper markdown file (optional line range) |
+| `shipper_list_docs` | List indexed Shipper documents |
+| `shipper_reindex` | Rebuild or refresh the search index |
+
+Bundled skills (`shipper-plan`, `shipper-spike`, `shipper-bug`, `shipper-build`) call `shipper_search` when the tool is available and fall back to grep/glob otherwise.
+
+### Manual agent config
+
+If `shipper mcp install` cannot write a config (unparseable JSON, or opencode's `.jsonc`), paste one of these (adjust the `shipper` binary path if it is not on your `PATH`):
+
+**Cursor** — `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "shipper": {
+      "command": "shipper",
+      "args": ["mcp", "--dir", "${workspaceFolder}"]
+    }
+  }
+}
+```
+
+**opencode** — `~/.config/opencode/opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "shipper": {
+      "type": "local",
+      "command": ["shipper", "mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Claude Code:**
+
+```bash
+claude mcp add --scope user shipper -- shipper mcp
+```
+
+### Removal
+
+```bash
+shipper mcp uninstall
+shipper embed stop
+rm -rf ~/.cache/shipper
+```
+
 ## CLI
 
 ### Commands
@@ -138,6 +216,11 @@ The `shipper-plan` skill installs the module (or uses files already in `.shipper
 | `shipper skills` | Install or refresh global skills for detected agents |
 | `shipper modules list` | List available modules from the GitHub repo |
 | `shipper modules add <id-or-url>` | Install a module into `.shipper/modules/<id>/` |
+| `shipper embed start\|stop\|status` | Manage the shared local embedding server |
+| `shipper index` | Build or refresh the semantic search index |
+| `shipper search <query>` | Semantically search plans, spikes, bugs, and reviews |
+| `shipper mcp` | Run the Shipper MCP server (stdio) |
+| `shipper mcp install\|uninstall` | Register or unregister the MCP server with agents |
 
 Use `shipper skills` without starting the console when you want the bundled skills in your own coding agent — e.g. type `/shipper-plan` in Cursor CLI or Claude Code to plan a feature directly in your editor.
 

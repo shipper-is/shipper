@@ -21,6 +21,12 @@ const cards = [
       "Invoke shipper-plan, shipper-loop, shipper-build, and the other bundled skills from Claude Code, Cursor, or opencode — no console required.",
   },
   {
+    href: "/docs/search",
+    title: "Semantic search",
+    description:
+      "Give your coding agent an MCP tool that semantically searches every plan, spike, bug, and review in .shipper/ — powered by a small local embeddings model.",
+  },
+  {
     href: "/modules",
     title: "Modules",
     description:

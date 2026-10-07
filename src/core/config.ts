@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
+import { DEFAULT_EMBED_IDLE_MINUTES } from "../constants.ts";
 import type { AgentKind } from "../agents/types.ts";
 import type { OrchestratedSkillName } from "./skills.ts";
 
@@ -34,6 +35,11 @@ const configSchema = z.object({
       lastUpdateCheckAt: z.number().optional(),
       latestKnownVersion: z.string().optional(),
       models: agentModelsSchema.optional(),
+      embeddings: z
+        .object({
+          idleMinutes: z.number().int().positive().optional(),
+        })
+        .optional(),
     })
     .optional(),
 });
@@ -181,6 +187,26 @@ export async function setUpdateCheckState(patch: UpdateCheckState): Promise<void
     ...config.defaults,
     lastUpdateCheckAt: patch.lastCheckAt ?? config.defaults?.lastUpdateCheckAt,
     latestKnownVersion: patch.latestKnown ?? config.defaults?.latestKnownVersion,
+  };
+  await writeConfig(config);
+}
+
+export async function getEmbedIdleMinutes(): Promise<number> {
+  const config = await readConfig();
+  return config.defaults?.embeddings?.idleMinutes ?? DEFAULT_EMBED_IDLE_MINUTES;
+}
+
+export async function setEmbedIdleMinutes(n: number): Promise<void> {
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`idleMinutes must be a positive integer, got ${n}`);
+  }
+  const config = await readConfig();
+  config.defaults = {
+    ...config.defaults,
+    embeddings: {
+      ...config.defaults?.embeddings,
+      idleMinutes: n,
+    },
   };
   await writeConfig(config);
 }
