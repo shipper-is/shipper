@@ -73,10 +73,18 @@ async function collectMdFiles(
   return out;
 }
 
-export async function discoverDocs(repoRoot: string): Promise<ShipperDoc[]> {
+export async function discoverDocs(
+  repoRoot: string,
+  opts?: { onFound?: (count: number) => void },
+): Promise<ShipperDoc[]> {
   const shipperRoot = join(repoRoot, ".shipper");
   const docs: ShipperDoc[] = [];
   const seen = new Set<string>();
+
+  const add = (doc: ShipperDoc): void => {
+    docs.push(doc);
+    opts?.onFound?.(docs.length);
+  };
 
   const typedFolders: Array<{ type: DocType; root: string }> = [
     { type: "plan", root: "plans" },
@@ -95,7 +103,7 @@ export async function discoverDocs(repoRoot: string): Promise<ShipperDoc[]> {
             continue;
           }
           seen.add(file.relPath);
-          docs.push({
+          add({
             relPath: file.relPath,
             absPath: file.absPath,
             type,
@@ -117,7 +125,7 @@ export async function discoverDocs(repoRoot: string): Promise<ShipperDoc[]> {
         continue;
       }
       seen.add(file.relPath);
-      docs.push({
+      add({
         relPath: file.relPath,
         absPath: file.absPath,
         type: "review",
@@ -144,7 +152,7 @@ export async function discoverDocs(repoRoot: string): Promise<ShipperDoc[]> {
         }
         const markdown = await readFile(file.absPath, "utf8");
         const type: DocType = parseFrontmatter(markdown).type === "spike" ? "spike" : "plan";
-        docs.push({
+        add({
           relPath: file.relPath,
           absPath: file.absPath,
           type,

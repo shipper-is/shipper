@@ -17,6 +17,7 @@ import {
   type IndexHeader,
   type LoadedIndex,
 } from "./index-file.ts";
+import type { IndexProgress } from "./index-progress.ts";
 
 export type SyncStats = {
   files: number;
@@ -36,8 +37,12 @@ type SyncOpts = {
   repoRoot: string;
   embedder: Embedder;
   force?: boolean;
-  onProgress?: (message: string) => void;
+  onProgress?: (progress: IndexProgress) => void;
 };
+
+function report(opts: SyncOpts, progress: IndexProgress): void {
+  opts.onProgress?.(progress);
+}
 
 const inFlight = new Map<string, Promise<SyncResult>>();
 const lastSyncAt = new Map<string, number>();
@@ -141,8 +146,10 @@ async function syncIndexInner(opts: SyncOpts): Promise<SyncResult> {
     }
   }
 
-  const docs = await discoverDocs(repoPath);
-  opts.onProgress?.(`Discovering ${docs.length} documents…`);
+  const docs = await discoverDocs(repoPath, {
+    onFound: (count) => report(opts, { phase: "scan", current: count, total: null }),
+  });
+  report(opts, { phase: "scan", current: docs.length, total: docs.length });
 
   const oldVectors = existing ? vectorMapFromIndex(existing) : new Map<string, Float32Array>();
   const keptByPath = new Map<
@@ -197,7 +204,9 @@ async function syncIndexInner(opts: SyncOpts): Promise<SyncResult> {
     }
   }
 
-  for (const doc of docs) {
+  for (let i = 0; i < docs.length; i++) {
+    const doc = docs[i]!;
+    report(opts, { phase: "read", current: i + 1, total: docs.length });
     const prepared = await prepareFile(doc, existing?.header ?? null, force);
     if (!prepared) {
       continue;
@@ -279,8 +288,14 @@ async function syncIndexInner(opts: SyncOpts): Promise<SyncResult> {
   }
 
   if (toEmbed.length > 0) {
-    opts.onProgress?.(`Embedding ${toEmbed.length} chunks…`);
-    const vectors = await opts.embedder.embedDocuments(toEmbed.map((t) => t.chunk.embedText));
+    report(opts, { phase: "embed", current: 0, total: toEmbed.length });
+    const vectors = await opts.embedder.embedDocuments(
+      toEmbed.map((t) => t.chunk.embedText),
+      {
+        onProgress: (done, total) => report(opts, { phase: "embed", current: done, total }),
+      },
+    );
+    report(opts, { phase: "embed", current: toEmbed.length, total: toEmbed.length });
     for (let i = 0; i < toEmbed.length; i++) {
       const item = toEmbed[i]!;
       const vec = vectors[i];
@@ -334,6 +349,7 @@ async function syncIndexInner(opts: SyncOpts): Promise<SyncResult> {
   const index: LoadedIndex = { header, vectors: packed };
 
   if (changed) {
+    report(opts, { phase: "write", current: 1, total: 1 });
     await writeIndex(indexPath, index);
   } else if (existing) {
     return {

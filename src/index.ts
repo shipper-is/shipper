@@ -25,7 +25,8 @@ import {
 import { installMcp, uninstallMcp } from "./mcp/install.ts";
 import { runMcpStdio } from "./mcp/server.ts";
 import type { DocType } from "./search/documents.ts";
-import { syncIndex, syncIndexIfStale } from "./search/indexer.ts";
+import { createIndexProgressWriter } from "./search/index-progress.ts";
+import { syncIndex, syncIndexIfStale, type SyncResult } from "./search/indexer.ts";
 import { resolveRepoRoot } from "./search/repo-root.ts";
 import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
 import { startServer } from "./server/http.ts";
@@ -437,11 +438,24 @@ export async function main(argv: string[] = process.argv): Promise<void> {
           cwd: process.cwd(),
         });
         const embedder = createLlamaEmbedder();
-        const { index, stats } = await syncIndex({
-          repoRoot,
-          embedder,
-          force: Boolean(opts.force),
+        const progress = createIndexProgressWriter({
+          tty: process.stderr.isTTY === true,
+          write: (chunk) => {
+            process.stderr.write(chunk);
+          },
         });
+        let result: SyncResult;
+        try {
+          result = await syncIndex({
+            repoRoot,
+            embedder,
+            force: Boolean(opts.force),
+            onProgress: (update) => progress.update(update),
+          });
+        } finally {
+          progress.finish();
+        }
+        const { index, stats } = result;
         console.log(
           `Indexed ${stats.files} files (${stats.chunks} chunks): embedded ${stats.embedded}, reused ${stats.reused}, removed ${stats.removed} in ${stats.ms} ms`,
         );

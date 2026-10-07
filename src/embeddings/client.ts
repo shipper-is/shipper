@@ -6,10 +6,14 @@ import { lastUsedPath } from "./paths.ts";
 
 type FetchFn = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
+export type EmbedDocumentsOpts = {
+  onProgress?: (done: number, total: number) => void;
+};
+
 export type Embedder = {
   modelId: string;
   dims: number;
-  embedDocuments(texts: string[]): Promise<Float32Array[]>;
+  embedDocuments(texts: string[], opts?: EmbedDocumentsOpts): Promise<Float32Array[]>;
   embedQuery(text: string): Promise<Float32Array>;
 };
 
@@ -186,7 +190,7 @@ export function createLlamaEmbedder(opts?: {
     modelId: EMBEDDING_MODEL.id,
     dims: EMBEDDING_MODEL.dims,
 
-    async embedDocuments(texts: string[]): Promise<Float32Array[]> {
+    async embedDocuments(texts: string[], embedOpts?: EmbedDocumentsOpts): Promise<Float32Array[]> {
       if (texts.length === 0) {
         return [];
       }
@@ -197,6 +201,7 @@ export function createLlamaEmbedder(opts?: {
           const batch = prefixed.slice(i, i + BATCH_SIZE);
           const vectors = await embedBatch(baseUrl, batch, fetchFn);
           results.push(...vectors);
+          embedOpts?.onProgress?.(results.length, texts.length);
         }
         return results;
       });

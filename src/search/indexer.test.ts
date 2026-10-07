@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Embedder } from "../embeddings/client.ts";
+import type { IndexProgress } from "./index-progress.ts";
 import { syncIndex } from "./indexer.ts";
 
 const temps: string[] = [];
@@ -63,9 +64,14 @@ function createFakeEmbedder(modelId = "fake-8d"): Embedder & { embedCalls: numbe
     get embedCalls() {
       return state.embedCalls;
     },
-    async embedDocuments(texts: string[]) {
+    async embedDocuments(
+      texts: string[],
+      opts?: { onProgress?: (done: number, total: number) => void },
+    ) {
       state.embedCalls += texts.length;
-      return texts.map(embedOne);
+      const vectors = texts.map(embedOne);
+      opts?.onProgress?.(texts.length, texts.length);
+      return vectors;
     },
     async embedQuery(text: string) {
       state.embedCalls += 1;
@@ -196,5 +202,44 @@ describe("syncIndex", () => {
     expect(result.stats.embedded).toBe(result.stats.chunks);
     expect(result.stats.reused).toBe(0);
     expect(result.index.header.modelId).toBe("model-b");
+  });
+
+  it("reports scan, read, embed, and write progress", async () => {
+    const repo = await makeRepo();
+    await writeFile(join(repo, ".shipper", "plans", "open", "a.md"), DOC_A, "utf8");
+    await writeFile(join(repo, ".shipper", "plans", "open", "b.md"), DOC_B, "utf8");
+
+    const events: IndexProgress[] = [];
+    const result = await syncIndex({
+      repoRoot: repo,
+      embedder: createFakeEmbedder(),
+      onProgress: (progress) => events.push({ ...progress }),
+    });
+
+    expect(events.at(-1)?.phase).toBe("write");
+    expect(events.filter((event) => event.phase === "scan").at(-1)).toEqual({
+      phase: "scan",
+      current: 2,
+      total: 2,
+    });
+    expect(events.filter((event) => event.phase === "read").map((event) => event.current)).toEqual([
+      1, 2,
+    ]);
+    const embed = events.filter((event) => event.phase === "embed");
+    expect(embed[0]).toEqual({ phase: "embed", current: 0, total: result.stats.embedded });
+    expect(embed.map((event) => event.current)).toEqual([
+      0,
+      result.stats.embedded,
+      result.stats.embedded,
+    ]);
+
+    const refresh: IndexProgress[] = [];
+    await syncIndex({
+      repoRoot: repo,
+      embedder: createFakeEmbedder(),
+      onProgress: (progress) => refresh.push({ ...progress }),
+    });
+    expect(refresh.some((event) => event.phase === "read")).toBe(true);
+    expect(refresh.some((event) => event.phase === "embed" || event.phase === "write")).toBe(false);
   });
 });
