@@ -17,6 +17,9 @@ import bugCatalog from "../../skills/shipper-bug/CATALOG.md" with { type: "text"
 import bugFix from "../../skills/shipper-bug/FIX.md" with { type: "text" };
 import bugGit from "../../skills/shipper-bug/GIT.md" with { type: "text" };
 import type { AgentKind } from "../agents/types.ts";
+import { SKILL_NAMES, type SkillName } from "../shared/config-schema.ts";
+
+export { SKILL_NAMES, type SkillName };
 
 export type SkillFile = {
   file: string;
@@ -47,17 +50,7 @@ const SKILLS = {
     { file: "FIX.md", content: bugFix },
     { file: "GIT.md", content: bugGit },
   ],
-} as const satisfies Record<string, readonly SkillFile[]>;
-
-export type SkillName = keyof typeof SKILLS;
-
-export type OrchestratedSkillName =
-  | "shipper-plan"
-  | "shipper-build"
-  | "shipper-loop"
-  | "shipper-spike";
-
-export const SKILL_NAMES = Object.keys(SKILLS) as SkillName[];
+} as const satisfies Record<SkillName, readonly SkillFile[]>;
 
 export type InstallSummary = {
   agent: AgentKind;

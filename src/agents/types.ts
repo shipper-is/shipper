@@ -1,4 +1,6 @@
-export type AgentKind = "claude" | "cursor" | "opencode";
+import type { AgentKind } from "../shared/config-schema.ts";
+
+export type { AgentKind };
 
 export type DetectedAgent = {
   kind: AgentKind;

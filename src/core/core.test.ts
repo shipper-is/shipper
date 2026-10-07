@@ -3,95 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  getProjectConfig,
-  resolveDefaultModel,
-  saveModelChoice,
-  setProjectConfig,
-} from "./config.ts";
-import {
   SKILLS,
   installSkillsGlobally,
   removeRepoSkills,
 } from "./skills.ts";
-
-describe("config", () => {
-  it("returns empty config for unknown projects", async () => {
-    const repo = await mkdtemp(join(tmpdir(), "shipper-config-empty-"));
-    const cfg = await getProjectConfig(repo);
-    expect(cfg).toEqual({});
-  });
-
-  it("persists project config patches", async () => {
-    const repo = await mkdtemp(join(tmpdir(), "shipper-config-persist-"));
-    await setProjectConfig(repo, { agent: "cursor", lastPlan: "foo.md" });
-    const cfg = await getProjectConfig(repo);
-    expect(cfg.agent).toBe("cursor");
-    expect(cfg.lastPlan).toBe("foo.md");
-  });
-});
-
-describe("model config", () => {
-  let previousHome: string | undefined;
-  let previousXdg: string | undefined;
-  let homeDir: string;
-
-  beforeEach(async () => {
-    homeDir = await mkdtemp(join(tmpdir(), "shipper-model-home-"));
-    previousHome = process.env["HOME"];
-    previousXdg = process.env["XDG_CONFIG_HOME"];
-    process.env["HOME"] = homeDir;
-    delete process.env["XDG_CONFIG_HOME"];
-  });
-
-  afterEach(async () => {
-    if (previousHome === undefined) {
-      delete process.env["HOME"];
-    } else {
-      process.env["HOME"] = previousHome;
-    }
-    if (previousXdg === undefined) {
-      delete process.env["XDG_CONFIG_HOME"];
-    } else {
-      process.env["XDG_CONFIG_HOME"] = previousXdg;
-    }
-    await rm(homeDir, { recursive: true, force: true });
-  });
-
-  it("saves a model choice at project scope", async () => {
-    const repo = await mkdtemp(join(tmpdir(), "shipper-model-save-"));
-    await saveModelChoice(repo, "cursor", "shipper-plan", "composer-2.5");
-    const cfg = await getProjectConfig(repo);
-    expect(cfg.models?.cursor?.["shipper-plan"]).toBe("composer-2.5");
-  });
-
-  it("falls back to the global default when the project has none", async () => {
-    const repoA = await mkdtemp(join(tmpdir(), "shipper-model-global-a-"));
-    const repoB = await mkdtemp(join(tmpdir(), "shipper-model-global-b-"));
-    await saveModelChoice(repoA, "cursor", "shipper-plan", "composer-2.5");
-    expect(await resolveDefaultModel(repoB, "cursor", "shipper-plan")).toBe("composer-2.5");
-  });
-
-  it("prefers the project value over the global default", async () => {
-    const repoA = await mkdtemp(join(tmpdir(), "shipper-model-priority-a-"));
-    const repoB = await mkdtemp(join(tmpdir(), "shipper-model-priority-b-"));
-    await saveModelChoice(repoA, "cursor", "shipper-plan", "global-model");
-    await saveModelChoice(repoB, "cursor", "shipper-plan", "project-model");
-    expect(await resolveDefaultModel(repoA, "cursor", "shipper-plan")).toBe("global-model");
-    expect(await resolveDefaultModel(repoB, "cursor", "shipper-plan")).toBe("project-model");
-  });
-
-  it("returns undefined when neither project nor global is set", async () => {
-    const repo = await mkdtemp(join(tmpdir(), "shipper-model-missing-"));
-    expect(await resolveDefaultModel(repo, "claude", "shipper-build")).toBeUndefined();
-    expect(await resolveDefaultModel(repo, "claude", "shipper-loop")).toBeUndefined();
-  });
-
-  it("falls back from shipper-loop to a legacy shipper-build model", async () => {
-    const repo = await mkdtemp(join(tmpdir(), "shipper-model-loop-fallback-"));
-    await saveModelChoice(repo, "cursor", "shipper-build", "legacy-build-model");
-    expect(await resolveDefaultModel(repo, "cursor", "shipper-loop")).toBe("legacy-build-model");
-  });
-});
 
 describe("installSkillsGlobally", () => {
   let homeDir: string;

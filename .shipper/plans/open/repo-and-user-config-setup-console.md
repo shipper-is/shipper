@@ -3,6 +3,8 @@ type: plan
 branch: shipper/repo-and-user-config-setup-console
 base_branch: main
 started_at: "2026-10-07T18:16:41-04:00"
+phase_commits:
+  1: dccd0f8
 ---
 
 # Repo and User Configuration, and a Setup Console
@@ -274,14 +276,14 @@ New files:
 ### Section 1: Shared schema
 
 - Overview: one source of truth for shapes and defaults, importable by the browser.
-- [ ] Create `src/shared/config-schema.ts` (zod only, no Node imports). Export:
+- [x] Create `src/shared/config-schema.ts` (zod only, no Node imports). Export:
   - `AGENT_KINDS = ["claude", "cursor", "opencode"] as const` and `AgentKind`.
   - `SKILL_NAMES = ["shipper-plan", "shipper-build", "shipper-loop", "shipper-spike", "shipper-ship", "shipper-bug"] as const` and `SkillName`.
   - `ARTIFACT_TYPES = ["plans", "spikes", "bugs", "reviews", "modules"] as const` and `ArtifactType`.
   - `CONFIG_LAYERS = ["global", "repo", "local"] as const` and `ConfigLayer`.
   - `DEFAULT_ARTIFACT_PATHS: Record<ArtifactType, string>` = `.shipper/plans`, `.shipper/spikes`, `.shipper/bugs`, `.shipper/reviews`, `.shipper/modules`.
   - `DEFAULT_GIT = { branchMode: null, commitEachPhase: true, branchPrefix: "shipper/" }` and `DEFAULT_SEARCH = { enabled: true, extraDirs: [] }`.
-- [ ] Define schemas with `z.looseObject` at every level and optional fields everywhere:
+- [x] Define schemas with `z.looseObject` at every level and optional fields everywhere:
 
   ```ts
   const relativeDir = z.string().min(1); // semantic checks happen in artifact-paths.ts
@@ -330,7 +332,7 @@ New files:
   });
   ```
 
-- [ ] Export the inferred types (`Settings`, `RepoConfig`, `LocalConfig`, `GlobalConfig`) and an `EffectiveConfig` type:
+- [x] Export the inferred types (`Settings`, `RepoConfig`, `LocalConfig`, `GlobalConfig`) and an `EffectiveConfig` type:
 
   ```ts
   export type InstructionEntry = { layer: ConfigLayer; scope: "all" | SkillName; text: string };
@@ -344,45 +346,45 @@ New files:
   export type ConfigSource = ConfigLayer | "default";
   ```
 
-- [ ] Change [src/agents/types.ts](/Users/mattmichel/Documents/shipper/src/agents/types.ts) to re-export `AgentKind` from `src/shared/config-schema.ts` so there is one definition.
-- [ ] In [src/core/skills.ts](/Users/mattmichel/Documents/shipper/src/core/skills.ts), type `SKILLS` with `satisfies Record<SkillName, readonly SkillFile[]>` using the shared `SkillName`, and export `SKILL_NAMES` from the shared module instead of `Object.keys`. Remove `OrchestratedSkillName`.
+- [x] Change [src/agents/types.ts](/Users/mattmichel/Documents/shipper/src/agents/types.ts) to re-export `AgentKind` from `src/shared/config-schema.ts` so there is one definition.
+- [x] In [src/core/skills.ts](/Users/mattmichel/Documents/shipper/src/core/skills.ts), type `SKILLS` with `satisfies Record<SkillName, readonly SkillFile[]>` using the shared `SkillName`, and export `SKILL_NAMES` from the shared module instead of `Object.keys`. Remove `OrchestratedSkillName`.
 
 ### Section 2: Loader, merger, and writers
 
 - Overview: rewrite [src/core/config.ts](/Users/mattmichel/Documents/shipper/src/core/config.ts) around layers.
-- [ ] Remove `projectConfigSchema`, `configSchema`, `getProjectConfig`, `setProjectConfig`, `getDefaultAgent`, `setDefaultAgent`, `resolveDefaultModel`, `saveModelChoice`, and the `ProjectConfig`/`ShipperConfig`/`AgentModels` types. Keep `configDir()` and rename `configPath()` to `globalConfigPath()` (grep for callers and update them).
-- [ ] Add `repoConfigPath(repoRoot)` = `<repoRoot>/.shipper/config.json` and `localConfigPath(repoRoot)` = `<repoRoot>/.shipper/config.local.json`, plus `layerPath(layer, repoRoot)`.
-- [ ] Add `type LayerState = { layer: ConfigLayer; path: string; exists: boolean; value: Record<string, unknown> | null; error: string | null; ignoredKeys: string[] }` and `readLayer(layer, repoRoot): Promise<LayerState>`. Missing file: `exists: false, value: null, error: null`. Invalid JSON or schema failure: `exists: true, value: null, error: <short message>` (use `z.prettifyError` or the first issue's path and message). For `global` and `local`, a present `paths` key is kept in `value` but listed in `ignoredKeys`.
-- [ ] Add `mergeConfig(layers: Record<ConfigLayer, LayerState>): { effective: EffectiveConfig; sources: Record<string, ConfigSource>; pathErrors: string[] }`. Rules:
+- [x] Remove `projectConfigSchema`, `configSchema`, `getProjectConfig`, `setProjectConfig`, `getDefaultAgent`, `setDefaultAgent`, `resolveDefaultModel`, `saveModelChoice`, and the `ProjectConfig`/`ShipperConfig`/`AgentModels` types. Keep `configDir()` and rename `configPath()` to `globalConfigPath()` (grep for callers and update them).
+- [x] Add `repoConfigPath(repoRoot)` = `<repoRoot>/.shipper/config.json` and `localConfigPath(repoRoot)` = `<repoRoot>/.shipper/config.local.json`, plus `layerPath(layer, repoRoot)`.
+- [x] Add `type LayerState = { layer: ConfigLayer; path: string; exists: boolean; value: Record<string, unknown> | null; error: string | null; ignoredKeys: string[] }` and `readLayer(layer, repoRoot): Promise<LayerState>`. Missing file: `exists: false, value: null, error: null`. Invalid JSON or schema failure: `exists: true, value: null, error: <short message>` (use `z.prettifyError` or the first issue's path and message). For `global` and `local`, a present `paths` key is kept in `value` but listed in `ignoredKeys`.
+- [x] Add `mergeConfig(layers: Record<ConfigLayer, LayerState>): { effective: EffectiveConfig; sources: Record<string, ConfigSource>; pathErrors: string[] }`. Rules:
   - Start from defaults; apply global, then repo, then local, field by field.
   - `paths.*` only from the repo layer, each value passed through `validateArtifactDir`. Implement it in `src/shared/config-schema.ts` as a pure function (no `node:path`; split on `/`, drop `.` segments, resolve `..` manually) so the browser can reuse it: `validateArtifactDir(value: string): { ok: true; dir: string } | { ok: false; error: string }`. It strips trailing `/` and rejects empty values, absolute paths, backslashes, anything escaping the repo, and `.git` or `node_modules` segments. Duplicate dirs across types are checked in `mergeConfig`. An invalid value keeps the default and adds a message to `pathErrors`.
   - `search.extraDirs` replaced by the highest layer that sets it, each entry validated the same way (invalid entries dropped with a message).
   - `instructions` collected in order into `InstructionEntry[]`, skipping empty strings.
   - `sources` uses dotted keys: `paths.plans`, `git.branchMode`, `models.cursor.shipper-build`, `search.extraDirs`, etc. Instruction entries carry their own `layer`.
-- [ ] Add `loadConfig(repoRoot): Promise<{ layers: Record<ConfigLayer, LayerState>; effective: EffectiveConfig; sources: Record<string, ConfigSource>; pathErrors: string[] }>` that reads all three layers in parallel and merges.
-- [ ] Add `writeLayer(layer, repoRoot, value: unknown): Promise<LayerState>`:
+- [x] Add `loadConfig(repoRoot): Promise<{ layers: Record<ConfigLayer, LayerState>; effective: EffectiveConfig; sources: Record<string, ConfigSource>; pathErrors: string[] }>` that reads all three layers in parallel and merges.
+- [x] Add `writeLayer(layer, repoRoot, value: unknown): Promise<LayerState>`:
   - Validate with the layer's schema (`repoConfigSchema`, `localConfigSchema`, or `globalConfigSchema`); throw a readable error on failure.
   - Remove empty objects and `undefined` values before writing so files stay tidy (a helper `pruneEmpty`).
   - For `global`, read the current file first and preserve `embeddings`, `state`, and unknown top-level keys that are not part of the settings shape.
   - For `local`, call `ensureShipperGitignore(repoRoot)` first.
   - Write atomically (`<path>.tmp-<pid>` then `rename`), creating `.shipper/` or the global config dir if needed. Return the re-read `LayerState`.
-- [ ] Re-implement `getEmbedIdleMinutes`/`setEmbedIdleMinutes` against `globalConfig.embeddings.idleMinutes` and `getUpdateCheckState`/`setUpdateCheckState` against `globalConfig.state`, preserving their exported signatures.
+- [x] Re-implement `getEmbedIdleMinutes`/`setEmbedIdleMinutes` against `globalConfig.embeddings.idleMinutes` and `getUpdateCheckState`/`setUpdateCheckState` against `globalConfig.state`, preserving their exported signatures.
 
 ### Section 3: Global migration and gitignore
 
-- [ ] Add `migrateGlobalConfig(): Promise<boolean>` in `src/core/config.ts`. If the file parses as an object with `projects` or `defaults` keys, build the new shape (`models` from `defaults.models`, `embeddings` from `defaults.embeddings`, `state.lastUpdateCheckAt`/`state.latestKnownVersion` from the old `defaults` fields), keep any other unknown top-level keys, drop `projects` and `defaults`, and write atomically. Return `true` if it rewrote the file. If an existing new-shape key conflicts with a legacy value, the new-shape value wins.
-- [ ] Call `migrateGlobalConfig()` from `readLayer("global")` before reading, so code paths that never boot the console still see the new shape. Make it idempotent and cheap (exit early when no legacy keys).
-- [ ] Add `ensureShipperGitignore(repoRoot): Promise<void>`: ensure `<repoRoot>/.shipper/.gitignore` exists and contains the line `config.local.json`, appending (with a leading newline if needed) instead of overwriting.
+- [x] Add `migrateGlobalConfig(): Promise<boolean>` in `src/core/config.ts`. If the file parses as an object with `projects` or `defaults` keys, build the new shape (`models` from `defaults.models`, `embeddings` from `defaults.embeddings`, `state.lastUpdateCheckAt`/`state.latestKnownVersion` from the old `defaults` fields), keep any other unknown top-level keys, drop `projects` and `defaults`, and write atomically. Return `true` if it rewrote the file. If an existing new-shape key conflicts with a legacy value, the new-shape value wins.
+- [x] Call `migrateGlobalConfig()` from `readLayer("global")` before reading, so code paths that never boot the console still see the new shape. Make it idempotent and cheap (exit early when no legacy keys).
+- [x] Add `ensureShipperGitignore(repoRoot): Promise<void>`: ensure `<repoRoot>/.shipper/.gitignore` exists and contains the line `config.local.json`, appending (with a leading newline if needed) instead of overwriting.
 
 ### Section 4: `shipper config` command
 
 - Overview: a quick terminal view, also handy for debugging what skills should see.
-- [ ] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts) add `shipper config` (honors the global `--dir`, resolves the root with `resolveRepoRoot`). Default output: the three layer paths with `exists`/`error`, then each effective key with its value and source, then `pathErrors` and `ignoredKeys` as warnings. `--json` prints `{ layers, effective, sources, pathErrors }`.
-- [ ] Add `shipper config path` that prints the three file paths, one per line, labeled.
+- [x] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts) add `shipper config` (honors the global `--dir`, resolves the root with `resolveRepoRoot`). Default output: the three layer paths with `exists`/`error`, then each effective key with its value and source, then `pathErrors` and `ignoredKeys` as warnings. `--json` prints `{ layers, effective, sources, pathErrors }`.
+- [x] Add `shipper config path` that prints the three file paths, one per line, labeled.
 
 ### Section 5: Tests
 
-- [ ] Replace the old config tests in `src/core/core.test.ts` and extend `src/core/config.test.ts` (use temp `HOME`, `XDG_CONFIG_HOME`, and a temp repo dir). Cover:
+- [x] Replace the old config tests in `src/core/core.test.ts` and extend `src/core/config.test.ts` (use temp `HOME`, `XDG_CONFIG_HOME`, and a temp repo dir). Cover:
   - Defaults when no files exist; every source is `"default"`.
   - Precedence: global < repo < local for `git.branchMode`, `models.cursor.shipper-build`, `search.enabled`.
   - Field-by-field merge (local sets only `git.commitEachPhase`; repo's `git.branchPrefix` survives).
@@ -394,7 +396,22 @@ New files:
   - `writeLayer` preserves unknown keys and the global `embeddings`/`state` keys; creates `.shipper/.gitignore` for local.
   - `migrateGlobalConfig` converts the legacy shape and is idempotent.
   - Embed idle minutes round-trip through the new location.
-- [ ] Run `bun run typecheck`, `bun run lint`, `bun run test`.
+- [x] Run `bun run typecheck`, `bun run lint`, `bun run test`.
+
+### Completion Notes
+
+- `validateArtifactDir` is in `src/shared/config-schema.ts` (no `node:path`, so the browser can import it). Phase 3 should call it and not reimplement it. It strips trailing slashes, drops `.` and empty segments, and resolves `..` without leaving the repo. `docs/plans/` becomes `docs/plans`; `./a/../b` becomes `b`. It rejects an empty result, a leading `/`, any backslash, and any `.git` or `node_modules` segment.
+- Duplicate directories are resolved in `ARTIFACT_TYPES` order. The earlier type keeps the path. A later type that normalizes to the same directory, including another type's default, stays on its default and adds a `pathErrors` line.
+- `search.extraDirs` is replaced by the highest layer that sets the array. Each entry is normalized the same way. Invalid entries are dropped with a `pathErrors` line and do not fail the rest of the layer.
+- `sources` always includes `paths.*`, the three `git.*` keys, `search.enabled`, and `search.extraDirs`. Model keys are added only when a layer sets them (`models.cursor.shipper-build`). Instructions are not source keys; each entry carries its own `layer`. Empty instruction strings are skipped. Within a layer, `all` comes before skills in `SKILL_NAMES` order.
+- Invalid JSON or a schema failure sets `error` and `value: null`, and that layer contributes nothing. The message is `z.prettifyError` on the first issue, collapsed to one line. One bad field fails the whole file.
+- `writeLayer` replaces known settings (`models`, `instructions`, `git`, `search`, plus `paths` on the repo layer) with the object passed in. It does not deep-merge those objects. Unknown top-level keys are kept. On the global layer, `embeddings` and `state` are kept when the written value omits them. `setEmbedIdleMinutes` and `setUpdateCheckState` patch those machine keys in place, so they do not clear settings. A partial `writeLayer` drops settings keys that were omitted, so the setup UI must send the full draft. A write against invalid JSON throws instead of overwriting the file.
+- `paths` on the global or local file stays in `value` and is listed in `ignoredKeys`. Only repo `paths` are applied.
+- `migrateGlobalConfig` runs at the start of every global read. It does nothing when the file is missing, not a JSON object, or has neither `projects` nor `defaults`. It copies `defaults.models`, `defaults.embeddings`, `defaults.lastUpdateCheckAt`, and `defaults.latestKnownVersion` onto the new shape, drops `projects`, `defaults`, and `defaults.agent`, and keeps other top-level keys. An existing new-shape key wins. Missing `state` fields are still filled from the legacy defaults.
+- `configDir()` checks `XDG_CONFIG_HOME`, then `process.env.HOME`, then `os.homedir()`. `os.homedir()` caches its first result, so a test that only assigns `HOME` after startup still targets the real home directory. Config tests set both `HOME` and `XDG_CONFIG_HOME` to temp directories and restore them. Do not unset `XDG_CONFIG_HOME` and rely on `HOME`.
+- `shipper config` prints tab-separated lines: each layer's path and exists/error, then each effective key with its value and source, then `instructions.<scope>`, then `warning:` lines for `pathErrors` and ignored keys. `--json` prints `{ layers, effective, sources, pathErrors }`. `shipper config path` prints the three paths. Both honor `--dir` through `resolveRepoRoot`.
+- `AgentKind` is defined in the shared schema and re-exported from `src/agents/types.ts`. `SKILL_NAMES` and `SkillName` are defined there too and re-exported from `src/core/skills.ts`. `OrchestratedSkillName` is gone. Config writes use `<path>.tmp-<pid>` then `rename`. `ensureShipperGitignore` appends `config.local.json` and leaves other lines in place.
+- `src/shared/config-schema.test.ts` is still Phase 3. Path checks are covered from `src/core/config.test.ts`.
 
 ## Phase 3: Make the CLI honor the config
 

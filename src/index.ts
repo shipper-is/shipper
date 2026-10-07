@@ -4,7 +4,14 @@ import { resolve } from "node:path";
 import { detectAgents } from "./agents/detect.ts";
 import type { AgentKind } from "./agents/types.ts";
 import { DEFAULT_EMBED_IDLE_MINUTES } from "./constants.ts";
-import { getEmbedIdleMinutes, setEmbedIdleMinutes } from "./core/config.ts";
+import {
+  getEmbedIdleMinutes,
+  globalConfigPath,
+  loadConfig,
+  localConfigPath,
+  repoConfigPath,
+  setEmbedIdleMinutes,
+} from "./core/config.ts";
 import {
   installModule,
   listRemoteModules,
@@ -30,6 +37,12 @@ import { syncIndex, syncIndexIfStale, type SyncResult } from "./search/indexer.t
 import { resolveRepoRoot } from "./search/repo-root.ts";
 import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
 import { startServer } from "./server/http.ts";
+import {
+  AGENT_KINDS,
+  ARTIFACT_TYPES,
+  CONFIG_LAYERS,
+  type ConfigSource,
+} from "./shared/config-schema.ts";
 import { getVersion } from "./version.ts";
 
 const DOC_TYPES = ["plan", "spike", "bug", "review"] as const satisfies readonly DocType[];
@@ -37,8 +50,6 @@ const DOC_TYPES = ["plan", "spike", "bug", "review"] as const satisfies readonly
 function isDocType(value: string): value is DocType {
   return (DOC_TYPES as readonly string[]).includes(value);
 }
-
-const AGENT_KINDS = ["claude", "cursor", "opencode"] as const satisfies readonly AgentKind[];
 
 function isAgentKind(value: string): value is AgentKind {
   return (AGENT_KINDS as readonly string[]).includes(value);
@@ -251,6 +262,100 @@ async function runModulesAdd(moduleRef: string, dir: string): Promise<void> {
   console.log(modulePlanHint(result.id));
 }
 
+function valueAt(source: unknown, key: string): unknown {
+  let current = source;
+  for (const part of key.split(".")) {
+    if (current === null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function orderedSourceKeys(sources: Record<string, ConfigSource>): string[] {
+  const preferred = [
+    ...ARTIFACT_TYPES.map((type) => `paths.${type}`),
+    "git.branchMode",
+    "git.commitEachPhase",
+    "git.branchPrefix",
+    "search.enabled",
+    "search.extraDirs",
+  ];
+  const rest = Object.keys(sources)
+    .filter((key) => !preferred.includes(key))
+    .sort();
+  return [...preferred.filter((key) => Object.hasOwn(sources, key)), ...rest];
+}
+
+function formatConfigValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+async function runConfigShow(repoRoot: string, json: boolean): Promise<void> {
+  const loaded = await loadConfig(repoRoot);
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          layers: loaded.layers,
+          effective: loaded.effective,
+          sources: loaded.sources,
+          pathErrors: loaded.pathErrors,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  for (const layer of CONFIG_LAYERS) {
+    const state = loaded.layers[layer];
+    const status = state.error ? `error: ${state.error}` : state.exists ? "exists" : "missing";
+    console.log(`${layer}\t${state.path}\t${status}`);
+  }
+  console.log("");
+  for (const key of orderedSourceKeys(loaded.sources)) {
+    console.log(
+      `${key}\t${formatConfigValue(valueAt(loaded.effective, key))}\t${loaded.sources[key]}`,
+    );
+  }
+  if (loaded.effective.instructions.length > 0) {
+    console.log("");
+    for (const entry of loaded.effective.instructions) {
+      console.log(`instructions.${entry.scope}\t${JSON.stringify(entry.text)}\t${entry.layer}`);
+    }
+  }
+
+  const warnings = [...loaded.pathErrors];
+  for (const layer of CONFIG_LAYERS) {
+    const ignored = loaded.layers[layer].ignoredKeys;
+    if (ignored.length > 0) {
+      warnings.push(`${layer} ignored keys: ${ignored.join(", ")}`);
+    }
+  }
+  if (warnings.length > 0) {
+    console.log("");
+    for (const warning of warnings) {
+      console.log(`warning: ${warning}`);
+    }
+  }
+}
+
+function runConfigPath(repoRoot: string): void {
+  console.log(`global\t${globalConfigPath()}`);
+  console.log(`repo\t${repoConfigPath(repoRoot)}`);
+  console.log(`local\t${localConfigPath(repoRoot)}`);
+}
+
+async function resolveCommandRepo(cmd: { optsWithGlobals: () => { dir?: string } }): Promise<string> {
+  const globalOpts = cmd.optsWithGlobals();
+  return resolveRepoRoot({
+    explicitDir: globalOpts.dir,
+    cwd: process.cwd(),
+  });
+}
+
 export async function main(argv: string[] = process.argv): Promise<void> {
   const program = new Command();
 
@@ -271,6 +376,35 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .option("--agent <kind>", "install for a specific agent (claude, cursor, opencode)")
     .action(async (opts: { agent?: string }) => {
       await runSkillsInstall(opts.agent);
+    });
+
+  const configCmd = program
+    .command("config")
+    .description("show the effective Shipper configuration for this repo")
+    .option("--json", "print machine-readable JSON")
+    .action(async (opts: { json?: boolean }, cmd) => {
+      try {
+        const repoRoot = await resolveCommandRepo(cmd);
+        await runConfigShow(repoRoot, Boolean(opts.json));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  configCmd
+    .command("path")
+    .description("print the global, repo, and local config file paths")
+    .action(async (_opts, cmd) => {
+      try {
+        const repoRoot = await resolveCommandRepo(cmd);
+        runConfigPath(repoRoot);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
     });
 
   const modulesCmd = program
