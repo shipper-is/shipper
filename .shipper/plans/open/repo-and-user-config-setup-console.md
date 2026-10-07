@@ -6,6 +6,7 @@ started_at: "2026-10-07T18:16:41-04:00"
 phase_commits:
   1: dccd0f8
   2: 227acf3
+  3: 4ab8092
 ---
 
 # Repo and User Configuration, and a Setup Console
@@ -470,7 +471,7 @@ New files:
 
 ### Section 1: Write CONFIG.md
 
-- [ ] Create `skills/CONFIG.md` with exactly this content (adjust wording only if a test or review finds an ambiguity):
+- [x] Create `skills/CONFIG.md` with exactly this content (adjust wording only if a test or review finds an ambiguity):
 
   ```markdown
   This file tells you where Shipper artifacts live in this repository and which preferences the team and the user have set. Read it before doing anything else in a Shipper skill.
@@ -529,32 +530,42 @@ New files:
   If `search.enabled` is `false`, do not call `shipper_search`, `shipper_similar`, or `shipper_reindex`. Use grep or glob over the artifact directories instead.
   ```
 
-- [ ] Copy `skills/CONFIG.md` into `skills/shipper-plan/`, `skills/shipper-build/`, `skills/shipper-loop/`, `skills/shipper-spike/`, `skills/shipper-ship/`, `skills/shipper-bug/`, and `skills/shipper-review/`.
+- [x] Copy `skills/CONFIG.md` into `skills/shipper-plan/`, `skills/shipper-build/`, `skills/shipper-loop/`, `skills/shipper-spike/`, `skills/shipper-ship/`, `skills/shipper-bug/`, and `skills/shipper-review/`.
 
 ### Section 2: Update skill text
 
 - Overview: each `SKILL.md` gets one opening line, and every hardcoded path becomes a placeholder. Use the line numbers below as a guide (from the current files) but grep each file for `.shipper` to be sure nothing is missed.
-- [ ] Add this paragraph right after the intro paragraph of each bundled `SKILL.md` (plan, build, loop, spike, ship, bug) and of `skills/shipper-review/SKILL.md`: `Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as \`<plans>\`, \`<spikes>\`, \`<bugs>\`, \`<reviews>\`, and \`<modules>\`) and which team and personal preferences apply.`
-- [ ] [skills/shipper-plan/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-plan/SKILL.md): module flow lines 14, 15, 18 use `<modules>/<id>/`; line 26 allowed writes become `<plans>/open/` and `<modules>/<id>/`; line 28 "grep/glob over the artifact directories"; line 69 becomes "Place the plan in `<plans>/open/` (committed to the repository). If they do not exist yet, also create `open/` and `done/` folders under `<plans>`, `<spikes>`, and `<bugs>`." Note in the module flow that `shipper modules add` already installs into the configured directory.
-- [ ] [skills/shipper-build/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-build/SKILL.md): line 6 "Shipper plans (in `<plans>`)"; line 16 grep fallback over artifact directories; respect `search.enabled` (CONFIG.md covers it; no extra text needed).
-- [ ] [skills/shipper-build/GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-build/GIT.md):
+- [x] Add this paragraph right after the intro paragraph of each bundled `SKILL.md` (plan, build, loop, spike, ship, bug) and of `skills/shipper-review/SKILL.md`: `Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as \`<plans>\`, \`<spikes>\`, \`<bugs>\`, \`<reviews>\`, and \`<modules>\`) and which team and personal preferences apply.`
+- [x] [skills/shipper-plan/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-plan/SKILL.md): module flow lines 14, 15, 18 use `<modules>/<id>/`; line 26 allowed writes become `<plans>/open/` and `<modules>/<id>/`; line 28 "grep/glob over the artifact directories"; line 69 becomes "Place the plan in `<plans>/open/` (committed to the repository). If they do not exist yet, also create `open/` and `done/` folders under `<plans>`, `<spikes>`, and `<bugs>`." Note in the module flow that `shipper modules add` already installs into the configured directory.
+- [x] [skills/shipper-build/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-build/SKILL.md): line 6 "Shipper plans (in `<plans>`)"; line 16 grep fallback over artifact directories; respect `search.enabled` (CONFIG.md covers it; no extra text needed).
+- [x] [skills/shipper-build/GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-build/GIT.md):
   - "Choosing where the work happens": precedence becomes (1) what the prompt or user says, (2) frontmatter `branch` already set means feature-branch mode, (3) `git.branchMode` from CONFIG.md, (4) current-branch mode.
   - Feature branch name: `<git.branchPrefix><plan-name>` (default `shipper/<plan-name>`), in both the instructions and the frontmatter example comment.
   - "Committing": "By default, commit after each phase. Skip committing if the prompt or user says not to, or if `git.commitEachPhase` is `false` and the user has not asked you to commit."
   - Completion step 2: move from `<plans>/open/` to `<plans>/done/`.
-- [ ] [skills/shipper-loop/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-loop/SKILL.md): line 6 "in `<plans>`"; line 10 `<plans>/open/`; Step 2 git preferences resolve from the user's message first, then plan frontmatter, then `git.branchMode` and `git.commitEachPhase`, then the defaults; Step 3 item 1 adds "If `models.<your agent>.shipper-build` is set, start each phase subagent with that model (see CONFIG.md)" and adds the shipper-build `CONFIG.md` path to the list of skill files the subagent must read first; Step 4 line 59 uses `<plans>/open/` and `<plans>/done/`.
-- [ ] [skills/shipper-spike/PLAN.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/PLAN.md) lines 3 and 15, [BUILD.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/BUILD.md) line 9, [GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/GIT.md) line 30: use `<spikes>`. In spike GIT.md "Branching": skip branch creation if the user asked for the current branch **or** `git.branchMode` is `"current"`; otherwise branch name `<git.branchPrefix><spike-name>`.
-- [ ] [skills/shipper-bug/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/SKILL.md) lines 14 and 19, [CATALOG.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/CATALOG.md) lines 3 and 7, [FIX.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/FIX.md) lines 1 and 45, [GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/GIT.md) line 23: use `<bugs>`. In bug GIT.md "Branching": skip branch creation if the user asked for the current branch or `git.branchMode` is `"current"`; otherwise branch name `<git.branchPrefix>bug-<short-bug-name>`.
-- [ ] [skills/shipper-ship/GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-ship/GIT.md) line 5: `<plans>/done/<filename>.md` and `<spikes>/done/<filename>.md`.
-- [ ] [skills/shipper-review/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-review/SKILL.md): description and lines 10, 90, 116 use `<reviews>`, `<plans>`, `<spikes>`, `<bugs>`. Leave `.shipper/tests/` references unchanged (not configurable).
-- [ ] Grep `skills/` for `\.shipper/` afterwards. The only allowed remaining hits are in `CONFIG.md` (the defaults table and file locations) and `.shipper/tests/` in shipper-review and shipper-test.
+- [x] [skills/shipper-loop/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-loop/SKILL.md): line 6 "in `<plans>`"; line 10 `<plans>/open/`; Step 2 git preferences resolve from the user's message first, then plan frontmatter, then `git.branchMode` and `git.commitEachPhase`, then the defaults; Step 3 item 1 adds "If `models.<your agent>.shipper-build` is set, start each phase subagent with that model (see CONFIG.md)" and adds the shipper-build `CONFIG.md` path to the list of skill files the subagent must read first; Step 4 line 59 uses `<plans>/open/` and `<plans>/done/`.
+- [x] [skills/shipper-spike/PLAN.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/PLAN.md) lines 3 and 15, [BUILD.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/BUILD.md) line 9, [GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-spike/GIT.md) line 30: use `<spikes>`. In spike GIT.md "Branching": skip branch creation if the user asked for the current branch **or** `git.branchMode` is `"current"`; otherwise branch name `<git.branchPrefix><spike-name>`.
+- [x] [skills/shipper-bug/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/SKILL.md) lines 14 and 19, [CATALOG.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/CATALOG.md) lines 3 and 7, [FIX.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/FIX.md) lines 1 and 45, [GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-bug/GIT.md) line 23: use `<bugs>`. In bug GIT.md "Branching": skip branch creation if the user asked for the current branch or `git.branchMode` is `"current"`; otherwise branch name `<git.branchPrefix>bug-<short-bug-name>`.
+- [x] [skills/shipper-ship/GIT.md](/Users/mattmichel/Documents/shipper/skills/shipper-ship/GIT.md) line 5: `<plans>/done/<filename>.md` and `<spikes>/done/<filename>.md`.
+- [x] [skills/shipper-review/SKILL.md](/Users/mattmichel/Documents/shipper/skills/shipper-review/SKILL.md): description and lines 10, 90, 116 use `<reviews>`, `<plans>`, `<spikes>`, `<bugs>`. Leave `.shipper/tests/` references unchanged (not configurable).
+- [x] Grep `skills/` for `\.shipper/` afterwards. The only allowed remaining hits are in `CONFIG.md` (the defaults table and file locations) and `.shipper/tests/` in shipper-review and shipper-test.
 
 ### Section 3: Registry and sync test
 
-- [ ] In [src/core/skills.ts](/Users/mattmichel/Documents/shipper/src/core/skills.ts), import each folder's `CONFIG.md` with `with { type: "text" }` and add `{ file: "CONFIG.md", content: ... }` to each of the six bundled skills.
-- [ ] Add `src/core/skills-config.test.ts` that reads `skills/CONFIG.md` and asserts every copy in `skills/*/CONFIG.md` (the six bundled folders plus `shipper-review`) is byte-identical, and that every bundled `SKILL.md` links `./CONFIG.md`.
-- [ ] Extend the existing skills test in [src/core/core.test.ts](/Users/mattmichel/Documents/shipper/src/core/core.test.ts) so `installSkillsGlobally` writes `CONFIG.md` for each skill.
-- [ ] Run `bun run typecheck`, `bun run lint`, `bun run test`, then `bun run src/index.ts skills` and confirm `~/.cursor/skills/shipper-plan/CONFIG.md` exists.
+- [x] In [src/core/skills.ts](/Users/mattmichel/Documents/shipper/src/core/skills.ts), import each folder's `CONFIG.md` with `with { type: "text" }` and add `{ file: "CONFIG.md", content: ... }` to each of the six bundled skills.
+- [x] Add `src/core/skills-config.test.ts` that reads `skills/CONFIG.md` and asserts every copy in `skills/*/CONFIG.md` (the six bundled folders plus `shipper-review`) is byte-identical, and that every bundled `SKILL.md` links `./CONFIG.md`.
+- [x] Extend the existing skills test in [src/core/core.test.ts](/Users/mattmichel/Documents/shipper/src/core/core.test.ts) so `installSkillsGlobally` writes `CONFIG.md` for each skill.
+- [x] Run `bun run typecheck`, `bun run lint`, `bun run test`, then `bun run src/index.ts skills` and confirm `~/.cursor/skills/shipper-plan/CONFIG.md` exists.
+
+### Completion Notes
+
+- Canonical config contract is `skills/CONFIG.md`. Byte-identical copies live in the six bundled skill folders and in `skills/shipper-review/`. `shipper-test` is unchanged and has no `CONFIG.md`. `shipper-review` is not in the `SKILLS` registry, so `shipper skills` does not install it; `src/core/skills-config.test.ts` still requires its copy and its `./CONFIG.md` link.
+- `CONFIG.md` follows the loader, not the draft, where they differed. A file that is not valid JSON, or that gives a known key a value that key does not allow, is skipped entirely (one bad field drops the file). Unknown keys are ignored and do not fail the file. Empty instruction strings are skipped. `instructions` and `models` skill names are only `SKILL_NAMES` (`shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, `shipper-bug`); `shipper-review` follows `instructions.all` only. `git.branchPrefix` is limited to letters, digits, `.`, `_`, `/`, and `-`.
+- Path values are normalized the same way as `validateArtifactDir`: forward slashes, trailing slashes stripped, `.` and empty segments dropped, `..` resolved only inside the repo. Invalid values keep that type's default and do not fail the file. Duplicate directories keep the earlier of plans, spikes, bugs, reviews, modules. `search.extraDirs` replaces the lower layer's array; invalid entries are dropped, and a layer that sets the key still replaces the lower array when every entry is dropped.
+- Hardcoded artifact paths in skill prose are placeholders (`<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, `<modules>`). `shipper-spike/PLAN.md` step 1 says "artifact directories" rather than `<spikes>`, because that sentence is the search fallback over every artifact type (same wording as plan and build). `.shipper/tests/` in shipper-review and shipper-test is unchanged.
+- Git precedence in `shipper-build/GIT.md` is prompt or user, then frontmatter `branch`, then `git.branchMode`, then current-branch mode. Feature branch names are `<git.branchPrefix><plan-name>` (default `shipper/<plan-name>`). Commits are skipped when the prompt says not to, or when `git.commitEachPhase` is `false` and the user did not ask for a commit. Spike and bug branching skip creation when the user asked for the current branch or `git.branchMode` is `"current"`; otherwise the names are `<git.branchPrefix><spike-name>` and `<git.branchPrefix>bug-<short-bug-name>`. Frontmatter examples still show the default `shipper/` prefix, with a comment for the configured form.
+- `shipper-loop` resolves git the same way (user message, frontmatter, config, defaults), tells each phase subagent to read shipper-build `SKILL.md`, `GIT.md`, and `CONFIG.md`, and passes `models.<agent>.shipper-build` when set.
+- Each bundled skill's `CONFIG.md` is appended after `SKILL.md` in `SKILLS`, so index 0 stays `SKILL.md`. `bun run typecheck`, `bun run lint`, and `bun run test` passed (159 tests). `bun run src/index.ts skills` wrote `~/.cursor/skills/shipper-plan/CONFIG.md`.
 
 ## Phase 5: Setup console backend
 

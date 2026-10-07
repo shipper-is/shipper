@@ -2,20 +2,26 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import planSkill from "../../skills/shipper-plan/SKILL.md" with { type: "text" };
+import planConfig from "../../skills/shipper-plan/CONFIG.md" with { type: "text" };
 import buildSkill from "../../skills/shipper-build/SKILL.md" with { type: "text" };
 import buildGit from "../../skills/shipper-build/GIT.md" with { type: "text" };
 import buildPr from "../../skills/shipper-build/PR.md" with { type: "text" };
+import buildConfig from "../../skills/shipper-build/CONFIG.md" with { type: "text" };
 import loopSkill from "../../skills/shipper-loop/SKILL.md" with { type: "text" };
+import loopConfig from "../../skills/shipper-loop/CONFIG.md" with { type: "text" };
 import spikeSkill from "../../skills/shipper-spike/SKILL.md" with { type: "text" };
 import spikePlan from "../../skills/shipper-spike/PLAN.md" with { type: "text" };
 import spikeBuild from "../../skills/shipper-spike/BUILD.md" with { type: "text" };
 import spikeGit from "../../skills/shipper-spike/GIT.md" with { type: "text" };
+import spikeConfig from "../../skills/shipper-spike/CONFIG.md" with { type: "text" };
 import shipSkill from "../../skills/shipper-ship/SKILL.md" with { type: "text" };
 import shipGit from "../../skills/shipper-ship/GIT.md" with { type: "text" };
+import shipConfig from "../../skills/shipper-ship/CONFIG.md" with { type: "text" };
 import bugSkill from "../../skills/shipper-bug/SKILL.md" with { type: "text" };
 import bugCatalog from "../../skills/shipper-bug/CATALOG.md" with { type: "text" };
 import bugFix from "../../skills/shipper-bug/FIX.md" with { type: "text" };
 import bugGit from "../../skills/shipper-bug/GIT.md" with { type: "text" };
+import bugConfig from "../../skills/shipper-bug/CONFIG.md" with { type: "text" };
 import type { AgentKind } from "../agents/types.ts";
 import { SKILL_NAMES, type SkillName } from "../shared/config-schema.ts";
 
@@ -27,28 +33,38 @@ export type SkillFile = {
 };
 
 const SKILLS = {
-  "shipper-plan": [{ file: "SKILL.md", content: planSkill }],
+  "shipper-plan": [
+    { file: "SKILL.md", content: planSkill },
+    { file: "CONFIG.md", content: planConfig },
+  ],
   "shipper-build": [
     { file: "SKILL.md", content: buildSkill },
     { file: "GIT.md", content: buildGit },
     { file: "PR.md", content: buildPr },
+    { file: "CONFIG.md", content: buildConfig },
   ],
-  "shipper-loop": [{ file: "SKILL.md", content: loopSkill }],
+  "shipper-loop": [
+    { file: "SKILL.md", content: loopSkill },
+    { file: "CONFIG.md", content: loopConfig },
+  ],
   "shipper-spike": [
     { file: "SKILL.md", content: spikeSkill },
     { file: "PLAN.md", content: spikePlan },
     { file: "BUILD.md", content: spikeBuild },
     { file: "GIT.md", content: spikeGit },
+    { file: "CONFIG.md", content: spikeConfig },
   ],
   "shipper-ship": [
     { file: "SKILL.md", content: shipSkill },
     { file: "GIT.md", content: shipGit },
+    { file: "CONFIG.md", content: shipConfig },
   ],
   "shipper-bug": [
     { file: "SKILL.md", content: bugSkill },
     { file: "CATALOG.md", content: bugCatalog },
     { file: "FIX.md", content: bugFix },
     { file: "GIT.md", content: bugGit },
+    { file: "CONFIG.md", content: bugConfig },
   ],
 } as const satisfies Record<SkillName, readonly SkillFile[]>;
 

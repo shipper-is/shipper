@@ -68,6 +68,17 @@ describe("installSkillsGlobally", () => {
     await rm(xdgHome, { recursive: true, force: true });
   });
 
+  it("writes CONFIG.md for each bundled skill", async () => {
+    await installSkillsGlobally(["cursor"]);
+
+    for (const name of Object.keys(SKILLS) as (keyof typeof SKILLS)[]) {
+      const config = SKILLS[name].find((file) => file.file === "CONFIG.md");
+      expect(config).toBeDefined();
+      const path = join(homeDir, ".cursor", "skills", name, "CONFIG.md");
+      expect(await readFile(path, "utf8")).toBe(config?.content);
+    }
+  });
+
   it("is idempotent and overwrites edited files back to embedded content", async () => {
     await installSkillsGlobally(["cursor"]);
     await installSkillsGlobally(["cursor"]);

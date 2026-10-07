@@ -1,4 +1,4 @@
-The FIX step takes a cataloged bug file from ".shipper/bugs/open" and drives it to a proven fix. Create a todo list with the stages below and check them off as you go. The hard rule throughout: no code edits until the Root Cause section of the bug file is written down with its evidence.
+The FIX step takes a cataloged bug file from `<bugs>/open` and drives it to a proven fix. Create a todo list with the stages below and check them off as you go. The hard rule throughout: no code edits until the Root Cause section of the bug file is written down with its evidence.
 
 ## Stage 1: Reproduce
 
@@ -42,4 +42,4 @@ Commit the fix and its test together in one commit, with the bug file updates in
 
 ## Stage 6: Close
 
-Set `fixed_at` in the bug file's frontmatter to the current time as a quoted ISO 8601 timestamp and move the file from ".shipper/bugs/open" to ".shipper/bugs/done". If the user opted for an automatic PR, use the shipper-ship skill (if installed and available) for the PR format — the bug file supplies the verification recipe and test evidence; shipper-ship writes `pr_url` and `pr_number` per its GIT.md. Finish by giving the user a brief summary: the root cause in plain language, what the fix was, and the proof it works.
+Set `fixed_at` in the bug file's frontmatter to the current time as a quoted ISO 8601 timestamp and move the file from `<bugs>/open` to `<bugs>/done`. If the user opted for an automatic PR, use the shipper-ship skill (if installed and available) for the PR format — the bug file supplies the verification recipe and test evidence; shipper-ship writes `pr_url` and `pr_number` per its GIT.md. Finish by giving the user a brief summary: the root cause in plain language, what the fix was, and the proof it works.
