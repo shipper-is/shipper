@@ -4,6 +4,8 @@ branch: shipper/index-realtime-progress
 base_branch: main
 started_at: "2026-10-07T16:32:35-04:00"
 completed_at: "2026-10-07T16:36:20-04:00"
+pr_url: https://github.com/shipper-is/shipper/pull/26
+pr_number: 26
 ---
 
 # Realtime progress for shipper index
