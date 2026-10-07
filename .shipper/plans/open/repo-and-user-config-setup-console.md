@@ -8,6 +8,7 @@ phase_commits:
   2: 227acf3
   3: 4ab8092
   4: 9e7d237
+  5: 849acce
 ---
 
 # Repo and User Configuration, and a Setup Console
@@ -686,39 +687,51 @@ New files:
 
 ### Section 1: App shell and state
 
-- [ ] Update [src/web/hooks/use-socket.ts](/Users/mattmichel/Documents/shipper/src/web/hooks/use-socket.ts) to store `setup: SetupSnapshot | null`, `action: ActionStatus | null`, `modelsByAgent: Partial<Record<AgentKind, ModelFamilyDto[]>>`, `lastSave: { layer; ok; error } | null`, and `notice`, and expose `send`.
-- [ ] Rewrite [src/web/app.tsx](/Users/mattmichel/Documents/shipper/src/web/app.tsx): top bar (brand, repo root, `v<version>`, an "Update available" badge with the install command in a tooltip when `update` is set, connection dot, Refresh button sending `refresh`), a left `setup-nav`, and a main area rendering the active section. Navigation is React state (no router), defaulting to Overview. Keep the reconnect banner and toast.
-- [ ] Create `src/web/components/setup-nav.tsx` with sections: Overview, Configuration, Artifacts, Skills, Search, MCP, Agents. Show a small warning marker next to a section when it has a problem (layer error, path error, stray artifacts, outdated/missing skills, MCP not registered, stale index).
+- [x] Update [src/web/hooks/use-socket.ts](/Users/mattmichel/Documents/shipper/src/web/hooks/use-socket.ts) to store `setup: SetupSnapshot | null`, `action: ActionStatus | null`, `modelsByAgent: Partial<Record<AgentKind, ModelFamilyDto[]>>`, `lastSave: { layer; ok; error } | null`, and `notice`, and expose `send`.
+- [x] Rewrite [src/web/app.tsx](/Users/mattmichel/Documents/shipper/src/web/app.tsx): top bar (brand, repo root, `v<version>`, an "Update available" badge with the install command in a tooltip when `update` is set, connection dot, Refresh button sending `refresh`), a left `setup-nav`, and a main area rendering the active section. Navigation is React state (no router), defaulting to Overview. Keep the reconnect banner and toast.
+- [x] Create `src/web/components/setup-nav.tsx` with sections: Overview, Configuration, Artifacts, Skills, Search, MCP, Agents. Show a small warning marker next to a section when it has a problem (layer error, path error, stray artifacts, outdated/missing skills, MCP not registered, stale index).
 
 ### Section 2: Overview and read-mostly sections
 
-- [ ] `overview-section.tsx`: one card per area with a one-line status and a link to the section. Config card lists which layers exist. Artifacts card shows open/done totals for plans, spikes, bugs. Skills card shows "current for Cursor, Claude" or what is outdated. MCP card, Search card (index files, updated time, stale flag, embed server running), Agents card.
-- [ ] `artifacts-section.tsx`: a table of artifact type, configured directory, source badge (default or repo, from `sources["paths.<type>"]`), exists, open, done; the stray-artifacts warning; installed modules list. Note under the table that paths are edited in Configuration, Repo tab.
-- [ ] `skills-section.tsx`: per detected agent, the global root and each skill's state; button "Refresh skills" sending `run-action { kind: "refresh-skills" }`.
-- [ ] `mcp-section.tsx`: per detected agent, state and detail; Install and Uninstall buttons per agent and "Install for all".
-- [ ] `search-section.tsx`: effective `search.enabled` and `extraDirs` with sources; index path, file and chunk counts, updated time, model, stale flag; embed server running, port, idle minutes, last used, assets present; buttons Sync index, Rebuild index (`force: true`), Start server, Stop server. Disable index buttons when search is disabled and say why.
-- [ ] `agents-section.tsx`: all three agents with detected state, version, binary; install hints from `src/web/install-hints.ts` for undetected agents.
-- [ ] A shared `action-bar.tsx` (or inline component) shows the running action's message and progress, and disables all action buttons while `action.state === "running"`.
+- [x] `overview-section.tsx`: one card per area with a one-line status and a link to the section. Config card lists which layers exist. Artifacts card shows open/done totals for plans, spikes, bugs. Skills card shows "current for Cursor, Claude" or what is outdated. MCP card, Search card (index files, updated time, stale flag, embed server running), Agents card.
+- [x] `artifacts-section.tsx`: a table of artifact type, configured directory, source badge (default or repo, from `sources["paths.<type>"]`), exists, open, done; the stray-artifacts warning; installed modules list. Note under the table that paths are edited in Configuration, Repo tab.
+- [x] `skills-section.tsx`: per detected agent, the global root and each skill's state; button "Refresh skills" sending `run-action { kind: "refresh-skills" }`.
+- [x] `mcp-section.tsx`: per detected agent, state and detail; Install and Uninstall buttons per agent and "Install for all".
+- [x] `search-section.tsx`: effective `search.enabled` and `extraDirs` with sources; index path, file and chunk counts, updated time, model, stale flag; embed server running, port, idle minutes, last used, assets present; buttons Sync index, Rebuild index (`force: true`), Start server, Stop server. Disable index buttons when search is disabled and say why.
+- [x] `agents-section.tsx`: all three agents with detected state, version, binary; install hints from `src/web/install-hints.ts` for undetected agents.
+- [x] A shared `action-bar.tsx` (or inline component) shows the running action's message and progress, and disables all action buttons while `action.state === "running"`.
 
 ### Section 3: Configuration section
 
-- [ ] `config-section.tsx` with tabs: Effective, Repo (committed), Local (this repo, not committed), Global (all repos). Each tab header shows the file path, whether it exists, and its `error` or `ignoredKeys` if any.
-- [ ] Effective tab: read-only list of every effective key with its value and a source badge (`default`, `global`, `repo`, `local`); instructions listed in order with their layer and scope.
-- [ ] Create `config-form.tsx` used by the Repo, Local, and Global tabs. It edits a draft copy of that layer's `value` (start from `{}` when the file does not exist) and renders:
+- [x] `config-section.tsx` with tabs: Effective, Repo (committed), Local (this repo, not committed), Global (all repos). Each tab header shows the file path, whether it exists, and its `error` or `ignoredKeys` if any.
+- [x] Effective tab: read-only list of every effective key with its value and a source badge (`default`, `global`, `repo`, `local`); instructions listed in order with their layer and scope.
+- [x] Create `config-form.tsx` used by the Repo, Local, and Global tabs. It edits a draft copy of that layer's `value` (start from `{}` when the file does not exist) and renders:
   - Paths (Repo tab only): five text inputs with the default as placeholder and inline validation using `validateArtifactDir` from `src/shared/config-schema.ts` (the same function the server uses; the server remains the authority).
   - Git: branch mode select (Not set, Current branch, Feature branch), commit-each-phase select (Not set, Yes, No), branch prefix input.
   - Instructions: a textarea for "All skills" and a collapsible textarea per skill.
   - Models: for each detected agent, a row per skill with the current value and a Choose button. Choose sends `list-models` for that agent (once, cached in `modelsByAgent`) and opens the adapted [model-picker.tsx](/Users/mattmichel/Documents/shipper/src/web/components/model-picker.tsx); a Clear button removes the value. Explain above the rows: "Used when a skill starts a subagent for another skill, for example shipper-loop running shipper-build."
   - Search: enabled select (Not set, On, Off) and an extra-dirs list editor (add/remove rows).
   - "Not set" means the key is removed from the layer so lower layers apply. Unknown keys in the layer's value are preserved untouched in the draft.
-- [ ] Save and Discard buttons. Save sends `save-config { layer, value: draft }` and shows the `save-result` (error text inline). Warn before switching tabs with unsaved changes. If the file changes on disk while a draft is unsaved, show "This file changed on disk" with a Reload option instead of overwriting the draft.
-- [ ] For the Repo tab, show a note: "This file is committed. Commit `.shipper/config.json` so your team gets these settings." For the Local tab: "Stored in `.shipper/config.local.json`, which Shipper keeps out of git via `.shipper/.gitignore`."
+- [x] Save and Discard buttons. Save sends `save-config { layer, value: draft }` and shows the `save-result` (error text inline). Warn before switching tabs with unsaved changes. If the file changes on disk while a draft is unsaved, show "This file changed on disk" with a Reload option instead of overwriting the draft.
+- [x] For the Repo tab, show a note: "This file is committed. Commit `.shipper/config.json` so your team gets these settings." For the Local tab: "Stored in `.shipper/config.local.json`, which Shipper keeps out of git via `.shipper/.gitignore`."
 
 ### Section 4: Styles and cleanup
 
-- [ ] Remove workspace-only selectors from [src/web/styles.css](/Users/mattmichel/Documents/shipper/src/web/styles.css) (left nav, main pane tabs, chat, question card, plan views, terminal rail, settings modal, keyboard help). Grep each class name in `src/web` before deleting it.
-- [ ] Add styles for `setup-nav`, `setup-section`, `status-card`, `source-badge`, `config-form`, tables, and action progress using the existing CSS variables. No border radius, no colors beyond the white alpha tokens.
-- [ ] Run `bun run typecheck` and `bun run lint`, then `bun run dev -- --no-open` and click through every section and action against this repo.
+- [x] Remove workspace-only selectors from [src/web/styles.css](/Users/mattmichel/Documents/shipper/src/web/styles.css) (left nav, main pane tabs, chat, question card, plan views, terminal rail, settings modal, keyboard help). Grep each class name in `src/web` before deleting it.
+- [x] Add styles for `setup-nav`, `setup-section`, `status-card`, `source-badge`, `config-form`, tables, and action progress using the existing CSS variables. No border radius, no colors beyond the white alpha tokens.
+- [x] Run `bun run typecheck` and `bun run lint`, then `bun run dev -- --no-open` and click through every section and action against this repo.
+
+### Completion Notes
+
+- The page is one shell. Section changes are React state and start on Overview. `useSocket` keeps the latest `SetupSnapshot`, the current `ActionStatus` (from both `action-status` and `setup`), model families per agent, the last `save-result`, and the latest notice. A `setup` message replaces the action, so a refresh clears it.
+- Saves send the whole draft. `writeLayer` replaces known settings and does not deep-merge them. `payloadForSave` in `src/web/config-draft.ts` keeps unknown keys, drops `paths` on local and global saves (the server rejects `paths` there, and an existing `paths` key stays on disk because it is not a known settings key), and drops `embeddings` and `state` on global saves so the writer keeps the machine keys already on disk. "Not set" deletes that field. An empty parent object is removed. Empty `search.extraDirs` is a real override; removing the key leaves the lower layer in place. Repo paths and extra dirs are normalized with `validateArtifactDir` before send. `src/web/config-draft.test.ts` covers this.
+- A layer whose file does not parse cannot be saved from the form. `writeLayer` throws rather than overwrite invalid JSON.
+- Switching config tabs or leaving Configuration calls `window.confirm` when the draft is dirty. A disk change while the draft is dirty shows "This file changed on disk" and Reload, and does not replace the draft. A clean form adopts the new snapshot.
+- Nav markers: Configuration for a layer error, a path error, or ignored keys; Artifacts for stray files; Skills for any skill that is not `current`; Search when the index is stale (including missing); MCP when a detected agent is not `registered`. Overview is marked when any of those are. Agents is not marked.
+- Start server is disabled while the embed server is already running, and Stop server is disabled while it is stopped. Index buttons stay disabled when `search.enabled` is false, with the reason under the buttons.
+- React's `<details>` typings have no `defaultOpen`. A skill instruction that already has text is opened once on mount through the element.
+- The Global tab adds one line the plan did not require: the file applies to every repo, and the form does not edit machine state.
+- Checked in headless Chrome at `http://shipper.localhost:8712`. Every section and every config tab rendered. Saving the local layer wrote `git.commitEachPhase: false`, and the Effective tab showed that key as `local`. That `.shipper/config.local.json` was deleted afterward. `.shipper/config.json` was not created. Refresh, Refresh skills, Sync index (22 files, 389 chunks), Start server, and Stop server all finished. The embed server was stopped again because it had not been running. Global was not saved, and MCP install/uninstall was not clicked. Screenshots: `/tmp/shipper-setup-overview.png`, `/tmp/shipper-setup-configuration.png`, `/tmp/shipper-setup-config-tabs.png`, `/tmp/shipper-setup-config-local.png`, `/tmp/shipper-setup-local-saved.png`, `/tmp/shipper-setup-artifacts.png`, `/tmp/shipper-setup-skills.png`, `/tmp/shipper-setup-search.png`, `/tmp/shipper-setup-search-synced.png`, `/tmp/shipper-setup-search-final.png`, `/tmp/shipper-setup-mcp.png`, `/tmp/shipper-setup-agents.png`, `/tmp/shipper-setup-overview-mobile.png`.
 
 ## Phase 7: Docs and end-to-end verification
 

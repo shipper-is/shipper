@@ -1,24 +1,68 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ClientMessage, ServerMessage } from "../../shared/protocol.ts";
+import type { AgentKind, ConfigLayer } from "../../shared/config-schema.ts";
+import type {
+  ActionStatus,
+  ClientMessage,
+  ModelFamilyDto,
+  ServerMessage,
+  SetupSnapshot,
+} from "../../shared/protocol.ts";
 
-type SetupMessage = Extract<ServerMessage, { type: "setup" }>;
+export type SaveResult = {
+  layer: ConfigLayer;
+  ok: boolean;
+  error: string | null;
+};
 
 export type UseSocketResult = {
   connected: boolean;
   reconnecting: boolean;
-  setup: SetupMessage | null;
+  setup: SetupSnapshot | null;
+  action: ActionStatus | null;
+  modelsByAgent: Partial<Record<AgentKind, ModelFamilyDto[]>>;
+  lastSave: SaveResult | null;
+  saveEventId: number;
+  notice: string | null;
+  dismissNotice: () => void;
   send: (msg: ClientMessage) => void;
 };
 
 export function useSocket(): UseSocketResult {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
-  const [setup, setSetup] = useState<SetupMessage | null>(null);
+  const [setup, setSetup] = useState<SetupSnapshot | null>(null);
+  const [action, setAction] = useState<ActionStatus | null>(null);
+  const [modelsByAgent, setModelsByAgent] = useState<
+    Partial<Record<AgentKind, ModelFamilyDto[]>>
+  >({});
+  const [lastSave, setLastSave] = useState<SaveResult | null>(null);
+  const [saveEventId, setSaveEventId] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   const handleMessage = useCallback((msg: ServerMessage) => {
-    if (msg.type === "setup") {
-      setSetup(msg);
+    switch (msg.type) {
+      case "setup":
+        setSetup(msg.setup);
+        setAction(msg.action);
+        return;
+      case "action-status":
+        setAction(msg.action);
+        return;
+      case "models-list":
+        setModelsByAgent((current) => ({ ...current, [msg.agent]: msg.families }));
+        return;
+      case "save-result":
+        setLastSave({ layer: msg.layer, ok: msg.ok, error: msg.error });
+        setSaveEventId((id) => id + 1);
+        return;
+      case "notice":
+        setNotice(msg.text);
+        return;
+      default: {
+        const exhaustive: never = msg;
+        void exhaustive;
+      }
     }
   }, []);
 
@@ -57,9 +101,7 @@ export function useSocket(): UseSocketResult {
       };
 
       ws.onmessage = (event) => {
-        if (typeof event.data !== "string") {
-          return;
-        }
+        if (typeof event.data !== "string") return;
         try {
           const parsed = JSON.parse(event.data) as ServerMessage;
           handleMessage(parsed);
@@ -87,10 +129,20 @@ export function useSocket(): UseSocketResult {
     [socket],
   );
 
+  const dismissNotice = useCallback(() => {
+    setNotice(null);
+  }, []);
+
   return {
     connected,
     reconnecting,
     setup,
+    action,
+    modelsByAgent,
+    lastSave,
+    saveEventId,
+    notice,
+    dismissNotice,
     send,
   };
 }
