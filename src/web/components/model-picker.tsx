@@ -1,27 +1,19 @@
 import { useState } from "react";
-import type { ClientMessage, ModelFamilyDto, ModelPickRequest } from "../../shared/protocol.ts";
+import type { ModelFamilyDto } from "../../shared/protocol.ts";
 
 type ModelPickerProps = {
-  request: ModelPickRequest;
-  onSelect: (msg: ClientSelectModel) => void;
+  title: string;
+  families: ModelFamilyDto[];
+  onSelect: (modelId: string) => void;
   onCancel: () => void;
 };
-
-type ClientSelectModel = Extract<ClientMessage, { type: "select-model" }>;
 
 type Step =
   | { type: "family" }
   | { type: "variant"; family: ModelFamilyDto };
 
-export function ModelPicker({ request, onSelect, onCancel }: ModelPickerProps) {
+export function ModelPicker({ title, families, onSelect, onCancel }: ModelPickerProps) {
   const [step, setStep] = useState<Step>({ type: "family" });
-
-  const title =
-    request.skill === "shipper-plan"
-      ? "Choose a model for plan creation"
-      : request.skill === "shipper-spike"
-        ? "Choose a model for spikes"
-        : "Choose a model for builds";
 
   if (step.type === "family") {
     return (
@@ -35,18 +27,14 @@ export function ModelPicker({ request, onSelect, onCancel }: ModelPickerProps) {
           </header>
           <p className="modal-subtitle">Select a model family</p>
           <ul className="model-family-list">
-            {request.families.map((family) => (
+            {families.map((family) => (
               <li key={family.id}>
                 <button
                   type="button"
                   className="model-family-row"
                   onClick={() => {
                     if (family.variants.length === 1) {
-                      onSelect({
-                        type: "select-model",
-                        skill: request.skill,
-                        modelId: family.variants[0]!.id,
-                      });
+                      onSelect(family.variants[0]!.id);
                     } else {
                       setStep({ type: "variant", family });
                     }
@@ -83,13 +71,7 @@ export function ModelPicker({ request, onSelect, onCancel }: ModelPickerProps) {
               <button
                 type="button"
                 className="model-family-row"
-                onClick={() =>
-                  onSelect({
-                    type: "select-model",
-                    skill: request.skill,
-                    modelId: variant.id,
-                  })
-                }
+                onClick={() => onSelect(variant.id)}
               >
                 <span className="model-family-label">{variant.label}</span>
                 <span className="model-family-hint">{variant.id}</span>

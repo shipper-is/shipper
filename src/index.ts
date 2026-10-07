@@ -11,7 +11,7 @@ import {
   modulePlanHint,
   parseModuleReference,
 } from "./core/modules.ts";
-import { ensureShipperDirs } from "./core/plan-store.ts";
+import { ensureShipperDirs } from "./core/artifact-paths.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
 import { ensureAssets, formatProgress } from "./embeddings/assets.ts";
 import { createLlamaEmbedder } from "./embeddings/client.ts";
@@ -46,7 +46,6 @@ function isAgentKind(value: string): value is AgentKind {
 
 type ServeOptions = {
   dir: string;
-  demo?: boolean;
   port?: number;
   open?: boolean;
   version?: boolean;
@@ -110,14 +109,10 @@ async function runServe(opts: ServeOptions): Promise<void> {
   server = await startServer(repoPath, {
     port: opts.port,
     openBrowser: opts.open !== false,
-    demoMode: Boolean(opts.demo),
   });
 
   console.log(`Shipper running at ${server.url}`);
   console.log(`Repository: ${repoPath}`);
-  if (opts.demo) {
-    console.log("Demo mode — scripted chat and question flow in the browser.");
-  }
   console.log("Press Ctrl+C to stop.");
 
   await new Promise<void>(() => {
@@ -261,9 +256,8 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   program
     .name("shipper")
-    .description("Shipper — plan and build with coding agents")
+    .description("Shipper — see how Shipper is set up for this repo")
     .option("--dir <path>", "target repository directory", process.cwd())
-    .option("--demo", "run with scripted demo events in the browser UI")
     .option("--port <n>", "HTTP port override", (value) => Number.parseInt(value, 10))
     .option("--no-open", "do not open the browser automatically")
     .option("--version", "print version and exit")

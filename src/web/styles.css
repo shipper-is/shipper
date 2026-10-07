@@ -138,6 +138,14 @@ input:focus-visible,
   position: relative;
 }
 
+.setup-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--text-dim);
+}
+
 .reconnect-banner {
   position: fixed;
   top: 0;

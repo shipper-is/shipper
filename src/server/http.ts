@@ -1,31 +1,17 @@
 import type { Server } from "bun";
 import indexHtml from "../web/index.html";
-import { createPlansWatcher } from "./plans-watcher.ts";
-import {
-  createRunController,
-  enrichConfigInfo,
-  type RunController,
-} from "./run-controller.ts";
-import { createTerminalSession } from "./terminal-session.ts";
-import {
-  buildConfigInfo,
-  createWsHub,
-  type WsClientData,
-  type WsHub,
-} from "./ws-hub.ts";
-import type { ConfigInfo, PlansSnapshot, ServerMessage } from "../shared/protocol.ts";
+import { getVersion } from "../version.ts";
+import { createWsHub, type WsClientData, type WsHub } from "./ws-hub.ts";
 
 export type StartServerOptions = {
   port?: number;
   openBrowser?: boolean;
-  demoMode?: boolean;
 };
 
 export type StartedServer = {
   url: string;
   port: number;
   stop: () => Promise<void>;
-  runController: RunController;
 };
 
 const DEFAULT_PORT = 80;
@@ -80,97 +66,13 @@ export async function startServer(
   repoPath: string,
   opts: StartServerOptions = {},
 ): Promise<StartedServer> {
-  let plans: PlansSnapshot = { open: [], done: [] };
-  let configInfo: ConfigInfo = await enrichConfigInfo(repoPath, await buildConfigInfo(repoPath));
-
-  const broadcast = (msg: ServerMessage) => {
-    wsHubRef.current?.broadcast(msg);
-  };
-
-  const terminalSession = createTerminalSession({
-    repoPath,
-    broadcastBinary: (data) => {
-      wsHubRef.current?.broadcastBinary(data);
-    },
-    sendBinary: (ws, data) => {
-      wsHubRef.current?.sendBinary(ws, data);
-    },
-    broadcastState: (terminalState) => {
-      broadcast({ type: "terminal-state", terminalState });
-    },
-  });
-
-  const refreshConfigInfo = async (): Promise<ConfigInfo> => {
-    configInfo = await enrichConfigInfo(repoPath, await buildConfigInfo(repoPath));
-    return configInfo;
-  };
-
-  const plansWatcher = createPlansWatcher(repoPath, (updated) => {
-    plans = updated;
-    broadcast({ type: "plans-updated", plans: updated });
-  });
-
-  const wsHubRef: { current: WsHub | null } = { current: null };
-
-  const runController = createRunController({
-    repoPath,
-    getAgent: () => configInfo.defaultAgent,
-    getConfigInfo: () => configInfo,
-    refreshConfigInfo,
-    onBroadcast: broadcast,
-    onPlanUpdate: () => {
-      void plansWatcher.refresh().then((updated) => {
-        plans = updated;
-        broadcast({ type: "plans-updated", plans: updated });
-      });
-    },
-  });
-
   const wsHub = createWsHub({
-    getPlans: () => plans,
-    getRunState: () => runController.getRunState(),
-    getChatEntries: () => runController.getChatEntries(),
-    getPendingQuestion: () => runController.getPendingQuestion(),
-    getModelPickRequest: () => runController.getModelPickRequest(),
-    getQueuedMessages: () => runController.getQueuedMessages(),
-    getConfigInfo: () => configInfo,
-    getTerminalState: () => terminalSession.getState(),
-    handlers: {
-      onClientMessage(msg, ws) {
-        switch (msg.type) {
-          case "terminal-open":
-            terminalSession.handleOpen(ws);
-            break;
-          case "terminal-input":
-            terminalSession.handleInput(msg.data);
-            break;
-          case "terminal-resize":
-            terminalSession.handleResize(msg.cols, msg.rows);
-            break;
-          case "save-plan": {
-            const run = runController.getRunState();
-            if (run.status !== "idle") {
-              broadcast({ type: "notice", text: "Cannot edit a plan while an agent is running." });
-              break;
-            }
-            void plansWatcher.savePlan(msg.planFilename, msg.markdown).then((result) => {
-              if (!result.ok) {
-                broadcast({ type: "notice", text: result.error });
-              }
-            });
-            break;
-          }
-          default:
-            runController.handleClientMessage(msg);
-            break;
-        }
-      },
-    },
+    getSnapshot: () => ({
+      type: "hello",
+      repoPath,
+      version: getVersion(),
+    }),
   });
-  wsHubRef.current = wsHub;
-
-  await plansWatcher.start();
-  plans = plansWatcher.getPlans();
 
   const preferredPort = opts.port ?? DEFAULT_PORT;
   let server: Server<WsClientData>;
@@ -192,18 +94,10 @@ export async function startServer(
     void openBrowser(url);
   }
 
-  if (opts.demoMode) {
-    runController.startDemo();
-  }
-
   return {
     url,
     port,
-    runController,
     stop: async () => {
-      runController.shutdown();
-      terminalSession.shutdown();
-      await plansWatcher.stop();
       await server.stop(true);
     },
   };

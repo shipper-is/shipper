@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, readdir, readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { parseFrontmatter } from "../core/plan-store.ts";
+import { parseFrontmatter } from "../core/frontmatter.ts";
 
 export type DocType = "plan" | "spike" | "bug" | "review";
 export type DocStatus = "open" | "done" | null;

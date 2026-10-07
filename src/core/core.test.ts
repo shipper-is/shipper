@@ -8,10 +8,8 @@ import {
   saveModelChoice,
   setProjectConfig,
 } from "./config.ts";
-import { buildSpikePrompt } from "./prompts.ts";
 import {
   SKILLS,
-  globalSkillPath,
   installSkillsGlobally,
   removeRepoSkills,
 } from "./skills.ts";
@@ -198,34 +196,5 @@ describe("removeRepoSkills", () => {
     await expect(readFile(join(claudeShipper, "SKILL.md"), "utf8")).rejects.toThrow();
     await expect(readFile(join(opencodeShipper, "SKILL.md"), "utf8")).rejects.toThrow();
     expect(await readFile(join(customSkill, "SKILL.md"), "utf8")).toBe("keep me");
-  });
-});
-
-describe("buildSpikePrompt", () => {
-  let homeDir: string;
-  let previousHome: string | undefined;
-
-  beforeEach(async () => {
-    previousHome = process.env["HOME"];
-    homeDir = await mkdtemp(join(tmpdir(), "shipper-prompt-home-"));
-    process.env["HOME"] = homeDir;
-  });
-
-  afterEach(async () => {
-    if (previousHome === undefined) {
-      delete process.env["HOME"];
-    } else {
-      process.env["HOME"] = previousHome;
-    }
-    if (homeDir) await rm(homeDir, { recursive: true, force: true });
-  });
-
-  it("references the shipper-spike SKILL.md path and includes the description", () => {
-    const description = "Add dark mode toggle";
-    const prompt = buildSpikePrompt(description, "cursor");
-    expect(prompt).toContain(globalSkillPath("cursor", "shipper-spike"));
-    expect(prompt).not.toContain("target repository");
-    expect(prompt).toContain(description);
-    expect(prompt).toContain("Run a Shipper Spike");
   });
 });
