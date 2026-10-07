@@ -3,6 +3,7 @@ type: spike
 branch: shipper/index-realtime-progress
 base_branch: main
 started_at: "2026-10-07T16:32:35-04:00"
+completed_at: "2026-10-07T16:36:20-04:00"
 ---
 
 # Realtime progress for shipper index
