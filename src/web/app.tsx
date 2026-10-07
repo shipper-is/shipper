@@ -1,8 +1,8 @@
 import { useSocket } from "./hooks/use-socket.ts";
 
 export function App() {
-  const { connected, reconnecting, hello } = useSocket();
-  const repoPath = hello?.repoPath ?? "…";
+  const { connected, reconnecting, setup } = useSocket();
+  const repoPath = setup?.setup.repoRoot ?? "…";
 
   return (
     <div className="app-shell">
@@ -11,7 +11,7 @@ export function App() {
       <header className="top-bar">
         <div className="top-bar-left">
           <span className="brand">Shipper</span>
-          <span className="repo-path" title={hello?.repoPath ?? ""}>
+          <span className="repo-path" title={setup?.setup.repoRoot ?? ""}>
             {repoPath}
           </span>
         </div>

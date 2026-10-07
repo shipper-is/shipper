@@ -9,6 +9,7 @@ import {
   globalConfigPath,
   loadConfig,
   localConfigPath,
+  migrateGlobalConfig,
   repoConfigPath,
   setEmbedIdleMinutes,
 } from "./core/config.ts";
@@ -95,15 +96,28 @@ async function runServe(opts: ServeOptions): Promise<void> {
     return;
   }
 
-  const repoPath = resolve(opts.dir);
-
-  if (!existsSync(repoPath)) {
-    console.error(`Directory does not exist: ${repoPath}`);
+  const requested = resolve(opts.dir);
+  if (!existsSync(requested)) {
+    console.error(`Directory does not exist: ${requested}`);
     process.exit(1);
   }
 
-  const { effective } = await loadConfig(repoPath);
-  await ensureArtifactDirs(repoPath, effective);
+  await migrateGlobalConfig();
+  const repoPath = await resolveRepoRoot({
+    explicitDir: opts.dir,
+    cwd: process.cwd(),
+  });
+  const loaded = await loadConfig(repoPath);
+  for (const layer of CONFIG_LAYERS) {
+    const state = loaded.layers[layer];
+    if (state.error) {
+      console.warn(`Warning: ${state.path}: ${state.error}`);
+    }
+  }
+  for (const message of loaded.pathErrors) {
+    console.warn(`Warning: ${message}`);
+  }
+  await ensureArtifactDirs(repoPath, loaded.effective);
   await installGlobalSkillsForServe(repoPath);
 
   let stopping = false;
@@ -164,6 +178,7 @@ async function resolveAgentsOrExit(
 }
 
 async function runSkillsInstall(agentOverride?: string): Promise<void> {
+  await migrateGlobalConfig();
   const agents = await resolveAgentsOrExit(
     agentOverride,
     "Install an agent, or run: shipper skills --agent <kind>",

@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, rename, rm, writeFile, type FileHandle } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { DocStatus, DocType } from "./documents.ts";
 
@@ -38,6 +38,66 @@ export type LoadedIndex = {
 };
 
 const MAGIC = Buffer.from("SHIPIDX1", "utf8");
+const MAX_HEADER_BYTES = 32 * 1024 * 1024;
+
+function parseHeader(buf: Buffer): { header: IndexHeader; headerEnd: number } | null {
+  if (buf.length < 12) {
+    return null;
+  }
+  if (!buf.subarray(0, 8).equals(MAGIC)) {
+    return null;
+  }
+
+  const headerLen = buf.readUInt32LE(8);
+  if (headerLen <= 0 || headerLen > MAX_HEADER_BYTES) {
+    return null;
+  }
+  const headerStart = 12;
+  const headerEnd = headerStart + headerLen;
+  if (headerEnd > buf.length) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(buf.subarray(headerStart, headerEnd).toString("utf8"));
+    if (!isValidHeader(parsed)) {
+      return null;
+    }
+    return { header: parsed, headerEnd };
+  } catch {
+    return null;
+  }
+}
+
+/** Read the index header without loading embedding vectors. */
+export async function readIndexHeader(path: string): Promise<IndexHeader | null> {
+  let fh: FileHandle | undefined;
+  try {
+    fh = await open(path, "r");
+    const prefix = Buffer.alloc(12);
+    const prefixRead = await fh.read(prefix, 0, 12, 0);
+    if (prefixRead.bytesRead < 12) {
+      return null;
+    }
+    if (!prefix.subarray(0, 8).equals(MAGIC)) {
+      return null;
+    }
+    const headerLen = prefix.readUInt32LE(8);
+    if (headerLen <= 0 || headerLen > MAX_HEADER_BYTES) {
+      return null;
+    }
+    const headerBuf = Buffer.alloc(headerLen);
+    const headerRead = await fh.read(headerBuf, 0, headerLen, 12);
+    if (headerRead.bytesRead < headerLen) {
+      return null;
+    }
+    return parseHeader(Buffer.concat([prefix, headerBuf]))?.header ?? null;
+  } catch {
+    return null;
+  } finally {
+    await fh?.close();
+  }
+}
 
 export function collapsePreview(text: string, max = 400): string {
   return text.replace(/\s+/g, " ").trim().slice(0, max);
@@ -71,34 +131,11 @@ export async function readIndex(path: string): Promise<LoadedIndex | null> {
     return null;
   }
 
-  if (buf.length < 12) {
+  const parsed = parseHeader(buf);
+  if (!parsed) {
     return null;
   }
-  if (!buf.subarray(0, 8).equals(MAGIC)) {
-    return null;
-  }
-
-  const headerLen = buf.readUInt32LE(8);
-  const headerStart = 12;
-  const headerEnd = headerStart + headerLen;
-  if (headerEnd > buf.length) {
-    return null;
-  }
-
-  let header: IndexHeader;
-  try {
-    const parsed: unknown = JSON.parse(buf.subarray(headerStart, headerEnd).toString("utf8"));
-    if (!isValidHeader(parsed)) {
-      return null;
-    }
-    header = parsed;
-  } catch {
-    return null;
-  }
-
-  if (header.endianness !== "le") {
-    return null;
-  }
+  const { header, headerEnd } = parsed;
 
   const paddedHeaderEnd = headerEnd + ((4 - (headerEnd % 4)) % 4);
   const expectedFloats = header.chunks.length * header.dims;

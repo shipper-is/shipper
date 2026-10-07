@@ -1,6 +1,6 @@
 import type { Server } from "bun";
 import indexHtml from "../web/index.html";
-import { getVersion } from "../version.ts";
+import { createSetupController, type SetupController } from "./setup-controller.ts";
 import { createWsHub, type WsClientData, type WsHub } from "./ws-hub.ts";
 
 export type StartServerOptions = {
@@ -66,26 +66,51 @@ export async function startServer(
   repoPath: string,
   opts: StartServerOptions = {},
 ): Promise<StartedServer> {
+  const holder: { controller?: SetupController } = {};
   const wsHub = createWsHub({
-    getSnapshot: () => ({
-      type: "hello",
-      repoPath,
-      version: getVersion(),
-    }),
+    getSnapshot: () => {
+      if (!holder.controller) {
+        throw new Error("Setup controller has not started");
+      }
+      return holder.controller.getSnapshotMessage();
+    },
+    handlers: {
+      onClientMessage: (msg) => {
+        if (!holder.controller) return;
+        void holder.controller.handleClientMessage(msg);
+      },
+    },
   });
+  const controller = createSetupController({
+    repoRoot: repoPath,
+    broadcast: (msg) => wsHub.broadcast(msg),
+  });
+  holder.controller = controller;
+
+  try {
+    await controller.start();
+  } catch (err) {
+    await controller.stop();
+    throw err;
+  }
 
   const preferredPort = opts.port ?? DEFAULT_PORT;
   let server: Server<WsClientData>;
   let port = preferredPort;
 
   try {
-    server = tryListen(port, wsHub);
-  } catch (err) {
-    if (opts.port !== undefined) {
-      throw err;
+    try {
+      server = tryListen(port, wsHub);
+    } catch (err) {
+      if (opts.port !== undefined) {
+        throw err;
+      }
+      port = FALLBACK_PORT;
+      server = tryListen(port, wsHub);
     }
-    port = FALLBACK_PORT;
-    server = tryListen(port, wsHub);
+  } catch (err) {
+    await controller.stop();
+    throw err;
   }
 
   const url = buildUrl(port);
@@ -98,6 +123,7 @@ export async function startServer(
     url,
     port,
     stop: async () => {
+      await controller.stop();
       await server.stop(true);
     },
   };

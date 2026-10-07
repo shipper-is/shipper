@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ClientMessage, ServerMessage } from "../../shared/protocol.ts";
 
+type SetupMessage = Extract<ServerMessage, { type: "setup" }>;
+
 export type UseSocketResult = {
   connected: boolean;
   reconnecting: boolean;
-  hello: ServerMessage | null;
+  setup: SetupMessage | null;
   send: (msg: ClientMessage) => void;
 };
 
 export function useSocket(): UseSocketResult {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
-  const [hello, setHello] = useState<ServerMessage | null>(null);
+  const [setup, setSetup] = useState<SetupMessage | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   const handleMessage = useCallback((msg: ServerMessage) => {
-    if (msg.type === "hello") {
-      setHello(msg);
+    if (msg.type === "setup") {
+      setSetup(msg);
     }
   }, []);
 
@@ -88,7 +90,7 @@ export function useSocket(): UseSocketResult {
   return {
     connected,
     reconnecting,
-    hello,
+    setup,
     send,
   };
 }

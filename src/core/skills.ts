@@ -73,14 +73,20 @@ export type InstallSummary = {
   root: string;
 };
 
+function userHome(): string {
+  // os.homedir() caches its first result. Read HOME first so tests and status
+  // checks stay inside a temp directory when HOME is overridden.
+  return process.env["HOME"] ?? homedir();
+}
+
 export function globalSkillsRoot(agent: AgentKind): string {
   switch (agent) {
     case "claude":
-      return join(homedir(), ".claude", "skills");
+      return join(userHome(), ".claude", "skills");
     case "cursor":
-      return join(homedir(), ".cursor", "skills");
+      return join(userHome(), ".cursor", "skills");
     case "opencode": {
-      const configHome = process.env["XDG_CONFIG_HOME"] ?? join(homedir(), ".config");
+      const configHome = process.env["XDG_CONFIG_HOME"] ?? join(userHome(), ".config");
       return join(configHome, "opencode", "skills");
     }
   }

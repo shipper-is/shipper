@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { collapsePreview, readIndex, writeIndex, type LoadedIndex } from "./index-file.ts";
+import { collapsePreview, readIndex, readIndexHeader, writeIndex, type LoadedIndex } from "./index-file.ts";
 
 const temps: string[] = [];
 
@@ -111,5 +111,28 @@ describe("index-file", () => {
 
   it("collapses preview whitespace", () => {
     expect(collapsePreview("  a\n\nb  c  ", 10)).toBe("a b c");
+  });
+
+  it("reads the header without the vector payload", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "shipper-idx-"));
+    temps.push(dir);
+    const path = join(dir, "header.idx");
+    const original = sampleIndex();
+    await writeIndex(path, original);
+    const buf = await readFile(path);
+    const headerLen = buf.readUInt32LE(8);
+    await writeFile(path, buf.subarray(0, 12 + headerLen));
+
+    expect(await readIndex(path)).toBeNull();
+    expect(await readIndexHeader(path)).toEqual(original.header);
+  });
+
+  it("returns null from readIndexHeader for a missing or corrupt file", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "shipper-idx-"));
+    temps.push(dir);
+    expect(await readIndexHeader(join(dir, "missing.idx"))).toBeNull();
+    const bad = join(dir, "bad.idx");
+    await writeFile(bad, Buffer.from("NOTANIDX........"));
+    expect(await readIndexHeader(bad)).toBeNull();
   });
 });

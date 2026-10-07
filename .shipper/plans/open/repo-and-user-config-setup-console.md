@@ -7,6 +7,7 @@ phase_commits:
   1: dccd0f8
   2: 227acf3
   3: 4ab8092
+  4: 9e7d237
 ---
 
 # Repo and User Configuration, and a Setup Console
@@ -574,18 +575,18 @@ New files:
 
 ### Section 1: Status helpers
 
-- [ ] Create `src/core/skill-status.ts` with `getSkillStatus(agents: AgentKind[]): Promise<Array<{ agent: AgentKind; root: string; skills: Array<{ name: SkillName; state: "current" | "outdated" | "missing" }> }>>`. A skill is `missing` if its `SKILL.md` is absent, `outdated` if any bundled file is missing or differs from `SKILLS[name]`, else `current`. Add a test with a temp `HOME`.
-- [ ] Add `getMcpStatus(agents, deps?)` to [src/mcp/install.ts](/Users/mattmichel/Documents/shipper/src/mcp/install.ts) returning `Array<{ agent; state: "registered" | "outdated" | "missing" | "manual" | "unknown"; detail: string }>`:
+- [x] Create `src/core/skill-status.ts` with `getSkillStatus(agents: AgentKind[]): Promise<Array<{ agent: AgentKind; root: string; skills: Array<{ name: SkillName; state: "current" | "outdated" | "missing" }> }>>`. A skill is `missing` if its `SKILL.md` is absent, `outdated` if any bundled file is missing or differs from `SKILLS[name]`, else `current`. Add a test with a temp `HOME`.
+- [x] Add `getMcpStatus(agents, deps?)` to [src/mcp/install.ts](/Users/mattmichel/Documents/shipper/src/mcp/install.ts) returning `Array<{ agent; state: "registered" | "outdated" | "missing" | "manual" | "unknown"; detail: string }>`:
   - Cursor: read `cursorMcpPath(homeDir)`; `registered` if `mcpServers.shipper.command`/`args` match what `installCursor` would write for `self`, `outdated` if present but different, `missing` otherwise.
   - opencode: same against `opencode.json` `mcp.shipper`; `manual` if only `opencode.jsonc` exists (mirrors `installOpencode`).
   - Claude: `runCommand("claude", ["mcp", "get", "shipper"], { reject: false, timeout: 5000 })`; exit 0 means `registered` (compare the command line in stdout to `self` when possible, else `registered`), non-zero means `missing`, thrown/timeout means `unknown`.
   - Add tests in `src/mcp/install.test.ts` using the existing fake `runCommand`/`homeDir` pattern.
-- [ ] Add `readIndexHeader(path): Promise<IndexHeader | null>` to [src/search/index-file.ts](/Users/mattmichel/Documents/shipper/src/search/index-file.ts) that reads only the magic, header length, and JSON header (not the vectors). Reuse it inside `readIndex` if that is clean. Test it.
-- [ ] Add `getIndexStatus(repoRoot, docs: ShipperDoc[]): Promise<{ path; exists; files; chunks; updatedAt; modelId; stale: boolean }>` in `src/search/index-status.ts`. `stale` is true when the index is missing, the set of `relPath`s differs from `docs`, or any doc's `mtimeMs` is newer than `updatedAt`. Test it.
+- [x] Add `readIndexHeader(path): Promise<IndexHeader | null>` to [src/search/index-file.ts](/Users/mattmichel/Documents/shipper/src/search/index-file.ts) that reads only the magic, header length, and JSON header (not the vectors). Reuse it inside `readIndex` if that is clean. Test it.
+- [x] Add `getIndexStatus(repoRoot, docs: ShipperDoc[]): Promise<{ path; exists; files; chunks; updatedAt; modelId; stale: boolean }>` in `src/search/index-status.ts`. `stale` is true when the index is missing, the set of `relPath`s differs from `docs`, or any doc's `mtimeMs` is newer than `updatedAt`. Test it.
 
 ### Section 2: Protocol
 
-- [ ] Replace the placeholder in [src/shared/protocol.ts](/Users/mattmichel/Documents/shipper/src/shared/protocol.ts) with:
+- [x] Replace the placeholder in [src/shared/protocol.ts](/Users/mattmichel/Documents/shipper/src/shared/protocol.ts) with:
 
   ```ts
   export type LayerStateDto = {
@@ -637,31 +638,46 @@ New files:
     | { type: "list-models"; agent: AgentKind };
   ```
 
-- [ ] Write the matching `clientMessageSchema` (discriminated union) and `parseClientMessage`. `save-config.value` is `z.unknown()`; the server validates it with the layer schema. Import `ConfigLayer`, `EffectiveConfig`, etc. from `./config-schema.ts`.
+- [x] Write the matching `clientMessageSchema` (discriminated union) and `parseClientMessage`. `save-config.value` is `z.unknown()`; the server validates it with the layer schema. Import `ConfigLayer`, `EffectiveConfig`, etc. from `./config-schema.ts`.
 
 ### Section 3: Snapshot collector
 
-- [ ] Create `src/server/setup-snapshot.ts` with `collectSetupSnapshot(repoRoot, deps = defaultDeps): Promise<SetupSnapshot>`. `deps` holds every collector (`loadConfig`, `discoverDocs`, `detectAgents`, `getSkillStatus`, `getMcpStatus`, `getIndexStatus`, `getEmbedServerStatus`, `listInstalledModules`, `findStrayArtifacts`, `checkForUpdate`, `getVersion`) so tests can stub them.
-- [ ] Run collectors in parallel with a `withTimeout(promise, 5000, fallback)` helper. Fallbacks: MCP entries `state: "unknown"`, skill status empty, embed status `running: false`, update `null`.
-- [ ] `artifacts`: from `discoverDocs(repoRoot, { config: effective })`, count per type and status. Map `DocType` to `ArtifactType` (`plan` to `plans`, etc.). Modules count comes from `listInstalledModules`. Reviews have `open`/`done` as `null`.
-- [ ] `skills` and `mcp` only for detected agents. `agents` lists all three kinds with `detected` flags and versions.
-- [ ] Add `src/server/setup-snapshot.test.ts` with stubbed deps: a timed-out MCP probe yields `unknown` without failing the snapshot; artifact counts are right.
+- [x] Create `src/server/setup-snapshot.ts` with `collectSetupSnapshot(repoRoot, deps = defaultDeps): Promise<SetupSnapshot>`. `deps` holds every collector (`loadConfig`, `discoverDocs`, `detectAgents`, `getSkillStatus`, `getMcpStatus`, `getIndexStatus`, `getEmbedServerStatus`, `listInstalledModules`, `findStrayArtifacts`, `checkForUpdate`, `getVersion`) so tests can stub them.
+- [x] Run collectors in parallel with a `withTimeout(promise, 5000, fallback)` helper. Fallbacks: MCP entries `state: "unknown"`, skill status empty, embed status `running: false`, update `null`.
+- [x] `artifacts`: from `discoverDocs(repoRoot, { config: effective })`, count per type and status. Map `DocType` to `ArtifactType` (`plan` to `plans`, etc.). Modules count comes from `listInstalledModules`. Reviews have `open`/`done` as `null`.
+- [x] `skills` and `mcp` only for detected agents. `agents` lists all three kinds with `detected` flags and versions.
+- [x] Add `src/server/setup-snapshot.test.ts` with stubbed deps: a timed-out MCP probe yields `unknown` without failing the snapshot; artifact counts are right.
 
 ### Section 4: Setup controller
 
-- [ ] Create `src/server/setup-controller.ts` with `createSetupController({ repoRoot, broadcast, deps })` exposing `start()`, `stop()`, `getSnapshotMessage()`, and `handleClientMessage(msg)`:
+- [x] Create `src/server/setup-controller.ts` with `createSetupController({ repoRoot, broadcast, deps })` exposing `start()`, `stop()`, `getSnapshotMessage()`, and `handleClientMessage(msg)`:
   - `refresh`: clear `detectAgents` cache, recollect, broadcast `setup`.
   - `save-config`: `writeLayer(layer, repoRoot, value)`; on success broadcast `save-result { ok: true }` and a fresh `setup`; on failure `save-result { ok: false, error }`. Reject `paths` in `local` or `global` saves with a clear error (the UI should not send it, but enforce it).
   - `list-models`: build `ModelFamilyDto[]` with `listModels` + `groupModelFamilies` (see section C) and send `models-list`; on failure send `notice`.
   - `run-action`: if an action is running, send `notice` "Another action is running." Otherwise create an `ActionStatus` with `crypto.randomUUID()`, broadcast `running`, execute, broadcast `done`/`error`, then recollect and broadcast `setup`. Implementations: `refresh-skills` uses `installSkillsGlobally(detected)`; `install-mcp`/`uninstall-mcp` use `installMcp`/`uninstallMcp` for the given agent or all detected, message joins each result's `detail`; `sync-index` uses `syncIndex({ repoRoot, embedder: createLlamaEmbedder(), force, onProgress })` and forwards progress as a short string in `progress` (throttle broadcasts to about 4 per second); `start-embed` uses `ensureEmbedServer({ idleMinutes: await getEmbedIdleMinutes(), onProgress })` with `formatProgress` for download progress; `stop-embed` uses `stopEmbedServer()`. If `search.enabled` is false, `sync-index` returns an error status "Search is disabled for this repository."
   - Watching: chokidar on the three config file paths and the resolved artifact dirs (`ignoreInitial: true`, `awaitWriteFinish`, ignore `*.tmp-*`), debounced 300 ms, recollect and broadcast `setup`. When `paths` change, re-create the watcher with the new dirs.
-- [ ] Add `src/server/setup-controller.test.ts` with stubbed deps covering: save success and validation failure, `paths` rejected for local, concurrent action rejected, action status sequence, `list-models` mapping.
+- [x] Add `src/server/setup-controller.test.ts` with stubbed deps covering: save success and validation failure, `paths` rejected for local, concurrent action rejected, action status sequence, `list-models` mapping.
 
 ### Section 5: Wire the server and boot
 
-- [ ] In [src/server/ws-hub.ts](/Users/mattmichel/Documents/shipper/src/server/ws-hub.ts) and [src/server/http.ts](/Users/mattmichel/Documents/shipper/src/server/http.ts), replace the `hello` snapshot with `setupController.getSnapshotMessage()` and route all client messages to `setupController.handleClientMessage`. `startServer` awaits `setupController.start()` before listening; `stop()` calls `setupController.stop()`.
-- [ ] In `runServe` in [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), the boot order is: resolve root (use `resolveRepoRoot({ explicitDir: opts.dir, cwd })` so it matches the index and MCP), `migrateGlobalConfig()`, `loadConfig`, `ensureArtifactDirs`, `installGlobalSkillsForServe`, `startServer`. Print any `pathErrors` and layer `error`s as warnings. Also call `migrateGlobalConfig()` at the start of `runSkillsInstall`.
-- [ ] Run `bun run typecheck`, `bun run lint`, `bun run test`.
+- [x] In [src/server/ws-hub.ts](/Users/mattmichel/Documents/shipper/src/server/ws-hub.ts) and [src/server/http.ts](/Users/mattmichel/Documents/shipper/src/server/http.ts), replace the `hello` snapshot with `setupController.getSnapshotMessage()` and route all client messages to `setupController.handleClientMessage`. `startServer` awaits `setupController.start()` before listening; `stop()` calls `setupController.stop()`.
+- [x] In `runServe` in [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), the boot order is: resolve root (use `resolveRepoRoot({ explicitDir: opts.dir, cwd })` so it matches the index and MCP), `migrateGlobalConfig()`, `loadConfig`, `ensureArtifactDirs`, `installGlobalSkillsForServe`, `startServer`. Print any `pathErrors` and layer `error`s as warnings. Also call `migrateGlobalConfig()` at the start of `runSkillsInstall`.
+- [x] Run `bun run typecheck`, `bun run lint`, `bun run test`.
+
+### Completion Notes
+
+- `/ws` sends `{ type: "setup", setup, action: null }` once `start()` has collected the first snapshot. The HTTP server does not listen until that returns. `src/server/ws-hub.ts` was already a generic JSON hub, so Phase 5 only wires it from `http.ts`: snapshot from `getSnapshotMessage()`, every parsed client message to `handleClientMessage`, `stop()` closes the watcher.
+- The placeholder hook stores the latest `setup` server message as `setup`. The top bar reads `setup.setup.repoRoot`. Other server messages are ignored until Phase 6 stores `action`, `modelsByAgent`, `lastSave`, and `notice`. The page still says "Setup view coming soon".
+- `collectSetupSnapshot(repoRoot, deps)` runs independent collectors together, each with a 5 second timeout (`deps.timeoutMs` is for tests). A timed-out or rejected MCP probe becomes `{ state: "unknown", detail: "Status check timed out" }` for each detected agent. A skill probe that times out or throws becomes `[]`. An embed probe that times out or throws becomes `running: false`. `skills` and `mcp` include only detected agents. `agents` always lists claude, cursor, and opencode.
+- Artifact `dir` is the repo-relative configured path. Plans, spikes, and bugs count `open` and `done` from `discoverDocs`. Type `doc` is not a row. Reviews and modules use `open: null` and `done: null`. Module `total` comes from `listInstalledModules`. `exists` is whether that directory is on disk. `strayArtifacts` is `findStrayArtifacts` unchanged (`dir` is the default repo-relative path).
+- `readIndexHeader` reads magic, header length, and JSON only. `getIndexStatus` uses `indexPathForRepo(realpath(repoRoot))`. `stale` is true when the index is missing, the `relPath` set differs from the docs, `updatedAt` is not a date, or any doc `mtimeMs` is greater than `Date.parse(updatedAt)`.
+- `getMcpStatus(agents, deps?)` is read-only and uses `McpInstallDeps`. Cursor is `registered` when `mcpServers.shipper.command` and `args` match install (`command` plus `mcp --dir ${workspaceFolder}`), `outdated` when that entry exists but differs, `missing` when it is absent, and `manual` when the file is not JSON. opencode matches `mcp.shipper` with `type: "local"`, the command array, and `enabled: true`. Any `opencode.jsonc` is `manual`. Claude runs `claude mcp get shipper` for 5 seconds: exit 0 is `registered` unless both `Command:` and `Args:` are present and differ (`outdated`); non-zero is `missing`; a throw or a null exit code is `unknown`.
+- `getSkillStatus` treats a missing `SKILL.md` as `missing`, and any other missing or different bundled file as `outdated`. `globalSkillsRoot` reads `process.env.HOME` before `os.homedir()`, which caches, so a temp `HOME` cannot fall through to the real home directory.
+- `writeLayer` replaces known settings with the object passed in, so a save must send the full draft. `paths` on a local or global save is rejected before write with `Artifact paths can only be saved in the repo config (.shipper/config.json).` Success broadcasts `save-result` `{ ok: true, error: null }` and then a fresh `setup`. Failure broadcasts `save-result` `{ ok: false, error }` and does not broadcast a new setup.
+- A second `run-action` while one is running gets `notice` text `Another action is running.` The sequence is `action-status` running, then done or error, then `setup` whose `action` is that finished status. `refresh` clears the action, clears the agent-detection cache, and broadcasts setup. Sync progress is `formatIndexProgress`. Embed download progress is `formatProgress("assets", ...)`. Both are throttled to about 4 broadcasts a second. `sync-index` returns error `Search is disabled for this repository.` without calling `syncIndex` when search is disabled. `list-models` broadcasts `models-list` with `id` and `label` only, or a `notice` when listing fails.
+- Chokidar watches the three config file paths and the resolved artifact directories (`ignoreInitial`, `awaitWriteFinish`, paths containing `.tmp-*` ignored), debounced 300 ms. The watcher is recreated when that path list changes.
+- `runServe` checks that the requested `--dir` exists, then `migrateGlobalConfig()`, `resolveRepoRoot({ explicitDir, cwd })`, `loadConfig`, warnings for layer `error`s and `pathErrors`, `ensureArtifactDirs`, `installGlobalSkillsForServe`, and `startServer`. `runSkillsInstall` calls `migrateGlobalConfig()` first.
+- `globalSkillsRoot` preferring `HOME` is the one behavior change outside the new files. `ws-hub.ts` was left as Phase 1 shaped it. A missing `--dir` still exits before `resolveRepoRoot` can walk up to a parent. Invalid MCP JSON is `manual`, matching install, rather than `unknown`. Claude stdout without both a `Command:` and an `Args:` line stays `registered`.
 
 ## Phase 6: Setup console UI
 
