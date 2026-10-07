@@ -425,6 +425,26 @@ describe("layered config", () => {
     expect(lines[2]?.startsWith("local\t")).toBe(true);
     expect(lines[2]).toContain("config.local.json");
   });
+
+  it("shipper index and search exit 0 when search is disabled", async () => {
+    await writeJson(repoConfigPath(repoDir), { search: { enabled: false } });
+    const env = {
+      ...process.env,
+      HOME: homeDir,
+      XDG_CONFIG_HOME: xdgDir,
+      XDG_CACHE_HOME: homeDir,
+    };
+    const indexed = await runCli(["--dir", repoDir, "index"], env);
+    expect(indexed.status).toBe(0);
+    expect(indexed.stdout.trim()).toBe(
+      "Search is disabled for this repository (search.enabled is false).",
+    );
+    const searched = await runCli(["--dir", repoDir, "search", "anything"], env);
+    expect(searched.status).toBe(0);
+    expect(searched.stdout.trim()).toBe(
+      "Search is disabled for this repository (search.enabled is false).",
+    );
+  });
 });
 
 function runCli(

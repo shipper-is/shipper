@@ -18,7 +18,7 @@ import {
   modulePlanHint,
   parseModuleReference,
 } from "./core/modules.ts";
-import { ensureShipperDirs } from "./core/artifact-paths.ts";
+import { ensureArtifactDirs, resolveArtifactDirs } from "./core/artifact-paths.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
 import { ensureAssets, formatProgress } from "./embeddings/assets.ts";
 import { createLlamaEmbedder } from "./embeddings/client.ts";
@@ -45,10 +45,18 @@ import {
 } from "./shared/config-schema.ts";
 import { getVersion } from "./version.ts";
 
-const DOC_TYPES = ["plan", "spike", "bug", "review"] as const satisfies readonly DocType[];
+const DOC_TYPES = ["plan", "spike", "bug", "review", "doc"] as const satisfies readonly DocType[];
+
+const SEARCH_DISABLED_MESSAGE =
+  "Search is disabled for this repository (search.enabled is false).";
 
 function isDocType(value: string): value is DocType {
   return (DOC_TYPES as readonly string[]).includes(value);
+}
+
+async function isSearchDisabled(repoRoot: string): Promise<boolean> {
+  const { effective } = await loadConfig(repoRoot);
+  return !effective.search.enabled;
 }
 
 function isAgentKind(value: string): value is AgentKind {
@@ -94,7 +102,8 @@ async function runServe(opts: ServeOptions): Promise<void> {
     process.exit(1);
   }
 
-  await ensureShipperDirs(repoPath);
+  const { effective } = await loadConfig(repoPath);
+  await ensureArtifactDirs(repoPath, effective);
   await installGlobalSkillsForServe(repoPath);
 
   let stopping = false;
@@ -254,7 +263,9 @@ async function runModulesAdd(moduleRef: string, dir: string): Promise<void> {
     throw new Error(`Directory does not exist: ${targetDir}`);
   }
 
-  const result = await installModule(id, targetDir);
+  const { effective } = await loadConfig(targetDir);
+  const modulesDir = resolveArtifactDirs(targetDir, effective).modules;
+  const result = await installModule(id, targetDir, fetch, modulesDir);
   console.log(`Installed module ${result.id} to ${result.root}`);
   for (const file of result.files) {
     console.log(`  ${file}`);
@@ -426,7 +437,9 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   modulesCmd
     .command("add")
-    .description("install a module into .shipper/modules/ in the target repository")
+    .description(
+      "install a module into the configured modules directory (default .shipper/modules/)",
+    )
     .argument("<module>", "module id, shipper.is URL, or GitHub modules URL")
     .action(async (moduleRef: string, _opts, cmd) => {
       const globalOpts = cmd.optsWithGlobals() as { dir?: string };
@@ -565,6 +578,10 @@ export async function main(argv: string[] = process.argv): Promise<void> {
           explicitDir: globalOpts.dir,
           cwd: process.cwd(),
         });
+        if (await isSearchDisabled(repoRoot)) {
+          console.log(SEARCH_DISABLED_MESSAGE);
+          return;
+        }
         const embedder = createLlamaEmbedder();
         const progress = createIndexProgressWriter({
           tty: process.stderr.isTTY === true,
@@ -597,9 +614,9 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   program
     .command("search")
-    .description("semantically search Shipper plans, spikes, bugs, and reviews")
+    .description("semantically search Shipper plans, spikes, bugs, reviews, and docs")
     .argument("<query...>", "natural-language search query")
-    .option("--type <types>", "comma-separated doc types: plan,spike,bug,review")
+    .option("--type <types>", "comma-separated doc types: plan,spike,bug,review,doc")
     .option("--status <status>", "open, done, or any")
     .option("--limit <n>", "max results (1-25)", (value) => Number.parseInt(value, 10))
     .option("--json", "print results as JSON")
@@ -642,6 +659,10 @@ export async function main(argv: string[] = process.argv): Promise<void> {
             explicitDir: globalOpts.dir,
             cwd: process.cwd(),
           });
+          if (await isSearchDisabled(repoRoot)) {
+            console.log(SEARCH_DISABLED_MESSAGE);
+            return;
+          }
           const embedder = createLlamaEmbedder();
           const { index } = await syncIndexIfStale({ repoRoot, embedder });
           const queryVector = await embedder.embedQuery(query);

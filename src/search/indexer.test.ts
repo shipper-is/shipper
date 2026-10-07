@@ -9,6 +9,7 @@ import { syncIndex } from "./indexer.ts";
 
 const temps: string[] = [];
 let previousHome: string | undefined;
+let previousXdgConfig: string | undefined;
 let previousXdgCache: string | undefined;
 let homeDir: string;
 
@@ -16,9 +17,11 @@ beforeEach(async () => {
   homeDir = await mkdtemp(join(tmpdir(), "shipper-indexer-home-"));
   temps.push(homeDir);
   previousHome = process.env["HOME"];
+  previousXdgConfig = process.env["XDG_CONFIG_HOME"];
   previousXdgCache = process.env["XDG_CACHE_HOME"];
   process.env["HOME"] = homeDir;
-  delete process.env["XDG_CACHE_HOME"];
+  process.env["XDG_CONFIG_HOME"] = join(homeDir, "config");
+  process.env["XDG_CACHE_HOME"] = join(homeDir, "cache");
 });
 
 afterEach(async () => {
@@ -26,6 +29,11 @@ afterEach(async () => {
     delete process.env["HOME"];
   } else {
     process.env["HOME"] = previousHome;
+  }
+  if (previousXdgConfig === undefined) {
+    delete process.env["XDG_CONFIG_HOME"];
+  } else {
+    process.env["XDG_CONFIG_HOME"] = previousXdgConfig;
   }
   if (previousXdgCache === undefined) {
     delete process.env["XDG_CACHE_HOME"];

@@ -11,6 +11,7 @@ const TYPE_LABELS: Record<DocType, string> = {
   spike: "Spike",
   bug: "Bug",
   review: "Review",
+  doc: "Doc",
 };
 
 export type Chunk = {

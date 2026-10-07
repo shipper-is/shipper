@@ -1,5 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { DEFAULT_ARTIFACT_PATHS } from "../shared/config-schema.ts";
 import { parse as parseYaml } from "yaml";
 import {
   GITHUB_REPO,
@@ -218,6 +220,7 @@ export async function installModule(
   id: string,
   targetDir: string,
   fetchFn: FetchFn = fetch,
+  modulesDir?: string,
 ): Promise<InstallModuleResult> {
   let entries: GitHubContentEntry[];
   try {
@@ -235,7 +238,9 @@ export async function installModule(
     throw new Error(`Unknown module: ${id}`);
   }
 
-  const root = join(targetDir, ".shipper", "modules", id);
+  const modulesRoot =
+    modulesDir ?? join(targetDir, ...DEFAULT_ARTIFACT_PATHS.modules.split("/"));
+  const root = join(modulesRoot, id);
   const installedFiles: string[] = [];
 
   for (const file of mdFiles) {
@@ -259,6 +264,37 @@ export async function installModule(
   }
 
   return { id, files: installedFiles.sort(), root };
+}
+
+export async function listInstalledModules(
+  modulesDir: string,
+): Promise<Array<{ id: string; name: string; version: string | null }>> {
+  let entries: Dirent[];
+  try {
+    entries = await readdir(modulesDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const installed: Array<{ id: string; name: string; version: string | null }> = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    let markdown: string;
+    try {
+      markdown = await readFile(join(modulesDir, entry.name, "MODULE.md"), "utf8");
+    } catch {
+      continue;
+    }
+    const meta = parseModuleFrontmatter(markdown);
+    if (!meta) continue;
+    installed.push({
+      id: meta.id,
+      name: meta.name,
+      version: String(meta.version),
+    });
+  }
+  installed.sort((a, b) => a.id.localeCompare(b.id));
+  return installed;
 }
 
 export function modulePlanHint(id: string): string {

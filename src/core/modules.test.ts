@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { modulesContentsApiUrl, moduleRawContentUrl } from "../constants.ts";
 import {
   installModule,
+  listInstalledModules,
   listRemoteModules,
   parseModuleFrontmatter,
   parseModuleReference,
@@ -213,6 +214,19 @@ describe("installModule", () => {
     );
   });
 
+  it("installs into an explicit modules directory", async () => {
+    repoDir = await mkdtemp(join(tmpdir(), "shipper-modules-custom-"));
+    const modulesDir = join(repoDir, "vendor", "modules");
+    const fetchFn = stubFetchForModule("customer-support", {
+      "MODULE.md": VALID_MODULE_MD,
+    });
+
+    const result = await installModule("customer-support", repoDir, fetchFn, modulesDir);
+
+    expect(result.root).toBe(join(modulesDir, "customer-support"));
+    expect(await readFile(join(result.root, "MODULE.md"), "utf8")).toBe(VALID_MODULE_MD);
+  });
+
   it("throws when MODULE.md is invalid after install", async () => {
     repoDir = await mkdtemp(join(tmpdir(), "shipper-modules-invalid-"));
     const fetchFn = stubFetchForModule("customer-support", {
@@ -221,6 +235,34 @@ describe("installModule", () => {
 
     await expect(installModule("customer-support", repoDir, fetchFn)).rejects.toThrow(
       "missing a valid MODULE.md",
+    );
+  });
+});
+
+describe("listInstalledModules", () => {
+  it("reads MODULE.md frontmatter and skips folders without one", async () => {
+    const repoDir = await mkdtemp(join(tmpdir(), "shipper-modules-list-"));
+    const modulesDir = join(repoDir, "vendor", "modules");
+    await mkdir(join(modulesDir, "customer-support"), { recursive: true });
+    await mkdir(join(modulesDir, "notes-only"), { recursive: true });
+    await mkdir(join(modulesDir, "broken"), { recursive: true });
+    await writeFile(join(modulesDir, "customer-support", "MODULE.md"), VALID_MODULE_MD, "utf8");
+    await writeFile(join(modulesDir, "notes-only", "README.md"), "# Notes\n", "utf8");
+    await writeFile(join(modulesDir, "broken", "MODULE.md"), "# no frontmatter\n", "utf8");
+
+    try {
+      const installed = await listInstalledModules(modulesDir);
+      expect(installed).toEqual([
+        { id: "customer-support", name: "Customer Support", version: "1" },
+      ]);
+    } finally {
+      await rm(repoDir, { recursive: true, force: true });
+    }
+  });
+
+  it("returns an empty list when the directory is missing", async () => {
+    expect(await listInstalledModules(join(tmpdir(), "shipper-modules-missing", "nope"))).toEqual(
+      [],
     );
   });
 });

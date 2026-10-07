@@ -187,8 +187,7 @@ export function formatHits(hits: SearchHit[]): string {
   const blocks: string[] = [];
   for (let i = 0; i < hits.length; i++) {
     const hit = hits[i]!;
-    const typeStatus =
-      hit.type === "review" ? "review" : `${hit.type}, ${hit.status ?? "unknown"}`;
+    const typeStatus = hit.status === null ? hit.type : `${hit.type}, ${hit.status}`;
     const header = `${i + 1}. [${typeStatus}] ${hit.title} — ${hit.relPath} (score ${hit.score.toFixed(2)})`;
     const lines = [header];
     for (const m of hit.matches) {

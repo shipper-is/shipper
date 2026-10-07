@@ -5,6 +5,7 @@ base_branch: main
 started_at: "2026-10-07T18:16:41-04:00"
 phase_commits:
   1: dccd0f8
+  2: 227acf3
 ---
 
 # Repo and User Configuration, and a Setup Console
@@ -420,36 +421,47 @@ New files:
 
 ### Section 1: Artifact paths module
 
-- [ ] Flesh out `src/core/artifact-paths.ts` (validation already lives in `validateArtifactDir` in `src/shared/config-schema.ts` from Phase 2; reuse it, do not reimplement):
+- [x] Flesh out `src/core/artifact-paths.ts` (validation already lives in `validateArtifactDir` in `src/shared/config-schema.ts` from Phase 2; reuse it, do not reimplement):
   - `resolveArtifactDirs(repoRoot, effective): Record<ArtifactType, string>` returning absolute paths.
   - `ensureArtifactDirs(repoRoot, effective)`: create `<plans>`, `<spikes>`, `<bugs>` each with `open/` and `done/` (same as today's `ensureShipperDirs`), and nothing for reviews or modules. Also call `ensureShipperGitignore`.
   - `findStrayArtifacts(repoRoot, effective): Promise<Array<{ type: ArtifactType; dir: string; count: number }>>`: for each of plans/spikes/bugs/reviews whose configured dir differs from the default, count `.md` files in the default dir (including `open/` and `done/`). Return only non-zero entries.
-- [ ] Delete the temporary `ensureShipperDirs`; in [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts) `runServe`, call `loadConfig(repoPath)` then `ensureArtifactDirs(repoPath, effective)`.
-- [ ] Add `src/core/artifact-paths.test.ts` covering resolution, scaffolding at custom paths, and stray detection, and `src/shared/config-schema.test.ts` covering `validateArtifactDir` (`docs/plans/` ok and normalized, `./a/../b` becomes `b`, `../x`, `/abs`, `a\\b`, `.git/x`, `x/node_modules` rejected).
+- [x] Delete the temporary `ensureShipperDirs`; in [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts) `runServe`, call `loadConfig(repoPath)` then `ensureArtifactDirs(repoPath, effective)`.
+- [x] Add `src/core/artifact-paths.test.ts` covering resolution, scaffolding at custom paths, and stray detection, and `src/shared/config-schema.test.ts` covering `validateArtifactDir` (`docs/plans/` ok and normalized, `./a/../b` becomes `b`, `../x`, `/abs`, `a\\b`, `.git/x`, `x/node_modules` rejected).
 
 ### Section 2: Discovery and the `doc` type
 
-- [ ] Change `discoverDocs(repoRoot, opts)` in [src/search/documents.ts](/Users/mattmichel/Documents/shipper/src/search/documents.ts) to accept `opts.config?: EffectiveConfig` (load it with `loadConfig` when omitted). Replace the hardcoded `typedFolders` roots with `effective.paths.plans/spikes/bugs` and the reviews folder with `effective.paths.reviews`. `relDir` becomes the configured repo-relative dir (for example `docs/shipper/plans/open`). Keep the legacy `.shipper/open|done` scan unchanged.
-- [ ] Add `DocType` value `"doc"` for `search.extraDirs`: scan each extra dir non-recursively for `.md` files with `status: null`, skipping anything already in `seen`. Recursion is not supported in v1; say so in the README.
-- [ ] Update every `DocType` enum: `DOC_TYPES` in [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts) line 35, `DOC_TYPE_ENUM` in [src/mcp/server.ts](/Users/mattmichel/Documents/shipper/src/mcp/server.ts) line 24, and any switch over `DocType` in `src/search/chunker.ts`, `search.ts`, and `index-file.ts` (grep for `"review"` to find them). Update the `shipper search --type` help text.
-- [ ] Bump `CHUNKER_VERSION` only if chunk output changes; it should not. Do not bump it just for the new type.
-- [ ] Update `src/search/documents.test.ts`: custom paths, extra dirs as `doc`, legacy layout still found, defaults unchanged.
+- [x] Change `discoverDocs(repoRoot, opts)` in [src/search/documents.ts](/Users/mattmichel/Documents/shipper/src/search/documents.ts) to accept `opts.config?: EffectiveConfig` (load it with `loadConfig` when omitted). Replace the hardcoded `typedFolders` roots with `effective.paths.plans/spikes/bugs` and the reviews folder with `effective.paths.reviews`. `relDir` becomes the configured repo-relative dir (for example `docs/shipper/plans/open`). Keep the legacy `.shipper/open|done` scan unchanged.
+- [x] Add `DocType` value `"doc"` for `search.extraDirs`: scan each extra dir non-recursively for `.md` files with `status: null`, skipping anything already in `seen`. Recursion is not supported in v1; say so in the README.
+- [x] Update every `DocType` enum: `DOC_TYPES` in [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts) line 35, `DOC_TYPE_ENUM` in [src/mcp/server.ts](/Users/mattmichel/Documents/shipper/src/mcp/server.ts) line 24, and any switch over `DocType` in `src/search/chunker.ts`, `search.ts`, and `index-file.ts` (grep for `"review"` to find them). Update the `shipper search --type` help text.
+- [x] Bump `CHUNKER_VERSION` only if chunk output changes; it should not. Do not bump it just for the new type.
+- [x] Update `src/search/documents.test.ts`: custom paths, extra dirs as `doc`, legacy layout still found, defaults unchanged.
 
 ### Section 3: MCP server
 
-- [ ] Rename `resolveSafeShipperPath` in [src/mcp/server.ts](/Users/mattmichel/Documents/shipper/src/mcp/server.ts) to `resolveSafeDocPath(repoRoot, requested, config)`. Allowed roots: `.shipper/`, each configured artifact dir, and each `search.extraDirs` entry, each resolved with `realpath` (skip missing roots). The file must be inside one root and end in `.md`. Error text: `Path must be a .md file inside a Shipper artifact directory: <requested>`.
-- [ ] Load the effective config per tool call (cheap; three small file reads) so edits apply without restarting the agent.
-- [ ] When `search.enabled` is `false`, `shipper_search`, `shipper_similar`, and `shipper_reindex` return a non-error text result: `Search is disabled for this repository (search.enabled is false in Shipper config). Use grep/glob over the artifact directories instead.` `shipper_get_doc` and `shipper_list_docs` keep working (list from discovery, not the index, when disabled).
-- [ ] Update `INSTRUCTIONS` and tool descriptions to say "Shipper artifact directories (default `.shipper/`)" instead of hardcoding `.shipper/`, and add `doc` to the type lists.
-- [ ] Update `src/mcp/server.test.ts`: custom-path reads allowed, escapes still rejected, extra dirs allowed, disabled search message.
+- [x] Rename `resolveSafeShipperPath` in [src/mcp/server.ts](/Users/mattmichel/Documents/shipper/src/mcp/server.ts) to `resolveSafeDocPath(repoRoot, requested, config)`. Allowed roots: `.shipper/`, each configured artifact dir, and each `search.extraDirs` entry, each resolved with `realpath` (skip missing roots). The file must be inside one root and end in `.md`. Error text: `Path must be a .md file inside a Shipper artifact directory: <requested>`.
+- [x] Load the effective config per tool call (cheap; three small file reads) so edits apply without restarting the agent.
+- [x] When `search.enabled` is `false`, `shipper_search`, `shipper_similar`, and `shipper_reindex` return a non-error text result: `Search is disabled for this repository (search.enabled is false in Shipper config). Use grep/glob over the artifact directories instead.` `shipper_get_doc` and `shipper_list_docs` keep working (list from discovery, not the index, when disabled).
+- [x] Update `INSTRUCTIONS` and tool descriptions to say "Shipper artifact directories (default `.shipper/`)" instead of hardcoding `.shipper/`, and add `doc` to the type lists.
+- [x] Update `src/mcp/server.test.ts`: custom-path reads allowed, escapes still rejected, extra dirs allowed, disabled search message.
 
 ### Section 4: CLI commands and modules
 
-- [ ] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), `shipper index` and `shipper search` print `Search is disabled for this repository (search.enabled is false).` and exit 0 when disabled.
-- [ ] Change `installModule(id, targetDir, fetchFn)` in [src/core/modules.ts](/Users/mattmichel/Documents/shipper/src/core/modules.ts) line 238 to write into `<repoRoot>/<effective.paths.modules>/<id>/`. Accept an optional `modulesDir` parameter (absolute) for tests; `runModulesAdd` passes the resolved dir. Update the `modules add` description to `install a module into the configured modules directory (default .shipper/modules/)`.
-- [ ] Add `listInstalledModules(modulesDir): Promise<Array<{ id: string; name: string; version: string | null }>>` reading each `<id>/MODULE.md` with `parseModuleFrontmatter`, skipping folders without one.
-- [ ] Update `src/core/modules.test.ts` for the custom dir and the new list function.
-- [ ] Run `bun run typecheck`, `bun run lint`, `bun run test`.
+- [x] In [src/index.ts](/Users/mattmichel/Documents/shipper/src/index.ts), `shipper index` and `shipper search` print `Search is disabled for this repository (search.enabled is false).` and exit 0 when disabled.
+- [x] Change `installModule(id, targetDir, fetchFn)` in [src/core/modules.ts](/Users/mattmichel/Documents/shipper/src/core/modules.ts) line 238 to write into `<repoRoot>/<effective.paths.modules>/<id>/`. Accept an optional `modulesDir` parameter (absolute) for tests; `runModulesAdd` passes the resolved dir. Update the `modules add` description to `install a module into the configured modules directory (default .shipper/modules/)`.
+- [x] Add `listInstalledModules(modulesDir): Promise<Array<{ id: string; name: string; version: string | null }>>` reading each `<id>/MODULE.md` with `parseModuleFrontmatter`, skipping folders without one.
+- [x] Update `src/core/modules.test.ts` for the custom dir and the new list function.
+- [x] Run `bun run typecheck`, `bun run lint`, `bun run test`.
+
+### Completion Notes
+
+- `resolveArtifactDirs(repoRoot, effective)` joins each already-validated `effective.paths` entry onto `repoRoot` and returns absolute paths. It does not call `validateArtifactDir` again. `ensureArtifactDirs` creates `open/` and `done/` only under plans, spikes, and bugs, then calls `ensureShipperGitignore`. It does not create reviews, modules, `.shipper/config.json`, or `.shipper/config.local.json`. `runServe` loads config and then calls `ensureArtifactDirs`. `ensureShipperDirs` is gone.
+- `findStrayArtifacts` compares each of plans, spikes, bugs, and reviews to `DEFAULT_ARTIFACT_PATHS`. The `dir` field is that default repo-relative path (`.shipper/plans`, not an absolute path). Counts are non-recursive: the default directory itself, plus `open/` and `done/` for plans, spikes, and bugs. Reviews are only the directory itself. Modules are not checked. Zero counts are omitted. Order follows `ARTIFACT_TYPES`.
+- `discoverDocs(repoRoot, opts)` uses `opts.config` when passed and otherwise `loadConfig(repoRoot).effective`. Configured plans/spikes/bugs use `<path>/open` and `<path>/done`. Reviews use `effective.paths.reviews`. Legacy `.shipper/open` and `.shipper/done` are unchanged. `search.extraDirs` are scanned non-recursively as type `doc` with `status: null`, and paths already in `seen` are skipped (including legacy files, which are now marked seen). `CHUNKER_VERSION` stayed `1`. `src/search/index-file.ts` stores `DocType` and has no switch; `chunker.ts` `TYPE_LABELS` and the hit formatters in `search.ts` and `mcp/server.ts` treat a null status as the type name (`review`, `doc`).
+- Any test that reaches `discoverDocs` or `loadConfig` must set `HOME`, `XDG_CONFIG_HOME`, and `XDG_CACHE_HOME` to temp dirs and restore them. `configDir()` prefers `XDG_CONFIG_HOME`, then `HOME`. A test that leaves them unset will read and possibly migrate the real `~/.config/shipper/config.json`. Indexer tests now pin those variables because `syncIndex` calls `discoverDocs`.
+- `resolveSafeDocPath(repoRoot, requested, config)` allows `.shipper`, each configured artifact dir (including modules), and each `search.extraDirs` entry. Missing roots are skipped. Both the root and the file are `realpath`'d, so a symlink that leaves an allowed root is rejected, as is a sibling such as `.shipper-not/`. Missing files still throw `File not found: <requested>`. An existing file that is outside the roots or does not end in `.md` throws `Path must be a .md file inside a Shipper artifact directory: <requested>`. Nested markdown under an extra dir is readable even though discovery does not recurse.
+- Each MCP tool loads config itself. When `search.enabled` is false, `shipper_search`, `shipper_similar`, and `shipper_reindex` return a non-error with `Search is disabled for this repository (search.enabled is false in Shipper config). Use grep/glob over the artifact directories instead.` Warm-up returns before starting the embed server or calling `syncIndex`. `shipper_get_doc` still reads through the safe-path check. `shipper_list_docs` lists from `discoverDocs` (titles via `readDocMetadata`) instead of the index. `startWarmUp` attaches a catch so a client that disconnects before a tool call does not leave a warm-up failure unhandled.
+- `shipper index` and `shipper search` print `Search is disabled for this repository (search.enabled is false).` and return without indexing, so the process exits 0. `installModule(id, targetDir, fetchFn = fetch, modulesDir?)` writes to `modulesDir` when passed, otherwise `<targetDir>/.shipper/modules`. `runModulesAdd` passes `resolveArtifactDirs(...).modules`. `listInstalledModules(modulesDir)` skips folders with no `MODULE.md` and folders whose frontmatter does not parse. `version` is `String(meta.version)` because `parseModuleFrontmatter` stores a number.
+- README now says `search.extraDirs` are type `doc` and are not recursive in v1. Phase 7 still owns the rest of the docs.
 
 ## Phase 4: Skills read the config
 

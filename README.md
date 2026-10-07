@@ -136,6 +136,8 @@ The `shipper-plan` skill installs the module (or uses files already in `.shipper
 
 Shipper can give your coding agent semantic search over every plan, spike, bug, and review in `.shipper/` — open and done. An MCP server embeds chunks with a small local model and ranks results by meaning, so questions like "have we planned something like this before?" or "is this a regression of an old bug?" take one tool call instead of grepping hundreds of files.
 
+`shipper search --type` accepts `plan`, `spike`, `bug`, `review`, and `doc`. Directories listed in `search.extraDirs` are included as type `doc`. That scan is not recursive in v1: only markdown files directly inside each extra directory are indexed.
+
 ### One-step setup
 
 ```bash
