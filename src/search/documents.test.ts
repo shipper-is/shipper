@@ -61,7 +61,11 @@ describe("discoverDocs", () => {
       join(shipper, "plans", "open", "link.md"),
     );
 
-    const docs = await discoverDocs(root);
+    const found: number[] = [];
+    const docs = await discoverDocs(root, {
+      onFound: (count) => found.push(count),
+    });
+    expect(found).toEqual([1, 2, 3, 4, 5]);
     expect(docs.map((d) => d.relPath)).toEqual([
       ".shipper/bugs/done/gamma.md",
       ".shipper/open/legacy.md",

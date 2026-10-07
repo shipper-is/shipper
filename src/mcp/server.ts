@@ -8,6 +8,7 @@ import { createLlamaEmbedder } from "../embeddings/client.ts";
 import { formatProgress } from "../embeddings/assets.ts";
 import { ensureEmbedServer } from "../embeddings/server-manager.ts";
 import type { DocType } from "../search/documents.ts";
+import { createIndexProgressWriter } from "../search/index-progress.ts";
 import { syncIndex, syncIndexIfStale, type SyncStats } from "../search/indexer.ts";
 import { resolveRepoRoot } from "../search/repo-root.ts";
 import {
@@ -185,10 +186,14 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
       progressLabel = "embedding assets";
       await ensureServer();
       const repoRoot = await resolveRootOnce();
+      const indexProgress = createIndexProgressWriter({
+        tty: false,
+        write: (chunk) => log(chunk.trimEnd()),
+      });
       await syncIndex({
         repoRoot,
         embedder,
-        onProgress: (message) => log(message),
+        onProgress: (progress) => indexProgress.update(progress),
       });
     } catch (err: unknown) {
       warmUpState.error = err instanceof Error ? err : new Error(String(err));

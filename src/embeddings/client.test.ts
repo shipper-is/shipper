@@ -97,6 +97,23 @@ describe("createLlamaEmbedder", () => {
     expect((requestBodies[2] as { input: string[] }).input).toHaveLength(8);
   });
 
+  it("reports embedding progress after each batch", async () => {
+    const embedder = createLlamaEmbedder({
+      fetchFn: stubFetch(),
+      ensureServer: async () => ({ baseUrl: "http://127.0.0.1:9" }),
+    });
+    const texts = Array.from({ length: 40 }, (_, i) => `t${i}`);
+    const updates: Array<[number, number]> = [];
+    await embedder.embedDocuments(texts, {
+      onProgress: (done, total) => updates.push([done, total]),
+    });
+    expect(updates).toEqual([
+      [16, 40],
+      [32, 40],
+      [40, 40],
+    ]);
+  });
+
   it("skips items with wrong dimensions via zero-length vectors", async () => {
     const embedder = createLlamaEmbedder({
       fetchFn: async () =>
