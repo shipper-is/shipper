@@ -314,7 +314,7 @@ describe("createShipperMcpServer", () => {
       });
       expect(traversal.isError).toBe(true);
       expect(toolText(traversal as { content: Array<{ type: string; text?: string }> })).toMatch(
-        /stay inside|\.shipper|not found/i,
+        /artifact directory|not found/i,
       );
 
       const nonMd = await client.callTool({
