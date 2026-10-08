@@ -4,14 +4,22 @@ import { resolve } from "node:path";
 import { detectAgents } from "./agents/detect.ts";
 import type { AgentKind } from "./agents/types.ts";
 import { DEFAULT_EMBED_IDLE_MINUTES } from "./constants.ts";
-import { getEmbedIdleMinutes, setEmbedIdleMinutes } from "./core/config.ts";
+import {
+  getEmbedIdleMinutes,
+  globalConfigPath,
+  loadConfig,
+  localConfigPath,
+  migrateGlobalConfig,
+  repoConfigPath,
+  setEmbedIdleMinutes,
+} from "./core/config.ts";
 import {
   installModule,
   listRemoteModules,
   modulePlanHint,
   parseModuleReference,
 } from "./core/modules.ts";
-import { ensureShipperDirs } from "./core/plan-store.ts";
+import { ensureArtifactDirs, resolveArtifactDirs } from "./core/artifact-paths.ts";
 import { installSkillsGlobally, removeRepoSkills } from "./core/skills.ts";
 import { ensureAssets, formatProgress } from "./embeddings/assets.ts";
 import { createLlamaEmbedder } from "./embeddings/client.ts";
@@ -30,15 +38,27 @@ import { syncIndex, syncIndexIfStale, type SyncResult } from "./search/indexer.t
 import { resolveRepoRoot } from "./search/repo-root.ts";
 import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
 import { startServer } from "./server/http.ts";
+import {
+  AGENT_KINDS,
+  ARTIFACT_TYPES,
+  CONFIG_LAYERS,
+  type ConfigSource,
+} from "./shared/config-schema.ts";
 import { getVersion } from "./version.ts";
 
-const DOC_TYPES = ["plan", "spike", "bug", "review"] as const satisfies readonly DocType[];
+const DOC_TYPES = ["plan", "spike", "bug", "review", "doc"] as const satisfies readonly DocType[];
+
+const SEARCH_DISABLED_MESSAGE =
+  "Search is disabled for this repository (search.enabled is false).";
 
 function isDocType(value: string): value is DocType {
   return (DOC_TYPES as readonly string[]).includes(value);
 }
 
-const AGENT_KINDS = ["claude", "cursor", "opencode"] as const satisfies readonly AgentKind[];
+async function isSearchDisabled(repoRoot: string): Promise<boolean> {
+  const { effective } = await loadConfig(repoRoot);
+  return !effective.search.enabled;
+}
 
 function isAgentKind(value: string): value is AgentKind {
   return (AGENT_KINDS as readonly string[]).includes(value);
@@ -46,7 +66,6 @@ function isAgentKind(value: string): value is AgentKind {
 
 type ServeOptions = {
   dir: string;
-  demo?: boolean;
   port?: number;
   open?: boolean;
   version?: boolean;
@@ -77,14 +96,28 @@ async function runServe(opts: ServeOptions): Promise<void> {
     return;
   }
 
-  const repoPath = resolve(opts.dir);
-
-  if (!existsSync(repoPath)) {
-    console.error(`Directory does not exist: ${repoPath}`);
+  const requested = resolve(opts.dir);
+  if (!existsSync(requested)) {
+    console.error(`Directory does not exist: ${requested}`);
     process.exit(1);
   }
 
-  await ensureShipperDirs(repoPath);
+  await migrateGlobalConfig();
+  const repoPath = await resolveRepoRoot({
+    explicitDir: opts.dir,
+    cwd: process.cwd(),
+  });
+  const loaded = await loadConfig(repoPath);
+  for (const layer of CONFIG_LAYERS) {
+    const state = loaded.layers[layer];
+    if (state.error) {
+      console.warn(`Warning: ${state.path}: ${state.error}`);
+    }
+  }
+  for (const message of loaded.pathErrors) {
+    console.warn(`Warning: ${message}`);
+  }
+  await ensureArtifactDirs(repoPath, loaded.effective);
   await installGlobalSkillsForServe(repoPath);
 
   let stopping = false;
@@ -110,14 +143,10 @@ async function runServe(opts: ServeOptions): Promise<void> {
   server = await startServer(repoPath, {
     port: opts.port,
     openBrowser: opts.open !== false,
-    demoMode: Boolean(opts.demo),
   });
 
   console.log(`Shipper running at ${server.url}`);
   console.log(`Repository: ${repoPath}`);
-  if (opts.demo) {
-    console.log("Demo mode — scripted chat and question flow in the browser.");
-  }
   console.log("Press Ctrl+C to stop.");
 
   await new Promise<void>(() => {
@@ -149,6 +178,7 @@ async function resolveAgentsOrExit(
 }
 
 async function runSkillsInstall(agentOverride?: string): Promise<void> {
+  await migrateGlobalConfig();
   const agents = await resolveAgentsOrExit(
     agentOverride,
     "Install an agent, or run: shipper skills --agent <kind>",
@@ -248,7 +278,9 @@ async function runModulesAdd(moduleRef: string, dir: string): Promise<void> {
     throw new Error(`Directory does not exist: ${targetDir}`);
   }
 
-  const result = await installModule(id, targetDir);
+  const { effective } = await loadConfig(targetDir);
+  const modulesDir = resolveArtifactDirs(targetDir, effective).modules;
+  const result = await installModule(id, targetDir, fetch, modulesDir);
   console.log(`Installed module ${result.id} to ${result.root}`);
   for (const file of result.files) {
     console.log(`  ${file}`);
@@ -256,14 +288,107 @@ async function runModulesAdd(moduleRef: string, dir: string): Promise<void> {
   console.log(modulePlanHint(result.id));
 }
 
+function valueAt(source: unknown, key: string): unknown {
+  let current = source;
+  for (const part of key.split(".")) {
+    if (current === null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function orderedSourceKeys(sources: Record<string, ConfigSource>): string[] {
+  const preferred = [
+    ...ARTIFACT_TYPES.map((type) => `paths.${type}`),
+    "git.branchMode",
+    "git.commitEachPhase",
+    "git.branchPrefix",
+    "search.enabled",
+    "search.extraDirs",
+  ];
+  const rest = Object.keys(sources)
+    .filter((key) => !preferred.includes(key))
+    .sort();
+  return [...preferred.filter((key) => Object.hasOwn(sources, key)), ...rest];
+}
+
+function formatConfigValue(value: unknown): string {
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+async function runConfigShow(repoRoot: string, json: boolean): Promise<void> {
+  const loaded = await loadConfig(repoRoot);
+  if (json) {
+    console.log(
+      JSON.stringify(
+        {
+          layers: loaded.layers,
+          effective: loaded.effective,
+          sources: loaded.sources,
+          pathErrors: loaded.pathErrors,
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+
+  for (const layer of CONFIG_LAYERS) {
+    const state = loaded.layers[layer];
+    const status = state.error ? `error: ${state.error}` : state.exists ? "exists" : "missing";
+    console.log(`${layer}\t${state.path}\t${status}`);
+  }
+  console.log("");
+  for (const key of orderedSourceKeys(loaded.sources)) {
+    console.log(
+      `${key}\t${formatConfigValue(valueAt(loaded.effective, key))}\t${loaded.sources[key]}`,
+    );
+  }
+  if (loaded.effective.instructions.length > 0) {
+    console.log("");
+    for (const entry of loaded.effective.instructions) {
+      console.log(`instructions.${entry.scope}\t${JSON.stringify(entry.text)}\t${entry.layer}`);
+    }
+  }
+
+  const warnings = [...loaded.pathErrors];
+  for (const layer of CONFIG_LAYERS) {
+    const ignored = loaded.layers[layer].ignoredKeys;
+    if (ignored.length > 0) {
+      warnings.push(`${layer} ignored keys: ${ignored.join(", ")}`);
+    }
+  }
+  if (warnings.length > 0) {
+    console.log("");
+    for (const warning of warnings) {
+      console.log(`warning: ${warning}`);
+    }
+  }
+}
+
+function runConfigPath(repoRoot: string): void {
+  console.log(`global\t${globalConfigPath()}`);
+  console.log(`repo\t${repoConfigPath(repoRoot)}`);
+  console.log(`local\t${localConfigPath(repoRoot)}`);
+}
+
+async function resolveCommandRepo(cmd: { optsWithGlobals: () => { dir?: string } }): Promise<string> {
+  const globalOpts = cmd.optsWithGlobals();
+  return resolveRepoRoot({
+    explicitDir: globalOpts.dir,
+    cwd: process.cwd(),
+  });
+}
+
 export async function main(argv: string[] = process.argv): Promise<void> {
   const program = new Command();
 
   program
     .name("shipper")
-    .description("Shipper — plan and build with coding agents")
+    .description("Shipper — see how Shipper is set up for this repo")
     .option("--dir <path>", "target repository directory", process.cwd())
-    .option("--demo", "run with scripted demo events in the browser UI")
     .option("--port <n>", "HTTP port override", (value) => Number.parseInt(value, 10))
     .option("--no-open", "do not open the browser automatically")
     .option("--version", "print version and exit")
@@ -277,6 +402,35 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .option("--agent <kind>", "install for a specific agent (claude, cursor, opencode)")
     .action(async (opts: { agent?: string }) => {
       await runSkillsInstall(opts.agent);
+    });
+
+  const configCmd = program
+    .command("config")
+    .description("show the effective Shipper configuration for this repo")
+    .option("--json", "print machine-readable JSON")
+    .action(async (opts: { json?: boolean }, cmd) => {
+      try {
+        const repoRoot = await resolveCommandRepo(cmd);
+        await runConfigShow(repoRoot, Boolean(opts.json));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
+    });
+
+  configCmd
+    .command("path")
+    .description("print the global, repo, and local config file paths")
+    .action(async (_opts, cmd) => {
+      try {
+        const repoRoot = await resolveCommandRepo(cmd);
+        runConfigPath(repoRoot);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
     });
 
   const modulesCmd = program
@@ -298,7 +452,9 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   modulesCmd
     .command("add")
-    .description("install a module into .shipper/modules/ in the target repository")
+    .description(
+      "install a module into the configured modules directory (default .shipper/modules/)",
+    )
     .argument("<module>", "module id, shipper.is URL, or GitHub modules URL")
     .action(async (moduleRef: string, _opts, cmd) => {
       const globalOpts = cmd.optsWithGlobals() as { dir?: string };
@@ -437,6 +593,10 @@ export async function main(argv: string[] = process.argv): Promise<void> {
           explicitDir: globalOpts.dir,
           cwd: process.cwd(),
         });
+        if (await isSearchDisabled(repoRoot)) {
+          console.log(SEARCH_DISABLED_MESSAGE);
+          return;
+        }
         const embedder = createLlamaEmbedder();
         const progress = createIndexProgressWriter({
           tty: process.stderr.isTTY === true,
@@ -469,9 +629,9 @@ export async function main(argv: string[] = process.argv): Promise<void> {
 
   program
     .command("search")
-    .description("semantically search Shipper plans, spikes, bugs, and reviews")
+    .description("semantically search Shipper plans, spikes, bugs, reviews, and docs")
     .argument("<query...>", "natural-language search query")
-    .option("--type <types>", "comma-separated doc types: plan,spike,bug,review")
+    .option("--type <types>", "comma-separated doc types: plan,spike,bug,review,doc")
     .option("--status <status>", "open, done, or any")
     .option("--limit <n>", "max results (1-25)", (value) => Number.parseInt(value, 10))
     .option("--json", "print results as JSON")
@@ -514,6 +674,10 @@ export async function main(argv: string[] = process.argv): Promise<void> {
             explicitDir: globalOpts.dir,
             cwd: process.cwd(),
           });
+          if (await isSearchDisabled(repoRoot)) {
+            console.log(SEARCH_DISABLED_MESSAGE);
+            return;
+          }
           const embedder = createLlamaEmbedder();
           const { index } = await syncIndexIfStale({ repoRoot, embedder });
           const queryVector = await embedder.embedQuery(query);

@@ -1,170 +1,68 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { AgentKind, ConfigLayer } from "../../shared/config-schema.ts";
 import type {
-  AgentQuestion,
-  ChatEntry,
+  ActionStatus,
   ClientMessage,
-  ConfigInfo,
-  ModelPickRequest,
-  PlanSummary,
-  PlansSnapshot,
-  RunState,
+  ModelFamilyDto,
   ServerMessage,
-  TerminalState,
+  SetupSnapshot,
 } from "../../shared/protocol.ts";
-import { idleRunState } from "../../shared/protocol.ts";
 
-export type SocketState = {
+export type SaveResult = {
+  layer: ConfigLayer;
+  ok: boolean;
+  error: string | null;
+};
+
+export type UseSocketResult = {
   connected: boolean;
   reconnecting: boolean;
-  plans: PlansSnapshot;
-  runState: RunState;
-  chatEntries: ChatEntry[];
-  pendingQuestion: AgentQuestion | null;
-  modelPickRequest: ModelPickRequest | null;
-  configInfo: ConfigInfo | null;
-  selectedPlanFilename: string | null;
+  setup: SetupSnapshot | null;
+  action: ActionStatus | null;
+  modelsByAgent: Partial<Record<AgentKind, ModelFamilyDto[]>>;
+  lastSave: SaveResult | null;
+  saveEventId: number;
   notice: string | null;
-  createdPlanFilename: string | null;
-  queuedMessages: string[];
-  terminalState: TerminalState | null;
-};
-
-export type UseSocketResult = SocketState & {
+  dismissNotice: () => void;
   send: (msg: ClientMessage) => void;
-  selectPlan: (filename: string | null) => void;
-  selectedPlan: PlanSummary | null;
-  clearNotice: () => void;
-  clearCreatedPlan: () => void;
-  registerTerminalDataHandler: (handler: ((data: Uint8Array) => void) | null) => void;
 };
-
-const INITIAL_PLANS: PlansSnapshot = { open: [], done: [] };
-
-function findPlan(plans: PlansSnapshot, filename: string | null): PlanSummary | null {
-  if (!filename) return null;
-  return (
-    plans.open.find((plan) => plan.filename === filename) ??
-    plans.done.find((plan) => plan.filename === filename) ??
-    null
-  );
-}
-
-function pickDefaultPlan(plans: PlansSnapshot): string | null {
-  if (plans.open.length > 0) {
-    return plans.open[0]!.filename;
-  }
-  if (plans.done.length > 0) {
-    return plans.done[0]!.filename;
-  }
-  return null;
-}
 
 export function useSocket(): UseSocketResult {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
-  const [plans, setPlans] = useState<PlansSnapshot>(INITIAL_PLANS);
-  const [runState, setRunState] = useState<RunState>(idleRunState());
-  const [chatEntries, setChatEntries] = useState<ChatEntry[]>([]);
-  const [pendingQuestion, setPendingQuestion] = useState<AgentQuestion | null>(null);
-  const [modelPickRequest, setModelPickRequest] = useState<ModelPickRequest | null>(null);
-  const [configInfo, setConfigInfo] = useState<ConfigInfo | null>(null);
-  const [selectedPlanFilename, setSelectedPlanFilename] = useState<string | null>(null);
+  const [setup, setSetup] = useState<SetupSnapshot | null>(null);
+  const [action, setAction] = useState<ActionStatus | null>(null);
+  const [modelsByAgent, setModelsByAgent] = useState<
+    Partial<Record<AgentKind, ModelFamilyDto[]>>
+  >({});
+  const [lastSave, setLastSave] = useState<SaveResult | null>(null);
+  const [saveEventId, setSaveEventId] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
-  const [createdPlanFilename, setCreatedPlanFilename] = useState<string | null>(null);
-  const [queuedMessages, setQueuedMessages] = useState<string[]>([]);
-  const [terminalState, setTerminalState] = useState<TerminalState | null>(null);
   const [socket, setSocket] = useState<WebSocket | null>(null);
-  const terminalDataHandlerRef = useRef<((data: Uint8Array) => void) | null>(null);
-
-  const registerTerminalDataHandler = useCallback(
-    (handler: ((data: Uint8Array) => void) | null) => {
-      terminalDataHandlerRef.current = handler;
-    },
-    [],
-  );
-
-  const dispatchTerminalData = useCallback((data: Uint8Array) => {
-    terminalDataHandlerRef.current?.(data);
-  }, []);
 
   const handleMessage = useCallback((msg: ServerMessage) => {
     switch (msg.type) {
-      case "snapshot":
-        setPlans(msg.plans);
-        setRunState(msg.runState);
-        setChatEntries(msg.chatEntries);
-        setPendingQuestion(msg.pendingQuestion);
-        setModelPickRequest(msg.modelPickRequest);
-        setQueuedMessages(msg.queuedMessages);
-        setConfigInfo(msg.configInfo);
-        setTerminalState(msg.terminalState);
-        setSelectedPlanFilename((current) => {
-          if (current && findPlan(msg.plans, current)) {
-            return current;
-          }
-          if (msg.runState.planFilename && findPlan(msg.plans, msg.runState.planFilename)) {
-            return msg.runState.planFilename;
-          }
-          return pickDefaultPlan(msg.plans);
-        });
-        break;
-      case "plans-updated":
-        setPlans(msg.plans);
-        setSelectedPlanFilename((current) => {
-          if (current && findPlan(msg.plans, current)) {
-            return current;
-          }
-          return pickDefaultPlan(msg.plans);
-        });
-        break;
-      case "run-state":
-        setRunState(msg.runState);
-        if (msg.runState.status === "running") {
-          setModelPickRequest(null);
-        }
-        break;
-      case "chat-append":
-        setChatEntries((prev) => [...prev, msg.entry]);
-        break;
-      case "chat-replace-last":
-        setChatEntries((prev) =>
-          prev.length === 0 ? [msg.entry] : [...prev.slice(0, -1), msg.entry],
-        );
-        break;
-      case "question-pending":
-        setPendingQuestion(msg.question);
-        setRunState(msg.runState);
-        break;
-      case "question-cleared":
-        setPendingQuestion(null);
-        break;
-      case "needs-model-pick":
-        setModelPickRequest(msg.modelPickRequest);
-        break;
-      case "model-pick-cleared":
-        setModelPickRequest(null);
-        break;
-      case "plan-created":
-        setCreatedPlanFilename(msg.filename);
-        setSelectedPlanFilename(msg.filename);
-        break;
-      case "spike-created":
-        setSelectedPlanFilename(msg.filename);
-        break;
-      case "config-info":
-        setConfigInfo(msg.configInfo);
-        break;
+      case "setup":
+        setSetup(msg.setup);
+        setAction(msg.action);
+        return;
+      case "action-status":
+        setAction(msg.action);
+        return;
+      case "models-list":
+        setModelsByAgent((current) => ({ ...current, [msg.agent]: msg.families }));
+        return;
+      case "save-result":
+        setLastSave({ layer: msg.layer, ok: msg.ok, error: msg.error });
+        setSaveEventId((id) => id + 1);
+        return;
       case "notice":
         setNotice(msg.text);
-        break;
-      case "queued-messages":
-        setQueuedMessages(msg.messages);
-        break;
-      case "terminal-state":
-        setTerminalState(msg.terminalState);
-        break;
-      default:
-        break;
+        return;
+      default: {
+        const exhaustive: never = msg;
+        void exhaustive;
+      }
     }
   }, []);
 
@@ -203,19 +101,7 @@ export function useSocket(): UseSocketResult {
       };
 
       ws.onmessage = (event) => {
-        if (event.data instanceof ArrayBuffer) {
-          dispatchTerminalData(new Uint8Array(event.data));
-          return;
-        }
-        if (event.data instanceof Blob) {
-          void event.data.arrayBuffer().then((buffer) => {
-            dispatchTerminalData(new Uint8Array(buffer));
-          });
-          return;
-        }
-        if (typeof event.data !== "string") {
-          return;
-        }
+        if (typeof event.data !== "string") return;
         try {
           const parsed = JSON.parse(event.data) as ServerMessage;
           handleMessage(parsed);
@@ -232,7 +118,7 @@ export function useSocket(): UseSocketResult {
       if (retryTimer) clearTimeout(retryTimer);
       ws?.close();
     };
-  }, [dispatchTerminalData, handleMessage]);
+  }, [handleMessage]);
 
   const send = useCallback(
     (msg: ClientMessage) => {
@@ -243,30 +129,20 @@ export function useSocket(): UseSocketResult {
     [socket],
   );
 
-  const selectedPlan = useMemo(
-    () => findPlan(plans, selectedPlanFilename),
-    [plans, selectedPlanFilename],
-  );
+  const dismissNotice = useCallback(() => {
+    setNotice(null);
+  }, []);
 
   return {
     connected,
     reconnecting,
-    plans,
-    runState,
-    chatEntries,
-    pendingQuestion,
-    modelPickRequest,
-    configInfo,
-    selectedPlanFilename,
-    selectedPlan,
+    setup,
+    action,
+    modelsByAgent,
+    lastSave,
+    saveEventId,
     notice,
-    createdPlanFilename,
-    queuedMessages,
-    terminalState,
+    dismissNotice,
     send,
-    selectPlan: setSelectedPlanFilename,
-    clearNotice: () => setNotice(null),
-    clearCreatedPlan: () => setCreatedPlanFilename(null),
-    registerTerminalDataHandler,
   };
 }

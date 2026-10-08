@@ -420,6 +420,203 @@ export async function installMcp(
   return results;
 }
 
+export type McpRegistrationState = "registered" | "outdated" | "missing" | "manual" | "unknown";
+
+export type McpStatus = {
+  agent: AgentKind;
+  state: McpRegistrationState;
+  detail: string;
+};
+
+const MCP_STATUS_TIMEOUT_MS = 5_000;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function sameList(actual: unknown, expected: readonly string[]): boolean {
+  return (
+    Array.isArray(actual) &&
+    actual.length === expected.length &&
+    actual.every((part, index) => part === expected[index])
+  );
+}
+
+function cursorExpectedArgs(self: SelfCommand): string[] {
+  return [...self.args, "mcp", "--dir", "${workspaceFolder}"];
+}
+
+function opencodeExpectedCommand(self: SelfCommand): string[] {
+  return [self.command, ...self.args, "mcp"];
+}
+
+async function cursorMcpStatus(self: SelfCommand, homeDir: string): Promise<McpStatus> {
+  const path = cursorMcpPath(homeDir);
+  const raw = await readOptionalFile(path);
+  if (raw === null) {
+    return { agent: "cursor", state: "missing", detail: "shipper is not registered" };
+  }
+  const parsed = parseObjectJson(raw);
+  if (!parsed.ok) {
+    return {
+      agent: "cursor",
+      state: "manual",
+      detail: `Could not parse ${path}. Fix the shipper entry manually.`,
+    };
+  }
+  const servers = parsed.value["mcpServers"];
+  if (!isRecord(servers) || !("shipper" in servers)) {
+    return { agent: "cursor", state: "missing", detail: "shipper is not registered" };
+  }
+  const entry = servers["shipper"];
+  if (
+    isRecord(entry) &&
+    entry["command"] === self.command &&
+    sameList(entry["args"], cursorExpectedArgs(self))
+  ) {
+    return { agent: "cursor", state: "registered", detail: "matches the current shipper command" };
+  }
+  return {
+    agent: "cursor",
+    state: "outdated",
+    detail: "does not match the current shipper command",
+  };
+}
+
+async function opencodeMcpStatus(self: SelfCommand, homeDir: string): Promise<McpStatus> {
+  const dir = opencodeConfigDir(homeDir);
+  const jsonPath = join(dir, "opencode.json");
+  const jsoncPath = join(dir, "opencode.jsonc");
+  if (await pathExists(jsoncPath)) {
+    return {
+      agent: "opencode",
+      state: "manual",
+      detail: `Found ${jsoncPath} (JSONC). Update the shipper entry manually.`,
+    };
+  }
+
+  const raw = await readOptionalFile(jsonPath);
+  if (raw === null) {
+    return { agent: "opencode", state: "missing", detail: "shipper is not registered" };
+  }
+  const parsed = parseObjectJson(raw);
+  if (!parsed.ok) {
+    return {
+      agent: "opencode",
+      state: "manual",
+      detail: `Could not parse ${jsonPath}. Fix the shipper entry manually.`,
+    };
+  }
+  const mcp = parsed.value["mcp"];
+  if (!isRecord(mcp) || !("shipper" in mcp)) {
+    return { agent: "opencode", state: "missing", detail: "shipper is not registered" };
+  }
+  const entry = mcp["shipper"];
+  const expected = opencodeExpectedCommand(self);
+  if (
+    isRecord(entry) &&
+    entry["type"] === "local" &&
+    entry["enabled"] === true &&
+    sameList(entry["command"], expected)
+  ) {
+    return {
+      agent: "opencode",
+      state: "registered",
+      detail: "matches the current shipper command",
+    };
+  }
+  return {
+    agent: "opencode",
+    state: "outdated",
+    detail: "does not match the current shipper command",
+  };
+}
+
+function claudeCommandState(
+  stdout: string,
+  self: SelfCommand,
+): "registered" | "outdated" | "uncompared" {
+  const expected = [self.command, ...self.args, "mcp"];
+  const commandMatch = stdout.match(/^\s*Command:\s*(.+)$/im);
+  const argsMatch = stdout.match(/^\s*Args:\s*(.*)$/im);
+  if (commandMatch && argsMatch) {
+    const argsText = argsMatch[1]?.trim() ?? "";
+    const args = argsText === "" ? [] : argsText.split(/\s+/);
+    const command = commandMatch[1]?.trim() ?? "";
+    const actual = [command, ...args];
+    const same =
+      actual.length === expected.length && actual.every((part, index) => part === expected[index]);
+    return same ? "registered" : "outdated";
+  }
+  if (stdout.includes(expected.join(" "))) {
+    return "registered";
+  }
+  return "uncompared";
+}
+
+async function claudeMcpStatus(self: SelfCommand, runCommand: RunCommand): Promise<McpStatus> {
+  try {
+    const result = await runCommand("claude", ["mcp", "get", "shipper"], {
+      reject: false,
+      timeout: MCP_STATUS_TIMEOUT_MS,
+    });
+    if (result.exitCode === null) {
+      return {
+        agent: "claude",
+        state: "unknown",
+        detail: "could not check claude mcp status",
+      };
+    }
+    if (result.exitCode !== 0) {
+      return { agent: "claude", state: "missing", detail: "shipper is not registered" };
+    }
+    const compared = claudeCommandState(result.stdout, self);
+    if (compared === "outdated") {
+      return {
+        agent: "claude",
+        state: "outdated",
+        detail: "does not match the current shipper command",
+      };
+    }
+    return {
+      agent: "claude",
+      state: "registered",
+      detail:
+        compared === "registered"
+          ? "matches the current shipper command"
+          : "registered (command line was not compared)",
+    };
+  } catch {
+    return { agent: "claude", state: "unknown", detail: "could not check claude mcp status" };
+  }
+}
+
+export async function getMcpStatus(
+  agents: AgentKind[],
+  deps?: McpInstallDeps,
+): Promise<McpStatus[]> {
+  const resolved = resolveDeps(deps);
+  const results: McpStatus[] = [];
+  for (const agent of agents) {
+    switch (agent) {
+      case "cursor":
+        results.push(await cursorMcpStatus(resolved.self, resolved.homeDir));
+        break;
+      case "opencode":
+        results.push(await opencodeMcpStatus(resolved.self, resolved.homeDir));
+        break;
+      case "claude":
+        results.push(await claudeMcpStatus(resolved.self, resolved.runCommand));
+        break;
+      default: {
+        const exhaustive: never = agent;
+        throw new Error(`Unknown agent: ${String(exhaustive)}`);
+      }
+    }
+  }
+  return results;
+}
+
 export async function uninstallMcp(
   agents: AgentKind[],
   deps?: McpInstallDeps,

@@ -3,7 +3,9 @@ name: shipper-build
 description: Execute a singular phase from an existing Shipper plan in the codebase.
 ---
 
-The goal of this skill is to take Shipper plans (in the .shipper folder of this repository) and implement a singular phase of the plan to completion.
+The goal of this skill is to take Shipper plans (in `<plans>`) and implement a singular phase of the plan to completion.
+
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
 
 The user will direct you to which plan they are wanting you to work against. If they don't specify a Phase they want you to work on then you'll need to review the existing plan for what has already been implemented and then ask the user which Phase they'd like for you to work on next using the tool you have available to ask questions to the user.
 
@@ -13,7 +15,7 @@ Before starting a phase, read and follow [./GIT.md](./GIT.md) for branching, com
 
 When you begin executing a Phase, ensure the plan file has a YAML frontmatter block at the very top of the file (before the `#` title). Preserve any existing `type` key in the frontmatter (do not remove or change it). For all other frontmatter keys (`branch`, `base_branch`, `started_at`, `completed_at`, `phase_commits`, `pr_url`, `pr_number`), follow GIT.md: set them when instructed, never overwrite keys that earlier phases already set.
 
-From there do your own context gathering/research from the codebase to gain a better understanding of what you'll be needing to do in the execution of the Phase you've been assigned to. If the `shipper_search` MCP tool is available, search with a short natural-language description of the phase to find related plans, spikes, bugs, and reviews (especially Completion Notes from done plans), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over `.shipper/`. Treat hits as leads, not truth — verify against the current code.
+From there do your own context gathering/research from the codebase to gain a better understanding of what you'll be needing to do in the execution of the Phase you've been assigned to. If the `shipper_search` MCP tool is available, search with a short natural-language description of the phase to find related plans, spikes, bugs, and reviews (especially Completion Notes from done plans), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over the artifact directories. Treat hits as leads, not truth — verify against the current code.
 
 If you need any further clarifications from the user you can use the tool you have to ask the user a question again to gather that information from the user.
 

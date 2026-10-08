@@ -1,13 +1,15 @@
 ---
 name: shipper-review
-description: Orchestrate a multi-lane, adversarial code review of a PR or branch by spinning up parallel read-only review subagents (bugs, security, edge cases, performance, conventions, test coverage, PR-claims, production-data impact) plus cost-aware scenario tests via the shipper-test skill, then aggregate everything into one severity-ordered findings report headed by merge-risk and production-risk verdicts, persisted as a review artifact in `.shipper/reviews/`. Use before requesting human review on a PR, or whenever the user asks for a thorough review of changes.
+description: Orchestrate a multi-lane, adversarial code review of a PR or branch by spinning up parallel read-only review subagents (bugs, security, edge cases, performance, conventions, test coverage, PR-claims, production-data impact) plus cost-aware scenario tests via the shipper-test skill, then aggregate everything into one severity-ordered findings report headed by merge-risk and production-risk verdicts, persisted as a review artifact in `<reviews>/`. Use before requesting human review on a PR, or whenever the user asks for a thorough review of changes.
 ---
 
 The goal of this skill is to compress a senior engineer's review of a change down to reading one findings table, checking the merge-risk and production-risk verdicts, and (when relevant) watching a scenario-test replay. You are the orchestrator: you do not review code yourself. You triage the change, spin up a fresh subagent per review lane, run scenario tests where they replace manual verification, and aggregate the results into a single report.
 
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+
 This skill is repo-agnostic. Nothing in it assumes a particular stack; repo-specific rules enter only through the host repo's own documents (see the conventions lane).
 
-Reviews are findings-only. No lane ever edits code, and neither do you. Fixes are a separate, explicit request from the user after they read the report. The single write this skill makes is the review artifact in `.shipper/reviews/` (see Step 6).
+Reviews are findings-only. No lane ever edits code, and neither do you. Fixes are a separate, explicit request from the user after they read the report. The single write this skill makes is the review artifact in `<reviews>/` (see Step 6).
 
 ## Step 1: Identify the target
 
@@ -15,7 +17,7 @@ The user points you at a PR, a branch, or local changes. Defaults: if a PR exist
 
 ## Step 2: Triage
 
-Read enough to route the review, not to perform it: the diff stat, the changed files list, the PR description (or the Shipper plan in `.shipper/`), and the repo's `.shipper/tests/TESTING.md` if present. From this, decide:
+Read enough to route the review, not to perform it: the diff stat, the changed files list, the PR description (or the Shipper plan under `<plans>`), and the repo's `.shipper/tests/TESTING.md` if present. From this, decide:
 
 - **Which lanes run.** Every lane below runs by default; skip a lane only when it is plainly inapplicable (no schema/data changes → skip production-data; no PR description → skip claims verification). Record what you skipped and why — it goes in the report.
 - **Which scenario tests run.** If the change touches a flow already covered by a scenario in `.shipper/tests/`, plan to re-run it. If the PR's verification steps are manual and the flow is high-consequence (auth, payments, data loss, realtime, native app behavior), plan to create or extend a scenario via the shipper-test skill. Note the expected runner cost in the report (e.g. "one ubuntu runner, ~10 min").
@@ -87,7 +89,7 @@ Deliver the report in chat, and when the target is a PR, post it as a single PR 
 
 ## Step 6: Persist the review artifact
 
-Every review leaves a discrete artifact behind: one markdown file in `.shipper/reviews/` at the root of the repository (create the folder if it does not exist; like the rest of `.shipper`, it is committed to the repository).
+Every review leaves a discrete artifact behind: one markdown file in `<reviews>/` at the root of the repository (create the folder if it does not exist; it is committed to the repository).
 
 **Filename**: name the file after the review target, kebab-case — `pr-<number>-<short-title>.md` when reviewing a PR, `<branch-name-kebab>.md` otherwise. One file per target: a re-review updates the existing file rather than creating a new one.
 
@@ -102,7 +104,7 @@ pr_number: 123
 branch: shipper/add-auth
 base_branch: main
 commit: abc1234
-source: .shipper/plans/done/add-auth.md
+source: <plans>/done/add-auth.md
 merge_risk: medium
 production_risk: low
 reviewed_at: "2026-07-29T23:20:00-04:00"
@@ -113,7 +115,7 @@ reviewed_at: "2026-07-29T23:20:00-04:00"
 - `pr_url`, `pr_number`: only when the target is a PR.
 - `branch`, `base_branch`: the reviewed branch and what it was diffed against.
 - `commit`: the short sha of the HEAD you reviewed — this is what makes a re-review meaningful.
-- `source`: the repo-relative path to the Shipper plan, spike, or bug file this change came from, when one exists. Find it by scanning frontmatter in `.shipper/plans/`, `.shipper/spikes/`, and `.shipper/bugs/` (both `open/` and `done/`) for a file whose `branch`, `pr_number`, or `pr_url` matches the review target. Omit the key if nothing matches — never guess.
+- `source`: the repo-relative path to the Shipper plan, spike, or bug file this change came from, when one exists. Find it by scanning frontmatter in `<plans>/`, `<spikes>/`, and `<bugs>/` (both `open/` and `done/`) for a file whose `branch`, `pr_number`, or `pr_url` matches the review target. Omit the key if nothing matches — never guess.
 - `merge_risk`, `production_risk`: the two risk verdicts from the report header (low / medium / high).
 - `reviewed_at`: quoted ISO 8601 timestamp of when the review completed.
 
@@ -133,6 +135,6 @@ If the same class of finding appears across multiple reviews of a repo, the revi
 
 ## How this fits the Shipper framework
 
-- **shipper-ship** should run this skill after opening the PR and before requesting human review; the report becomes part of the PR's evidence, and the artifact in `.shipper/reviews/` links back to the plan, spike, or bug file that produced the change.
+- **shipper-ship** should run this skill after opening the PR and before requesting human review; the report becomes part of the PR's evidence, and the artifact in `<reviews>/` links back to the plan, spike, or bug file that produced the change.
 - **shipper-test** is this skill's mechanism for executable verification; this skill decides *when* a scenario is worth its cost, shipper-test defines *how* it is built and run.
 - **shipper-loop / shipper-build** may treat a clean shipper-review report as a completion gate for a plan's final phase.

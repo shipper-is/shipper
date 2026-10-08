@@ -11,14 +11,14 @@ const skills = [
   {
     name: "shipper-plan",
     description:
-      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/plans/open/. Also supports module URLs — install a Shipper module and plan building it into your repo.",
+      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to the configured plans directory (default .shipper/plans/open/). Also supports module URLs — install a Shipper module and plan building it into your repo.",
     example:
       "/shipper-plan https://shipper.is/modules/customer-support",
   },
   {
     name: "shipper-loop",
     description:
-      "Orchestrates an entire open plan in one chat. Spins up a fresh subagent per phase that runs shipper-build, monitors progress, and continues until the plan moves to .shipper/plans/done/. This is what the web console Build button uses.",
+      "Orchestrates an entire open plan in one chat. Spins up a fresh subagent per phase that runs shipper-build, monitors progress, and continues until the plan moves to the configured done folder (default .shipper/plans/done/).",
     example: "/shipper-loop on .shipper/plans/open/my-feature.md",
   },
   {
@@ -55,9 +55,9 @@ export default function SkillsDocsPage() {
           Agent skills
         </h1>
         <p className="mt-4 max-w-2xl text-white/60">
-          Every workflow the console uses is a plain agent skill installed
-          globally for your coding agent. Invoke them directly from Claude Code,
-          Cursor, or opencode — no console required.
+          Planning and building are plain agent skills installed globally for
+          your coding agent. Invoke them from Claude Code, Cursor, or opencode.
+          The setup console shows configuration; it does not run these skills.
         </p>
 
         <p className="mt-6 max-w-2xl text-white/60">
@@ -98,9 +98,11 @@ export default function SkillsDocsPage() {
         </div>
 
         <p className="mt-12 max-w-2xl text-white/60">
-          Plans are committed markdown in{" "}
-          <span className="font-mono text-white">.shipper/</span>, so console
-          users and direct-skill users work from the same files.
+          Plans are committed markdown. They default to{" "}
+          <span className="font-mono text-white">.shipper/plans/</span> and can
+          be moved with <span className="font-mono text-white">paths.plans</span>{" "}
+          in the repo config. The setup console shows that directory; skills
+          write the files.
         </p>
       </div>
     </main>

@@ -1,13 +1,14 @@
 import { readFile, realpath } from "node:fs/promises";
-import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+import { basename, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { loadConfig } from "../core/config.ts";
 import type { Embedder } from "../embeddings/client.ts";
 import { createLlamaEmbedder } from "../embeddings/client.ts";
 import { formatProgress } from "../embeddings/assets.ts";
 import { ensureEmbedServer } from "../embeddings/server-manager.ts";
-import type { DocType } from "../search/documents.ts";
+import { discoverDocs, readDocMetadata, type DocType } from "../search/documents.ts";
 import { createIndexProgressWriter } from "../search/index-progress.ts";
 import { syncIndex, syncIndexIfStale, type SyncStats } from "../search/indexer.ts";
 import { resolveRepoRoot } from "../search/repo-root.ts";
@@ -17,15 +18,19 @@ import {
   searchIndex,
   type SearchFilters,
 } from "../search/search.ts";
+import { ARTIFACT_TYPES, type EffectiveConfig } from "../shared/config-schema.ts";
 import { getVersion } from "../version.ts";
 
 const DEFAULT_WARM_UP_TIMEOUT_MS = 45_000;
 
-const DOC_TYPE_ENUM = z.enum(["plan", "spike", "bug", "review"]);
+const DOC_TYPE_ENUM = z.enum(["plan", "spike", "bug", "review", "doc"]);
 const STATUS_ENUM = z.enum(["open", "done", "any"]);
 
 const INSTRUCTIONS =
-  "Semantic search over this repository's Shipper plans, spikes, bugs, and reviews in .shipper/. Use shipper_search before grepping .shipper/.";
+  "Semantic search over this repository's Shipper plans, spikes, bugs, reviews, and docs in Shipper artifact directories (default `.shipper/`). Use shipper_search before grepping those directories.";
+
+const SEARCH_DISABLED_MESSAGE =
+  "Search is disabled for this repository (search.enabled is false in Shipper config). Use grep/glob over the artifact directories instead.";
 
 export type ResolveRootFn = (opts: {
   explicitDir?: string;
@@ -82,15 +87,32 @@ function formatDocList(
         continue;
       }
     }
-    const typeStatus =
-      file.type === "review" ? "review" : `${file.type}, ${file.status ?? "unknown"}`;
+    const typeStatus = file.status === null ? file.type : `${file.type}, ${file.status}`;
     lines.push(`[${typeStatus}] ${file.title} — ${relPath}`);
   }
   return lines.length > 0 ? lines.join("\n") : "No documents indexed.";
 }
 
-async function resolveSafeShipperPath(repoRoot: string, requested: string): Promise<string> {
-  const shipperRoot = await realpath(join(repoRoot, ".shipper"));
+function isInsideRoot(rootReal: string, fileReal: string): boolean {
+  const rel = relative(rootReal, fileReal);
+  if (rel === "") return true;
+  if (rel.startsWith("..") || isAbsolute(rel) || rel.includes(`..${sep}`)) return false;
+  return true;
+}
+
+function allowedRelRoots(config: EffectiveConfig): string[] {
+  return [
+    ".shipper",
+    ...ARTIFACT_TYPES.map((type) => config.paths[type]),
+    ...config.search.extraDirs,
+  ];
+}
+
+async function resolveSafeDocPath(
+  repoRoot: string,
+  requested: string,
+  config: EffectiveConfig,
+): Promise<string> {
   const candidate = isAbsolute(requested) ? requested : resolve(repoRoot, requested);
   let real: string;
   try {
@@ -98,14 +120,47 @@ async function resolveSafeShipperPath(repoRoot: string, requested: string): Prom
   } catch {
     throw new Error(`File not found: ${requested}`);
   }
-  const rel = relative(shipperRoot, real);
-  if (rel.startsWith("..") || isAbsolute(rel) || rel.includes(`..${sep}`)) {
-    throw new Error(`Path must stay inside .shipper/: ${requested}`);
+
+  const roots = [...new Set(allowedRelRoots(config))];
+  let allowed = false;
+  for (const relRoot of roots) {
+    const abs = join(repoRoot, ...relRoot.split("/").filter((part) => part.length > 0));
+    let rootReal: string;
+    try {
+      rootReal = await realpath(abs);
+    } catch {
+      continue;
+    }
+    if (isInsideRoot(rootReal, real)) {
+      allowed = true;
+      break;
+    }
   }
-  if (!real.endsWith(".md")) {
-    throw new Error(`Path must be a .md file under .shipper/: ${requested}`);
+
+  if (!allowed || !real.endsWith(".md")) {
+    throw new Error(`Path must be a .md file inside a Shipper artifact directory: ${requested}`);
   }
   return real;
+}
+
+async function listDiscoveredDocs(
+  repoRoot: string,
+  config: EffectiveConfig,
+  filters?: SearchFilters,
+): Promise<TextResult> {
+  const docs = await discoverDocs(repoRoot, { config });
+  const files: Record<string, { type: DocType; status: string | null; title: string }> = {};
+  for (const doc of docs) {
+    let title = basename(doc.relPath, ".md");
+    try {
+      const markdown = await readFile(doc.absPath, "utf8");
+      title = readDocMetadata(markdown, doc).title;
+    } catch {
+      // keep the filename when the file cannot be read
+    }
+    files[doc.relPath] = { type: doc.type, status: doc.status, title };
+  }
+  return textResult(formatDocList(files, filters), { files });
 }
 
 function sliceLines(content: string, startLine?: number, endLine?: number): string {
@@ -183,9 +238,13 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
 
   async function runWarmUp(): Promise<void> {
     try {
+      const repoRoot = await resolveRootOnce();
+      const { effective } = await loadConfig(repoRoot);
+      if (!effective.search.enabled) {
+        return;
+      }
       progressLabel = "embedding assets";
       await ensureServer();
-      const repoRoot = await resolveRootOnce();
       const indexProgress = createIndexProgressWriter({
         tty: false,
         write: (chunk) => log(chunk.trimEnd()),
@@ -205,6 +264,9 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
   function startWarmUp(): void {
     if (!warmUpPromise) {
       warmUpPromise = runWarmUp();
+      // awaitReady observes this rejection. Attach a handler so a client that
+      // disconnects before any tool call does not leave it unhandled.
+      void warmUpPromise.catch(() => {});
     }
   }
 
@@ -243,7 +305,7 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
   };
 
   function toFilters(args: {
-    types?: Array<"plan" | "spike" | "bug" | "review">;
+    types?: Array<z.infer<typeof DOC_TYPE_ENUM>>;
     status?: "open" | "done" | "any";
     limit?: number;
   }): SearchFilters {
@@ -259,7 +321,7 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     {
       title: "Search Shipper docs",
       description:
-        "Semantic search across this repo's Shipper plans, spikes, bugs, and reviews (open and done). Returns the most relevant files with matching sections and line ranges. Prefer this over grep for questions like 'have we planned/fixed something like X before?'",
+        "Semantic search across this repo's Shipper plans, spikes, bugs, reviews, and docs (open and done) in Shipper artifact directories (default `.shipper/`). Returns the most relevant files with matching sections and line ranges. Prefer this over grep for questions like 'have we planned/fixed something like X before?'",
       inputSchema: {
         query: z.string().min(1),
         ...filtersShape,
@@ -268,9 +330,13 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     },
     async (args) => {
       try {
+        const repoRoot = await resolveRootOnce();
+        const { effective } = await loadConfig(repoRoot);
+        if (!effective.search.enabled) {
+          return textResult(SEARCH_DISABLED_MESSAGE);
+        }
         const notReady = await awaitReady();
         if (notReady) return notReady;
-        const repoRoot = await resolveRootOnce();
         const { index } = await syncIndexIfStale({ repoRoot, embedder });
         const queryVector = await embedder.embedQuery(args.query);
         const hits = searchIndex(index, queryVector, toFilters(args));
@@ -286,7 +352,7 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     {
       title: "Find similar Shipper docs",
       description:
-        "Find Shipper documents similar to an existing file (for example, a likely duplicate or regression bug).",
+        "Find Shipper documents similar to an existing file (for example, a likely duplicate or regression bug) in Shipper artifact directories (default `.shipper/`).",
       inputSchema: {
         path: z.string().min(1),
         ...filtersShape,
@@ -295,9 +361,13 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     },
     async (args) => {
       try {
+        const repoRoot = await resolveRootOnce();
+        const { effective } = await loadConfig(repoRoot);
+        if (!effective.search.enabled) {
+          return textResult(SEARCH_DISABLED_MESSAGE);
+        }
         const notReady = await awaitReady();
         if (notReady) return notReady;
-        const repoRoot = await resolveRootOnce();
         const { index } = await syncIndexIfStale({ repoRoot, embedder });
         const relPath = normalize(args.path).replace(/\\/g, "/");
         const hits = findSimilar(index, relPath, toFilters(args));
@@ -313,7 +383,7 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     {
       title: "Get Shipper document",
       description:
-        "Read a Shipper artifact under .shipper/ (optionally a line range). Path must resolve inside .shipper/ and end in .md.",
+        "Read a Shipper artifact (optionally a line range). Path must be a .md file inside Shipper artifact directories (default `.shipper/`).",
       inputSchema: {
         path: z.string().min(1),
         startLine: z.number().int().min(1).optional(),
@@ -323,10 +393,13 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     },
     async (args) => {
       try {
-        const notReady = await awaitReady();
-        if (notReady) return notReady;
         const repoRoot = await resolveRootOnce();
-        const absPath = await resolveSafeShipperPath(repoRoot, args.path);
+        const { effective } = await loadConfig(repoRoot);
+        if (effective.search.enabled) {
+          const notReady = await awaitReady();
+          if (notReady) return notReady;
+        }
+        const absPath = await resolveSafeDocPath(repoRoot, args.path, effective);
         const raw = await readFile(absPath, "utf8");
         const body = sliceLines(raw, args.startLine, args.endLine);
         const rel = relative(repoRoot, absPath).replace(/\\/g, "/");
@@ -346,7 +419,8 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     "shipper_list_docs",
     {
       title: "List indexed Shipper docs",
-      description: "List Shipper plans, spikes, bugs, and reviews currently in the search index.",
+      description:
+        "List Shipper plans, spikes, bugs, reviews, and docs in Shipper artifact directories (default `.shipper/`).",
       inputSchema: {
         types: z.array(DOC_TYPE_ENUM).optional(),
         status: STATUS_ENUM.optional(),
@@ -355,11 +429,16 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     },
     async (args) => {
       try {
+        const repoRoot = await resolveRootOnce();
+        const { effective } = await loadConfig(repoRoot);
+        const filters = toFilters(args);
+        if (!effective.search.enabled) {
+          return listDiscoveredDocs(repoRoot, effective, filters);
+        }
         const notReady = await awaitReady();
         if (notReady) return notReady;
-        const repoRoot = await resolveRootOnce();
         const { index } = await syncIndexIfStale({ repoRoot, embedder });
-        const text = formatDocList(index.header.files, toFilters(args));
+        const text = formatDocList(index.header.files, filters);
         return textResult(text, { files: index.header.files });
       } catch (err: unknown) {
         return errorResult(err instanceof Error ? err.message : String(err));
@@ -372,16 +451,20 @@ export function createShipperMcpServer(opts: CreateShipperMcpServerOpts): McpSer
     {
       title: "Reindex Shipper docs",
       description:
-        "Build or refresh the semantic search index for this repository. Use force to rebuild from scratch.",
+        "Build or refresh the semantic search index for this repository's Shipper artifact directories (default `.shipper/`). Use force to rebuild from scratch.",
       inputSchema: {
         force: z.boolean().optional(),
       },
     },
     async (args) => {
       try {
+        const repoRoot = await resolveRootOnce();
+        const { effective } = await loadConfig(repoRoot);
+        if (!effective.search.enabled) {
+          return textResult(SEARCH_DISABLED_MESSAGE);
+        }
         const notReady = await awaitReady();
         if (notReady) return notReady;
-        const repoRoot = await resolveRootOnce();
         const { stats } = await syncIndex({
           repoRoot,
           embedder,

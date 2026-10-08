@@ -3,11 +3,13 @@ name: shipper-loop
 description: Orchestrate the completion of an entire Shipper plan by looping over its phases, spinning up a fresh subagent per phase that executes the shipper-build skill, monitoring each one, and iterating until the plan is done.
 ---
 
-The goal of this skill is to take an existing Shipper plan (in the .shipper folder of this repository) and drive it to full completion in a single chat. You are the orchestrator: you do not implement phases yourself. For each phase you spin up a brand new subagent that follows the shipper-build skill, you monitor its work, you verify the result, and you move on to the next phase until the plan is complete.
+The goal of this skill is to take an existing Shipper plan (in `<plans>`) and drive it to full completion in a single chat. You are the orchestrator: you do not implement phases yourself. For each phase you spin up a brand new subagent that follows the shipper-build skill, you monitor its work, you verify the result, and you move on to the next phase until the plan is complete.
+
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
 
 ## Step 1: Identify the plan
 
-The user will direct you to which plan they want completed. If they don't specify and there is exactly one plan in `.shipper/plans/open/`, use it. If there are multiple open plans, use the tool you have available to ask the user which plan to run.
+The user will direct you to which plan they want completed. If they don't specify and there is exactly one plan in `<plans>/open/`, use it. If there are multiple open plans, use the tool you have available to ask the user which plan to run.
 
 ## Step 2: Assess plan state
 
@@ -17,12 +19,14 @@ Read the entire plan file. Determine which phases are already complete and which
 - Checked vs unchecked checkboxes in each phase's sections
 - "Completion Notes" sections left behind at the end of completed phases
 
-Also resolve the absolute path to the shipper-build skill files (SKILL.md and GIT.md) — they live alongside this skill in the installed skills directory. You will pass these paths to every subagent.
+Also resolve the absolute path to the shipper-build skill files (SKILL.md, GIT.md, and CONFIG.md) — they live alongside this skill in the installed skills directory. You will pass these paths to every subagent.
 
-Determine the git preferences for this run and reuse them for every phase:
+Determine the git preferences for this run and reuse them for every phase. Resolve them in this order:
 
-- **Branch**: work directly on the currently checked-out branch (the default), unless the user asked for a feature branch or the plan frontmatter already has a `branch` key (in which case use feature-branch mode on that branch).
-- **Commits**: commit after each phase (the default), unless the user asked to leave changes uncommitted.
+1. What the user asked for in this conversation.
+2. The plan frontmatter. A `branch` key means feature-branch mode on that branch.
+3. `git.branchMode` and `git.commitEachPhase` from CONFIG.md. `"current"` stays on the checked-out branch. `"feature"` creates a feature branch. `commitEachPhase: false` means leave changes uncommitted.
+4. The defaults: work on the currently checked-out branch, and commit after each phase.
 
 If the user's message stated a preference, honor it without asking.
 
@@ -35,7 +39,8 @@ For each remaining phase, in order, one at a time:
 1. **Spin up a brand new subagent.** Never reuse a subagent from a previous phase — each phase gets a fresh one with a clean context. The subagent cannot see this conversation, so its prompt must be self-contained and include:
    - The absolute path to the repository and to the plan file
    - The exact phase number and phase title it is responsible for, and an explicit instruction to implement **only** that phase
-   - An instruction to first read and follow the shipper-build skill files at the absolute paths you resolved in Step 2 (SKILL.md and GIT.md), including checking off the plan's checkboxes and writing Completion Notes
+   - An instruction to first read and follow the shipper-build skill files at the absolute paths you resolved in Step 2 (SKILL.md, GIT.md, and CONFIG.md), including checking off the plan's checkboxes and writing Completion Notes
+   - If `models.<your agent>.shipper-build` is set, start each phase subagent with that model (see CONFIG.md)
    - The git preferences from Step 2, stated explicitly: which branch mode to use (current branch or feature branch) and whether to commit after the phase
    - Any decisions or answers the user has already given that are relevant to this phase
    - An instruction that it cannot ask the user questions: it should make reasonable decisions consistent with the plan and codebase conventions, and clearly report in its final response anything it was blocked on or unsure about
@@ -56,7 +61,7 @@ For each remaining phase, in order, one at a time:
 
 ## Step 4: Completion
 
-After the final phase's subagent finishes, verify the plan-completion steps from the shipper-build GIT.md were done: `completed_at` is set in frontmatter, the plan file was moved from `.shipper/plans/open/` to `.shipper/plans/done/`, and (if committing is enabled) a final completion commit exists. If any were missed, spin up one last subagent to finish them.
+After the final phase's subagent finishes, verify the plan-completion steps from the shipper-build GIT.md were done: `completed_at` is set in frontmatter, the plan file was moved from `<plans>/open/` to `<plans>/done/`, and (if committing is enabled) a final completion commit exists. If any were missed, spin up one last subagent to finish them.
 
 Close out by summarizing for the user: the phases completed, the branch the work lives on (and whether changes were left uncommitted), and that the plan is ready for shipper-ship to open a PR.
 

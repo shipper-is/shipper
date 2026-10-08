@@ -41,7 +41,7 @@ export default async function ModulesPage() {
         <ol className="mt-4 max-w-2xl list-decimal space-y-2 pl-5 text-white/60">
           <li>Copy the plan command for a module below.</li>
           <li>Paste it into Claude Code, Cursor, or opencode.</li>
-          <li>Review the tailored plan your agent writes to <span className="font-mono text-white">.shipper/plans/open/</span>.</li>
+          <li>Review the tailored plan your agent writes to the configured plans directory (default <span className="font-mono text-white">.shipper/plans/open/</span>).</li>
           <li>Build it with <span className="font-mono text-white">shipper-loop</span> (or phase by phase with <span className="font-mono text-white">shipper-build</span>).</li>
         </ol>
 

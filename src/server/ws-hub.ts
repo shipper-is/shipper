@@ -1,19 +1,8 @@
 import type { Server, ServerWebSocket } from "bun";
-import { getDefaultAgent, getProjectConfig } from "../core/config.ts";
-import { detectAgents } from "../agents/detect.ts";
 import {
-  idleRunState,
   parseClientMessage,
-  type AgentQuestion,
-  type ChatEntry,
   type ClientMessage,
-  type ConfigInfo,
-  type ModelPickRequest,
-  type PlansSnapshot,
-  type RunState,
   type ServerMessage,
-  type ServerSnapshot,
-  type TerminalState,
 } from "../shared/protocol.ts";
 
 export type WsClientData = {
@@ -25,14 +14,7 @@ export type WsMessageHandlers = {
 };
 
 export type WsHubDeps = {
-  getPlans: () => PlansSnapshot;
-  getRunState: () => RunState;
-  getChatEntries: () => ChatEntry[];
-  getPendingQuestion: () => AgentQuestion | null;
-  getModelPickRequest: () => ModelPickRequest | null;
-  getQueuedMessages: () => string[];
-  getConfigInfo: () => ConfigInfo;
-  getTerminalState: () => TerminalState;
+  getSnapshot: () => ServerMessage;
   handlers?: WsMessageHandlers;
 };
 
@@ -44,26 +26,11 @@ export type WsHub = {
   };
   handleUpgrade: (req: Request, server: Server<WsClientData>) => boolean;
   broadcast: (msg: ServerMessage) => void;
-  broadcastBinary: (data: Uint8Array) => void;
-  sendBinary: (ws: ServerWebSocket<WsClientData>, data: Uint8Array) => void;
-  sendSnapshot: (ws: ServerWebSocket<WsClientData>) => void;
   clientCount: () => number;
 };
 
 export function createWsHub(deps: WsHubDeps): WsHub {
   const sockets = new Set<ServerWebSocket<WsClientData>>();
-
-  const buildSnapshot = (): ServerSnapshot => ({
-    type: "snapshot",
-    plans: deps.getPlans(),
-    runState: deps.getRunState(),
-    chatEntries: deps.getChatEntries(),
-    pendingQuestion: deps.getPendingQuestion(),
-    modelPickRequest: deps.getModelPickRequest(),
-    queuedMessages: deps.getQueuedMessages(),
-    configInfo: deps.getConfigInfo(),
-    terminalState: deps.getTerminalState(),
-  });
 
   const send = (ws: ServerWebSocket<WsClientData>, msg: ServerMessage) => {
     ws.send(JSON.stringify(msg));
@@ -76,20 +43,6 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     }
   };
 
-  const broadcastBinary = (data: Uint8Array) => {
-    for (const ws of sockets) {
-      ws.send(data);
-    }
-  };
-
-  const sendBinary = (ws: ServerWebSocket<WsClientData>, data: Uint8Array) => {
-    ws.send(data);
-  };
-
-  const sendSnapshot = (ws: ServerWebSocket<WsClientData>) => {
-    send(ws, buildSnapshot());
-  };
-
   const handleUpgrade = (req: Request, server: Server<WsClientData>): boolean => {
     const id = crypto.randomUUID();
     return server.upgrade(req, { data: { id } });
@@ -99,7 +52,7 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     websocket: {
       open(ws) {
         sockets.add(ws);
-        sendSnapshot(ws);
+        send(ws, deps.getSnapshot());
       },
       message(ws, message) {
         if (typeof message !== "string") {
@@ -123,43 +76,6 @@ export function createWsHub(deps: WsHubDeps): WsHub {
     },
     handleUpgrade,
     broadcast,
-    broadcastBinary,
-    sendBinary,
-    sendSnapshot,
     clientCount: () => sockets.size,
   };
 }
-
-const AGENT_LABELS = {
-  claude: "Claude",
-  cursor: "Cursor",
-  opencode: "OpenCode",
-} as const;
-
-export async function buildConfigInfo(repoPath: string): Promise<ConfigInfo> {
-  const [detected, projectConfig, defaultAgent] = await Promise.all([
-    detectAgents(),
-    getProjectConfig(repoPath),
-    getDefaultAgent(),
-  ]);
-
-  const detectedKinds = new Set(detected.map((agent) => agent.kind));
-
-  return {
-    repoPath,
-    defaultAgent: projectConfig.agent ?? defaultAgent ?? null,
-    detectedAgents: (["claude", "cursor", "opencode"] as const).map((kind) => ({
-      kind,
-      available: detectedKinds.has(kind),
-      label: AGENT_LABELS[kind],
-    })),
-  };
-}
-
-export const defaultTerminalState = (): TerminalState => ({
-  available: typeof Bun !== "undefined" && typeof Bun.Terminal !== "undefined",
-  active: false,
-  message: null,
-});
-
-export { idleRunState };

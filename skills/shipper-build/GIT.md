@@ -2,10 +2,12 @@ This file is the authoritative git workflow for shipper-build. Read and follow i
 
 ## Choosing where the work happens
 
-There are two modes. The prompt that started this session may state which one to use — follow it. If the prompt says nothing:
+There are two modes. Choose in this order:
 
-- If the plan frontmatter already has a `branch` key, use **feature-branch mode** on that branch (an earlier phase chose it).
-- Otherwise, default to **current-branch mode**.
+1. What the prompt or the user says. Follow it.
+2. If the plan frontmatter already has a `branch` key, use feature-branch mode on that branch (an earlier phase chose it).
+3. `git.branchMode` from [./CONFIG.md](./CONFIG.md). `"feature"` uses feature-branch mode. `"current"` uses current-branch mode.
+4. Otherwise use current-branch mode.
 
 ### Current-branch mode (default)
 
@@ -13,11 +15,11 @@ Work directly on whatever branch is currently checked out. Do not create or swit
 
 ### Feature-branch mode
 
-Only use this mode when the prompt or the user explicitly asks for it, or when the plan frontmatter already has a `branch` key.
+Only use this mode when the prompt or the user explicitly asks for it, when the plan frontmatter already has a `branch` key, or when `git.branchMode` is `"feature"`.
 
-On **phase 1** (or whenever the plan frontmatter has no `branch` key), create and check out a feature branch named `shipper/<plan-name>` from the current branch. Derive `<plan-name>` from the plan filename (kebab-case, without `.md`). Record both `branch` and `base_branch` in the plan frontmatter:
+On **phase 1** (or whenever the plan frontmatter has no `branch` key), create and check out a feature branch named `<git.branchPrefix><plan-name>` from the current branch (default `shipper/<plan-name>`). Derive `<plan-name>` from the plan filename (kebab-case, without `.md`). Record both `branch` and `base_branch` in the plan frontmatter:
 
-- `branch`: the feature branch you are on (`shipper/<plan-name>`)
+- `branch`: the feature branch you are on (`<git.branchPrefix><plan-name>`, default `shipper/<plan-name>`)
 - `base_branch`: the branch you branched from (the current branch name before checkout)
 
 On **later phases**, read `branch` and `base_branch` from the existing frontmatter and stay on that branch. Never re-decide branching on a later phase.
@@ -30,7 +32,7 @@ In either mode, if `started_at` is not set, add it as a quoted ISO 8601 timestam
 
 ## Committing
 
-By default, commit after each phase (see below). If the prompt or the user says **not** to commit, skip this entire section: leave all changes uncommitted in the working tree, never run `git commit`, and do not write `phase_commits` to the frontmatter.
+By default, commit after each phase (see below). Skip this entire section if the prompt or the user says not to commit, or if `git.commitEachPhase` is `false` and the user has not asked you to commit. When you skip it, leave all changes uncommitted in the working tree, never run `git commit`, and do not write `phase_commits` to the frontmatter.
 
 ### Commit per phase
 
@@ -57,7 +59,7 @@ After completing a phase (all section checkboxes checked, Completion Notes writt
 When you complete the **final phase** of the plan:
 
 1. Set `completed_at` in frontmatter to the current time as a quoted ISO 8601 timestamp.
-2. Move the plan file from `.shipper/plans/open/` to `.shipper/plans/done/`.
+2. Move the plan file from `<plans>/open/` to `<plans>/done/`.
 3. If committing is enabled, make a final commit with an appropriate message (e.g. `Complete plan: <plan title>`).
 
 In feature-branch mode, do not delete the feature branch here. The branch persists for PR creation via shipper-ship.
@@ -69,7 +71,7 @@ All keys are optional unless this workflow sets them. Preserve existing keys; ne
 ```yaml
 ---
 type: plan
-branch: shipper/my-plan-name
+branch: shipper/my-plan-name # <git.branchPrefix><plan-name>; the default prefix is shipper/
 base_branch: main
 started_at: "2026-07-04T22:15:00-05:00"
 completed_at: "2026-07-05T01:40:00-05:00"

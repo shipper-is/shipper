@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { installMcp, uninstallMcp } from "./install.ts";
+import { getMcpStatus, installMcp, uninstallMcp } from "./install.ts";
 
 describe("installMcp / uninstallMcp", () => {
   let previousHome: string | undefined;
@@ -215,5 +215,154 @@ describe("installMcp / uninstallMcp", () => {
     const [result] = await installMcp(["claude"], { self, homeDir, runCommand });
     expect(result?.status).toBe("manual");
     expect(result?.detail).toContain("claude mcp add --scope user shipper --");
+  });
+});
+
+describe("getMcpStatus", () => {
+  let previousHome: string | undefined;
+  let previousXdg: string | undefined;
+  let homeDir: string;
+  const self = { command: "/usr/local/bin/shipper", args: [] as string[] };
+
+  beforeEach(async () => {
+    homeDir = await mkdtemp(join(tmpdir(), "shipper-mcp-status-"));
+    previousHome = process.env["HOME"];
+    previousXdg = process.env["XDG_CONFIG_HOME"];
+    process.env["HOME"] = homeDir;
+    delete process.env["XDG_CONFIG_HOME"];
+  });
+
+  afterEach(async () => {
+    if (previousHome === undefined) {
+      delete process.env["HOME"];
+    } else {
+      process.env["HOME"] = previousHome;
+    }
+    if (previousXdg === undefined) {
+      delete process.env["XDG_CONFIG_HOME"];
+    } else {
+      process.env["XDG_CONFIG_HOME"] = previousXdg;
+    }
+    await rm(homeDir, { recursive: true, force: true });
+  });
+
+  it("reports cursor as missing, registered, outdated, or manual", async () => {
+    const path = join(homeDir, ".cursor", "mcp.json");
+    const deps = { self, homeDir };
+
+    expect(await getMcpStatus(["cursor"], deps)).toEqual([
+      { agent: "cursor", state: "missing", detail: "shipper is not registered" },
+    ]);
+
+    await mkdir(join(homeDir, ".cursor"), { recursive: true });
+    await writeFile(
+      path,
+      JSON.stringify({
+        mcpServers: {
+          shipper: {
+            command: self.command,
+            args: ["mcp", "--dir", "${workspaceFolder}"],
+          },
+        },
+      }),
+      "utf8",
+    );
+    expect((await getMcpStatus(["cursor"], deps))[0]?.state).toBe("registered");
+
+    await writeFile(
+      path,
+      JSON.stringify({
+        mcpServers: { shipper: { command: "other", args: ["mcp"] } },
+      }),
+      "utf8",
+    );
+    expect((await getMcpStatus(["cursor"], deps))[0]?.state).toBe("outdated");
+
+    await writeFile(path, "{", "utf8");
+    const manual = (await getMcpStatus(["cursor"], deps))[0];
+    expect(manual?.state).toBe("manual");
+    expect(manual?.detail).toContain(path);
+  });
+
+  it("reports opencode manual when only jsonc exists, otherwise matches the command", async () => {
+    const dir = join(homeDir, ".config", "opencode");
+    await mkdir(dir, { recursive: true });
+    await writeFile(join(dir, "opencode.jsonc"), "{}\n", "utf8");
+    const manual = (await getMcpStatus(["opencode"], { self, homeDir }))[0];
+    expect(manual?.state).toBe("manual");
+    expect(manual?.detail).toContain("opencode.jsonc");
+
+    await rm(join(dir, "opencode.jsonc"));
+    await writeFile(
+      join(dir, "opencode.json"),
+      JSON.stringify({
+        mcp: {
+          shipper: {
+            type: "local",
+            command: [self.command, "mcp"],
+            enabled: true,
+          },
+        },
+      }),
+      "utf8",
+    );
+    expect((await getMcpStatus(["opencode"], { self, homeDir }))[0]?.state).toBe("registered");
+
+    await writeFile(
+      join(dir, "opencode.json"),
+      JSON.stringify({
+        mcp: { shipper: { type: "local", command: ["other", "mcp"], enabled: true } },
+      }),
+      "utf8",
+    );
+    expect((await getMcpStatus(["opencode"], { self, homeDir }))[0]?.state).toBe("outdated");
+  });
+
+  it("classifies claude from mcp get, and treats failures as missing or unknown", async () => {
+    const registered = await getMcpStatus(["claude"], {
+      self,
+      homeDir,
+      runCommand: async () => ({
+        exitCode: 0,
+        stdout: "Command: /usr/local/bin/shipper\nArgs: mcp\n",
+        stderr: "",
+      }),
+    });
+    expect(registered[0]?.state).toBe("registered");
+
+    const outdated = await getMcpStatus(["claude"], {
+      self,
+      homeDir,
+      runCommand: async () => ({
+        exitCode: 0,
+        stdout: "Command: /other/bin/shipper\nArgs: mcp\n",
+        stderr: "",
+      }),
+    });
+    expect(outdated[0]?.state).toBe("outdated");
+
+    const uncompared = await getMcpStatus(["claude"], {
+      self,
+      homeDir,
+      runCommand: async () => ({ exitCode: 0, stdout: "shipper is connected\n", stderr: "" }),
+    });
+    expect(uncompared[0]?.state).toBe("registered");
+    expect(uncompared[0]?.detail).toContain("not compared");
+
+    const missing = await getMcpStatus(["claude"], {
+      self,
+      homeDir,
+      runCommand: async () => ({ exitCode: 1, stdout: "", stderr: "not found" }),
+    });
+    expect(missing[0]?.state).toBe("missing");
+
+    const unknown = await getMcpStatus(["claude"], {
+      self,
+      homeDir,
+      runCommand: async () => {
+        throw new Error("timed out");
+      },
+    });
+    expect(unknown[0]?.state).toBe("unknown");
   });
 });

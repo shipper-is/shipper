@@ -5,17 +5,19 @@ description: A custom planning skill to create high-fidelity plans using the Shi
 
 The goal of this skill is to create a detailed and comprehensive plan for a feature or task based on the user's limited input.
 
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+
 ## Module references
 
 If the user's request contains a Shipper module reference — a `https://shipper.is/modules/<id>` URL (with or without trailing slash), a `modules/<id>` path on GitHub, or an explicit module id such as `customer-support` — follow the **module flow** below. Otherwise, the standard four-step flow applies unchanged.
 
 ### Module flow
 
-1. **Install the module.** Run `shipper modules add <id>` from the repository root (pass `--dir <path>` if the repo is not the current working directory). If the `shipper` CLI is not installed, fall back to fetching markdown from `https://raw.githubusercontent.com/shipper-is/shipper/main/modules/<id>/`: start with `MODULE.md`, then fetch each reference file linked with a relative `./FILE.md` path, and write them into `.shipper/modules/<id>/`.
-2. **Read the module.** Read every file in `.shipper/modules/<id>/`. The module is the feature spec — it defines behavior, data model, UX, and architecture in stack-neutral terms.
+1. **Install the module.** Run `shipper modules add <id>` from the repository root (pass `--dir <path>` if the repo is not the current working directory). `shipper modules add` already installs into the configured modules directory, `<modules>/<id>/`. If the `shipper` CLI is not installed, fall back to fetching markdown from `https://raw.githubusercontent.com/shipper-is/shipper/main/modules/<id>/`: start with `MODULE.md`, then fetch each reference file linked with a relative `./FILE.md` path, and write them into `<modules>/<id>/`.
+2. **Read the module.** Read every file in `<modules>/<id>/`. The module is the feature spec — it defines behavior, data model, UX, and architecture in stack-neutral terms.
 3. **Map to the host repo.** Explore the host codebase to map the module's requirements (data model, UI surfaces, auth assumptions) onto the repo's actual stack and conventions.
 4. **Ask integration questions.** Use the tool you have available to ask clarifying questions focused on choices the module leaves open (placement, naming, which optional features to include). Do not re-ask things the module already decides.
-5. **Write the plan.** Cite both module files (as the spec) and host repo files (as the integration points). In the Plan Overview, include a line such as: `Built from module \`customer-support\` v1` (use the module's actual `id` and `version` from its frontmatter). State that `.shipper/modules/` should be committed to the repo alongside the plan.
+5. **Write the plan.** Cite both module files (as the spec) and host repo files (as the integration points). In the Plan Overview, include a line such as: `Built from module \`customer-support\` v1` (use the module's actual `id` and `version` from its frontmatter). State that `<modules>/` should be committed to the repo alongside the plan.
 
 After install, the next step for the user is `/shipper-loop` on the plan (or `/shipper-build` for a single phase) — same as the standard flow.
 
@@ -23,9 +25,9 @@ After install, the next step for the user is `/shipper-loop` on the plan (or `/s
 
 This is a READ-ONLY process. You must not make edits, run non-readonly tools, change configs, or commit anything — **except** for the allowed writes listed below.
 
-**Allowed writes:** the plan markdown file in `.shipper/plans/open/`, and module files installed into `.shipper/modules/<id>/` (via `shipper modules add` or the raw-GitHub fallback above). Running `shipper modules add` is explicitly permitted.
+**Allowed writes:** the plan markdown file in `<plans>/open/`, and module files installed into `<modules>/<id>/` (via `shipper modules add` or the raw-GitHub fallback above). Running `shipper modules add` is explicitly permitted.
 
-The first step is to gather just enough context from the existing codebase to try and better understand what the user is asking for. If the `shipper_search` MCP tool is available, start by searching with a short natural-language description of the request to find related plans, spikes, bugs, and reviews (open and done), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over `.shipper/`. Treat hits as leads, not truth — verify against the current code. Use parallel subagents to look at different parts of the codebase or angles at once.
+The first step is to gather just enough context from the existing codebase to try and better understand what the user is asking for. If the `shipper_search` MCP tool is available, start by searching with a short natural-language description of the request to find related plans, spikes, bugs, and reviews (open and done), then read the most relevant hits with `shipper_get_doc` or your file reader. If the tool is not available, fall back to grep/glob over the artifact directories. Treat hits as leads, not truth — verify against the current code. Use parallel subagents to look at different parts of the codebase or angles at once.
 
 The second step is to use the tool you have available to ask the user clarifying questions about their request. This will help to ensure that the plan is tailored to their specific needs and requirements. The goal is to gain a clear understanding of the user's objectives, push back on anywhere that their request dissents with the existing codebase, and ensure that there is mutual understanding of the outcomes.
 
@@ -66,4 +68,4 @@ Plan quality requirements:
 
 The junior engineer will use this plan as a roadmap to see everything that needs to be completed.
 
-The markdown file you create should go in a folder at the root of the repository (committed to the repository) called ".shipper". Inside of this folder there should be a "plans" folder with "open" and "done" folders. You'll place this new plan in the "open" folder. Also (if they don't exist already) scaffold out a "bugs" and "spikes" folder as well with their own "open" and "done" folders.
+Place the plan in `<plans>/open/` (committed to the repository). If they do not exist yet, also create `open/` and `done/` folders under `<plans>`, `<spikes>`, and `<bugs>`.

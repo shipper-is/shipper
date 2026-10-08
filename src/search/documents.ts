@@ -2,9 +2,11 @@ import { createHash } from "node:crypto";
 import { lstat, readdir, readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { parseFrontmatter } from "../core/plan-store.ts";
+import { loadConfig } from "../core/config.ts";
+import { parseFrontmatter } from "../core/frontmatter.ts";
+import type { EffectiveConfig } from "../shared/config-schema.ts";
 
-export type DocType = "plan" | "spike" | "bug" | "review";
+export type DocType = "plan" | "spike" | "bug" | "review" | "doc";
 export type DocStatus = "open" | "done" | null;
 
 export type ShipperDoc = {
@@ -73,11 +75,15 @@ async function collectMdFiles(
   return out;
 }
 
+function absFromRepo(repoRoot: string, rel: string): string {
+  return join(repoRoot, ...rel.split("/").filter((part) => part.length > 0));
+}
+
 export async function discoverDocs(
   repoRoot: string,
-  opts?: { onFound?: (count: number) => void },
+  opts?: { onFound?: (count: number) => void; config?: EffectiveConfig },
 ): Promise<ShipperDoc[]> {
-  const shipperRoot = join(repoRoot, ".shipper");
+  const effective = opts?.config ?? (await loadConfig(repoRoot)).effective;
   const docs: ShipperDoc[] = [];
   const seen = new Set<string>();
 
@@ -86,83 +92,66 @@ export async function discoverDocs(
     opts?.onFound?.(docs.length);
   };
 
-  const typedFolders: Array<{ type: DocType; root: string }> = [
-    { type: "plan", root: "plans" },
-    { type: "spike", root: "spikes" },
-    { type: "bug", root: "bugs" },
-  ];
-
-  for (const { type, root } of typedFolders) {
-    for (const status of ["open", "done"] as const) {
-      const absDir = join(shipperRoot, root, status);
-      const relDir = `.shipper/${root}/${status}`;
-      for (const file of await collectMdFiles(absDir, relDir)) {
-        try {
-          const st = await stat(file.absPath);
-          if (st.size > MAX_DOC_BYTES) {
-            continue;
-          }
-          seen.add(file.relPath);
-          add({
-            relPath: file.relPath,
-            absPath: file.absPath,
-            type,
-            status,
-            mtimeMs: st.mtimeMs,
-            size: st.size,
-          });
-        } catch {
-          // skip unreadable
-        }
-      }
-    }
-  }
-
-  for (const file of await collectMdFiles(join(shipperRoot, "reviews"), ".shipper/reviews")) {
+  const consider = async (
+    file: { absPath: string; relPath: string },
+    type: DocType,
+    status: DocStatus,
+    readTypeFromFrontmatter = false,
+  ): Promise<void> => {
+    if (seen.has(file.relPath)) return;
     try {
       const st = await stat(file.absPath);
-      if (st.size > MAX_DOC_BYTES) {
-        continue;
+      if (st.size > MAX_DOC_BYTES) return;
+      let resolvedType = type;
+      if (readTypeFromFrontmatter) {
+        const markdown = await readFile(file.absPath, "utf8");
+        resolvedType = parseFrontmatter(markdown).type === "spike" ? "spike" : "plan";
       }
       seen.add(file.relPath);
       add({
         relPath: file.relPath,
         absPath: file.absPath,
-        type: "review",
-        status: null,
+        type: resolvedType,
+        status,
         mtimeMs: st.mtimeMs,
         size: st.size,
       });
     } catch {
       // skip unreadable
     }
+  };
+
+  const typedFolders: Array<{ type: DocType; relRoot: string }> = [
+    { type: "plan", relRoot: effective.paths.plans },
+    { type: "spike", relRoot: effective.paths.spikes },
+    { type: "bug", relRoot: effective.paths.bugs },
+  ];
+
+  for (const { type, relRoot } of typedFolders) {
+    for (const status of ["open", "done"] as const) {
+      const relDir = `${relRoot}/${status}`;
+      for (const file of await collectMdFiles(absFromRepo(repoRoot, relDir), relDir)) {
+        await consider(file, type, status);
+      }
+    }
+  }
+
+  const reviewsRel = effective.paths.reviews;
+  for (const file of await collectMdFiles(absFromRepo(repoRoot, reviewsRel), reviewsRel)) {
+    await consider(file, "review", null);
   }
 
   for (const status of ["open", "done"] as const) {
-    const absDir = join(shipperRoot, status);
     const relDir = `.shipper/${status}`;
-    for (const file of await collectMdFiles(absDir, relDir)) {
-      if (seen.has(file.relPath)) {
-        continue;
-      }
-      try {
-        const st = await stat(file.absPath);
-        if (st.size > MAX_DOC_BYTES) {
-          continue;
-        }
-        const markdown = await readFile(file.absPath, "utf8");
-        const type: DocType = parseFrontmatter(markdown).type === "spike" ? "spike" : "plan";
-        add({
-          relPath: file.relPath,
-          absPath: file.absPath,
-          type,
-          status,
-          mtimeMs: st.mtimeMs,
-          size: st.size,
-        });
-      } catch {
-        // skip unreadable
-      }
+    for (const file of await collectMdFiles(join(repoRoot, ".shipper", status), relDir)) {
+      await consider(file, "plan", status, true);
+    }
+  }
+
+  // Extra dirs are not recursive in v1: only markdown files directly inside each directory.
+  for (const extra of effective.search.extraDirs) {
+    for (const file of await collectMdFiles(absFromRepo(repoRoot, extra), extra)) {
+      await consider(file, "doc", null);
     }
   }
 

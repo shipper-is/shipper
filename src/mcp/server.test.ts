@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -10,6 +10,7 @@ import { createShipperMcpServer } from "./server.ts";
 
 const temps: string[] = [];
 let previousHome: string | undefined;
+let previousXdgConfig: string | undefined;
 let previousXdgCache: string | undefined;
 let homeDir: string;
 
@@ -17,9 +18,11 @@ beforeEach(async () => {
   homeDir = await mkdtemp(join(tmpdir(), "shipper-mcp-home-"));
   temps.push(homeDir);
   previousHome = process.env["HOME"];
+  previousXdgConfig = process.env["XDG_CONFIG_HOME"];
   previousXdgCache = process.env["XDG_CACHE_HOME"];
   process.env["HOME"] = homeDir;
-  delete process.env["XDG_CACHE_HOME"];
+  process.env["XDG_CONFIG_HOME"] = join(homeDir, "config");
+  process.env["XDG_CACHE_HOME"] = join(homeDir, "cache");
 });
 
 afterEach(async () => {
@@ -27,6 +30,11 @@ afterEach(async () => {
     delete process.env["HOME"];
   } else {
     process.env["HOME"] = previousHome;
+  }
+  if (previousXdgConfig === undefined) {
+    delete process.env["XDG_CONFIG_HOME"];
+  } else {
+    process.env["XDG_CONFIG_HOME"] = previousXdgConfig;
   }
   if (previousXdgCache === undefined) {
     delete process.env["XDG_CACHE_HOME"];
@@ -172,6 +180,18 @@ Misconfiguration around the gamma pathway. Padding padding padding padding paddi
 
   return root;
 }
+
+async function writeRepoConfig(repoRoot: string, value: unknown): Promise<void> {
+  await mkdir(join(repoRoot, ".shipper"), { recursive: true });
+  await writeFile(
+    join(repoRoot, ".shipper", "config.json"),
+    `${JSON.stringify(value, null, 2)}\n`,
+    "utf8",
+  );
+}
+
+const SEARCH_DISABLED_MESSAGE =
+  "Search is disabled for this repository (search.enabled is false in Shipper config). Use grep/glob over the artifact directories instead.";
 
 async function connectPair(opts: {
   repoRoot: string;
@@ -352,6 +372,162 @@ describe("createShipperMcpServer", () => {
       const text = toolText(result as { content: Array<{ type: string; text?: string }> });
       expect(text).toMatch(/warming up/i);
       expect(text).toMatch(/shipper embed start/i);
+    } finally {
+      await close();
+    }
+  });
+
+  it("shipper_get_doc allows configured dirs and extra dirs, and rejects escapes", async () => {
+    const repoRoot = await makeRepo();
+    await writeRepoConfig(repoRoot, {
+      paths: { plans: "docs/plans" },
+      search: { extraDirs: ["docs/adr"] },
+    });
+    await mkdir(join(repoRoot, "docs", "plans", "open"), { recursive: true });
+    await mkdir(join(repoRoot, "docs", "adr"), { recursive: true });
+    await writeFile(
+      join(repoRoot, "docs", "plans", "open", "custom.md"),
+      "# Custom Plan\n\nBody.\n",
+      "utf8",
+    );
+    await writeFile(join(repoRoot, "docs", "adr", "decision.md"), "# Decision\n", "utf8");
+
+    const outsideDir = await mkdtemp(join(tmpdir(), "shipper-mcp-outside-"));
+    temps.push(outsideDir);
+    const outsideFile = join(outsideDir, "outside.md");
+    await writeFile(outsideFile, "# Outside\n", "utf8");
+    await symlink(outsideFile, join(repoRoot, ".shipper", "plans", "open", "escape.md"));
+
+    await mkdir(join(repoRoot, ".shipper-not"), { recursive: true });
+    await writeFile(join(repoRoot, ".shipper-not", "secret.md"), "# Secret\n", "utf8");
+
+    const { client, close } = await connectPair({
+      repoRoot,
+      embedder: createFakeEmbedder(),
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 100));
+
+      const custom = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: "docs/plans/open/custom.md" },
+      });
+      expect(custom.isError).toBeFalsy();
+      expect(toolText(custom as { content: Array<{ type: string; text?: string }> })).toContain(
+        "# Custom Plan",
+      );
+
+      const extra = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: "docs/adr/decision.md" },
+      });
+      expect(extra.isError).toBeFalsy();
+      expect(toolText(extra as { content: Array<{ type: string; text?: string }> })).toContain(
+        "# Decision",
+      );
+
+      const escapedPath = relative(repoRoot, outsideFile);
+      const escaped = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: escapedPath },
+      });
+      expect(escaped.isError).toBe(true);
+      expect(toolText(escaped as { content: Array<{ type: string; text?: string }> })).toBe(
+        `Path must be a .md file inside a Shipper artifact directory: ${escapedPath}`,
+      );
+
+      const viaSymlink = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: ".shipper/plans/open/escape.md" },
+      });
+      expect(viaSymlink.isError).toBe(true);
+      expect(
+        toolText(viaSymlink as { content: Array<{ type: string; text?: string }> }),
+      ).toContain("Path must be a .md file inside a Shipper artifact directory");
+
+      const prefix = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: ".shipper-not/secret.md" },
+      });
+      expect(prefix.isError).toBe(true);
+      expect(toolText(prefix as { content: Array<{ type: string; text?: string }> })).toContain(
+        "Path must be a .md file inside a Shipper artifact directory",
+      );
+
+      const absolute = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: outsideFile },
+      });
+      expect(absolute.isError).toBe(true);
+      expect(toolText(absolute as { content: Array<{ type: string; text?: string }> })).toContain(
+        "Path must be a .md file inside a Shipper artifact directory",
+      );
+    } finally {
+      await close();
+    }
+  });
+
+  it("returns a non-error when search is disabled, and list and get still work", async () => {
+    const repoRoot = await makeRepo();
+    await writeRepoConfig(repoRoot, { search: { enabled: false } });
+    let ensured = false;
+    const { client, close } = await connectPair({
+      repoRoot,
+      embedder: createFakeEmbedder(),
+      ensureServer: async () => {
+        ensured = true;
+        return { baseUrl: "http://127.0.0.1:9" };
+      },
+    });
+    try {
+      const search = await client.callTool({
+        name: "shipper_search",
+        arguments: { query: "unique-alpha-topic" },
+      });
+      expect(search.isError).toBeFalsy();
+      expect(toolText(search as { content: Array<{ type: string; text?: string }> })).toBe(
+        SEARCH_DISABLED_MESSAGE,
+      );
+
+      const similar = await client.callTool({
+        name: "shipper_similar",
+        arguments: { path: ".shipper/plans/open/alpha.md" },
+      });
+      expect(similar.isError).toBeFalsy();
+      expect(toolText(similar as { content: Array<{ type: string; text?: string }> })).toBe(
+        SEARCH_DISABLED_MESSAGE,
+      );
+
+      const reindex = await client.callTool({
+        name: "shipper_reindex",
+        arguments: {},
+      });
+      expect(reindex.isError).toBeFalsy();
+      expect(toolText(reindex as { content: Array<{ type: string; text?: string }> })).toBe(
+        SEARCH_DISABLED_MESSAGE,
+      );
+
+      const listed = await client.callTool({
+        name: "shipper_list_docs",
+        arguments: {},
+      });
+      expect(listed.isError).toBeFalsy();
+      const listedText = toolText(listed as { content: Array<{ type: string; text?: string }> });
+      expect(listedText).toContain("alpha.md");
+      expect(listedText).toContain("Alpha Plan");
+      expect(listedText).not.toContain("Search is disabled");
+
+      const doc = await client.callTool({
+        name: "shipper_get_doc",
+        arguments: { path: ".shipper/plans/open/alpha.md" },
+      });
+      expect(doc.isError).toBeFalsy();
+      expect(toolText(doc as { content: Array<{ type: string; text?: string }> })).toContain(
+        "unique-alpha-topic",
+      );
+
+      await new Promise((r) => setTimeout(r, 50));
+      expect(ensured).toBe(false);
     } finally {
       await close();
     }
