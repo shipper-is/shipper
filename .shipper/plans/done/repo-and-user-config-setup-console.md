@@ -12,6 +12,8 @@ phase_commits:
   5: 849acce
   6: 32a861a
   7: d2c15f0
+pr_url: https://github.com/shipper-is/shipper/pull/27
+pr_number: 27
 ---
 
 # Repo and User Configuration, and a Setup Console
