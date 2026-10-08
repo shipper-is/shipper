@@ -4,15 +4,15 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Docs — Shipper",
   description:
-    "Use Shipper through the web console or invoke its agent skills directly in your coding agent.",
+    "Plan and build with Shipper skills in your coding agent, and open the setup console to see how this repo is configured.",
 };
 
 const cards = [
   {
     href: "/docs/console",
-    title: "Use the web console",
+    title: "Open the setup console",
     description:
-      "Install Shipper, run it in your repo, and plan, build, or spike features from the browser.",
+      "Run shipper in your repo to see configuration, artifact directories, skills, MCP, and search — and to edit them.",
   },
   {
     href: "/docs/skills",
@@ -40,8 +40,10 @@ export default function DocsPage() {
       <div className="mx-auto max-w-6xl">
         <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Docs</h1>
         <p className="mt-4 max-w-2xl text-white/60">
-          Shipper works two ways: a local web console for planning and building,
-          or plain agent skills you can invoke directly in your coding agent.
+          Skills run in your coding agent. The console shows how Shipper is
+          set up for this repo and this user. Artifact directories default to{" "}
+          <span className="font-mono text-white">.shipper/</span> and can be
+          moved in the repo config.
         </p>
 
         <div className="mt-12 grid gap-6 md:grid-cols-2">

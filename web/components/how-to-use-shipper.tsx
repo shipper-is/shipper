@@ -25,13 +25,13 @@ const skillGuides = [
     title: "Plan",
     skill: "shipper-plan",
     description:
-      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to .shipper/plans/open/.",
+      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to the configured plans directory (default .shipper/plans/open/).",
     command: "/shipper-plan add a user settings page",
     steps: [
       "Open your coding agent in the repo.",
       "Run the slash command with a short description of the feature.",
       "Answer clarifying questions inline.",
-      "A phased plan lands in .shipper/plans/open/ — commit it so the team stays aligned.",
+      "A phased plan lands in the configured plans directory (default .shipper/plans/open/) — commit it so the team stays aligned.",
     ],
   },
   {
@@ -39,13 +39,13 @@ const skillGuides = [
     title: "Build",
     skill: "shipper-loop",
     description:
-      "Orchestrates the full plan in one chat: a fresh subagent runs shipper-build for each phase until the plan moves to .shipper/plans/done/.",
+      "Orchestrates the full plan in one chat: a fresh subagent runs shipper-build for each phase until the plan moves to the configured done folder (default .shipper/plans/done/).",
     command: "/shipper-loop on .shipper/plans/open/my-feature.md",
     steps: [
       "Run the slash command with the path to an open plan file.",
       "The orchestrator spins up a new subagent per phase (via shipper-build).",
       "Progress updates as checkboxes and Completion Notes land in the plan.",
-      "When every phase is done, the plan moves to .shipper/plans/done/.",
+      "When every phase is done, the plan moves to the configured done folder (default .shipper/plans/done/).",
     ],
   },
   {
@@ -85,20 +85,20 @@ const alternateSkills = [
     steps: [
       "Describe a small change that fits in one session.",
       "The agent gathers context, writes a lightweight spike plan, and implements it.",
-      "The spike file moves to .shipper/spikes/done/ when finished.",
+      "The spike file moves to the configured spikes directory (default .shipper/spikes/done/) when finished.",
     ],
   },
   {
     title: "Bug",
     skill: "shipper-bug",
     description:
-      "Evidence-first bug workflow: reproduce, diagnose, fix, and prove it in .shipper/bugs/.",
+      "Evidence-first bug workflow: reproduce, diagnose, fix, and prove it in the configured bugs directory (default .shipper/bugs/).",
     command: "/shipper-bug fix the login redirect loop",
     steps: [
       "Run the slash command with a short description of the bug.",
       "The agent reproduces it before diagnosing root cause.",
       "A targeted fix is applied with proof it works.",
-      "The bug file moves to .shipper/bugs/done/.",
+      "The bug file moves to the configured bugs directory (default .shipper/bugs/done/).",
     ],
   },
 ] as const;
@@ -158,11 +158,14 @@ export function HowToUseShipper() {
           How to use Shipper
         </h2>
         <p className="mt-4 max-w-2xl text-white/60">
-          Install once, then invoke skills directly in your coding agent — Claude
-          Code, Cursor CLI, or opencode. No web console required. Prefer a
-          browser UI? Run{" "}
-          <span className="font-mono text-white">shipper</span> in your repo
-          instead.
+          Install once, then invoke skills in your coding agent — Claude Code,
+          Cursor, or opencode. Planning and building happen there. Run{" "}
+          <span className="font-mono text-white">shipper</span> when you want
+          the setup console: configuration, installed skills, search, and MCP.
+          Artifact directories default to{" "}
+          <span className="font-mono text-white">.shipper/</span> and can be
+          changed in{" "}
+          <span className="font-mono text-white">.shipper/config.json</span>.
         </p>
 
         <div className="mt-12 space-y-10">
@@ -217,9 +220,11 @@ export function HowToUseShipper() {
           </div>
 
           <p className="text-white/60">
-            Plans are committed markdown in{" "}
-            <span className="font-mono text-white">.shipper/</span> — console
-            users and direct-skill users work from the same files.{" "}
+            Plans are committed markdown. By default they live under{" "}
+            <span className="font-mono text-white">.shipper/plans/</span>; a
+            repo can point <span className="font-mono text-white">paths.plans</span>{" "}
+            somewhere else. The setup console shows that location. Skills write
+            the files.{" "}
             <Link
               href="/docs/skills"
               className="font-mono underline underline-offset-4 transition-colors hover:text-white"
