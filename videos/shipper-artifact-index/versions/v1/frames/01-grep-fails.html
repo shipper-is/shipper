@@ -1,0 +1,314 @@
+<template>
+  <div data-hf-id="hf-hlla" id="root" data-composition-id="01-grep-fails" data-duration="7.4" data-fps="30" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Geist";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Medium.woff2") format("woff2");}
+      @font-face{font-family:"Geist";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Regular.woff2") format("woff2");}
+      @font-face{font-family:"Geist";font-weight:600;font-style:normal;font-display:block;src:url("assets/fonts/Geist-SemiBold.woff2") format("woff2");}
+      @font-face{font-family:"Geist Mono";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Medium.woff2") format("woff2");}
+      @font-face{font-family:"Geist Mono";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Regular.woff2") format("woff2");}
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      #root {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        container-type: size;
+        isolation: isolate;
+        pointer-events: none;
+        color: #ffffff;
+      }
+
+      #root .clip {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+      }
+
+      #root [id="f01-grep-fails-ground"] {
+        background: #000000;
+      }
+
+      #root [id="f01-grep-fails-panel-clip"] {
+        z-index: 1;
+      }
+
+      #root [id="f01-grep-fails-payoff-clip"] {
+        z-index: 2;
+      }
+
+      #root [id="f01-grep-fails-stage"] {
+        position: absolute;
+        top: 8cqh;
+        left: 15cqw;
+        width: 70cqw;
+        transform-origin: 50% 50%;
+      }
+
+      #root [id="f01-grep-fails-panel"] {
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: #181818;
+      }
+
+      #root [id="f01-grep-fails-bar"] {
+        display: flex;
+        align-items: center;
+        gap: 0.55cqw;
+        padding: 1.15cqh 1.7cqw;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: #181818;
+      }
+
+      #root [class="f01-grep-fails-dot"] {
+        display: block;
+        width: 0.62cqw;
+        height: 0.62cqw;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.32);
+      }
+
+      #root [id="f01-grep-fails-body"] {
+        padding: 1.5cqh 2cqw 1.6cqh;
+        background: #181818;
+      }
+
+      #root [id="f01-grep-fails-command"],
+      #root [class="f01-grep-fails-out"] {
+        font-family: "Geist Mono";
+        font-size: 1.5cqw;
+        font-weight: 400;
+        line-height: 1.48;
+        white-space: nowrap;
+        font-variant-ligatures: none;
+        font-feature-settings: "liga" 0, "calt" 0;
+      }
+
+      #root [id="f01-grep-fails-command"] {
+        color: #ffffff;
+      }
+
+      #root [id="f01-grep-fails-command"]::before {
+        content: "$";
+        margin-right: 0.85ch;
+        color: #ffffff;
+        font-weight: 400;
+      }
+
+      #root [class="f01-grep-fails-out"] {
+        color: rgba(255, 255, 255, 0.55);
+      }
+
+      #root [class="f01-grep-fails-caret"] {
+        display: inline-block;
+        width: 0.56ch;
+        height: 1.05em;
+        margin-left: 0.1ch;
+        background: #ffffff;
+        vertical-align: text-bottom;
+      }
+
+      #root [id="f01-grep-fails-payoff"] {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 24.4cqh;
+        text-align: center;
+        font-family: "Geist";
+        font-weight: 400;
+        font-size: 9.9cqw;
+        line-height: 0.98;
+        letter-spacing: -0.028em;
+        color: #ffffff;
+        white-space: nowrap;
+        transform-origin: 50% 50%;
+      }
+    </style>
+
+    <div data-hf-id="hf-xni7" id="f01-grep-fails-ground" class="clip" data-start="0" data-duration="7.4" data-track-index="0"></div>
+
+    <div data-hf-id="hf-h2kg" id="f01-grep-fails-panel-clip" class="clip" data-start="0" data-duration="7.4" data-track-index="1">
+      <div data-hf-id="hf-re1j" id="f01-grep-fails-stage" role="img" aria-label="rg have we planned this before">
+        <div data-hf-id="hf-q7so" id="f01-grep-fails-panel">
+          <div data-hf-id="hf-oedq" id="f01-grep-fails-bar" aria-hidden="true">
+            <span data-hf-id="hf-67l7" class="f01-grep-fails-dot"></span>
+            <span data-hf-id="hf-lyob" class="f01-grep-fails-dot"></span>
+            <span data-hf-id="hf-lkda" class="f01-grep-fails-dot"></span>
+          </div>
+          <div data-hf-id="hf-vpoy" id="f01-grep-fails-body">
+            <div data-hf-id="hf-h91c" id="f01-grep-fails-command" data-terminal="command">rg "have we planned this before?" .shipper</div>
+            <div data-hf-id="hf-7geu" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/open/repo-and-user-config-setup-console.md</div>
+            <div data-hf-id="hf-5xkh" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/open/super-admin-module.md</div>
+            <div data-hf-id="hf-20or" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/done/semantic-search-mcp.md</div>
+            <div data-hf-id="hf-8eg9" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/done/shipper-marketing-site.md</div>
+            <div data-hf-id="hf-3e4t" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/done/shipper-cli-foundation.md</div>
+            <div data-hf-id="hf-qpz6" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/done/interactive-workspace-ui.md</div>
+            <div data-hf-id="hf-au1p" class="f01-grep-fails-out" data-terminal="output">.shipper/plans/done/git-first-class-workflow.md</div>
+            <div data-hf-id="hf-8cag" class="f01-grep-fails-out" data-terminal="output">.shipper/spikes/done/index-realtime-progress.md</div>
+            <div data-hf-id="hf-0aqv" class="f01-grep-fails-out" data-terminal="output">.shipper/bugs/open/new-plan-chat-attaches-to-latest-plan.md</div>
+            <div data-hf-id="hf-lk0y" class="f01-grep-fails-out" data-terminal="output">.shipper/bugs/done/worktree-plan-cursor-tagging.md</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-hf-id="hf-b560" id="f01-grep-fails-payoff-clip" class="clip" data-start="0" data-duration="7.4" data-track-index="2">
+      <div data-hf-id="hf-aza0" id="f01-grep-fails-payoff">Zero meaning.</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        var root = document.getElementById("root");
+        var stage = document.getElementById("f01-grep-fails-stage");
+        var commandElement = document.getElementById("f01-grep-fails-command");
+        var payoff = document.getElementById("f01-grep-fails-payoff");
+        var outputElements = Array.prototype.slice.call(
+          root.querySelectorAll('[class="f01-grep-fails-out"]'),
+        );
+
+        var TYPE_START = 0.42;
+        var TYPE_END = 2.42;
+        var EXEC_AT = 2.6;
+        var OUT_START = 2.78;
+        var OUT_STEP = 0.2;
+        var PRINT = 0.12;
+        var COLLAPSE_AT = 5.0;
+        var COLLAPSE_DUR = 0.32;
+        var POP_AT = 5.34;
+        var POP_DUR = 0.42;
+
+        var textNodes = [];
+        var walker = document.createTreeWalker(commandElement, NodeFilter.SHOW_TEXT, null);
+        while (walker.nextNode()) {
+          textNodes.push({ node: walker.currentNode, full: walker.currentNode.data });
+        }
+        var fullText = textNodes
+          .map(function (entry) {
+            return entry.full;
+          })
+          .join("");
+
+        function showChars(count) {
+          var remaining = count;
+          for (var i = 0; i < textNodes.length; i += 1) {
+            var entry = textNodes[i];
+            var take = Math.min(entry.full.length, Math.max(0, remaining));
+            entry.node.data = entry.full.slice(0, take);
+            remaining -= entry.full.length;
+          }
+        }
+
+        var caretElement = document.createElement("span");
+        caretElement.className = "f01-grep-fails-caret";
+        caretElement.setAttribute("aria-hidden", "true");
+        commandElement.appendChild(caretElement);
+
+        var rows = [{ t: 0, n: 0 }];
+        var weights = [];
+        var weightSum = 0;
+        var c;
+        for (c = 0; c < fullText.length; c += 1) {
+          var weight = fullText.charAt(c) === " " ? 2 : 1;
+          weights.push(weight);
+          weightSum += weight;
+        }
+        var acc = TYPE_START;
+        var span = TYPE_END - TYPE_START;
+        for (c = 0; c < fullText.length; c += 1) {
+          acc += (weights[c] / weightSum) * span;
+          rows.push({ t: acc, n: c + 1 });
+        }
+
+        function charsAt(time) {
+          for (var i = rows.length - 1; i >= 0; i -= 1) {
+            if (time >= rows[i].t - 0.001) return rows[i].n;
+          }
+          return 0;
+        }
+
+        showChars(0);
+
+        var tl = gsap.timeline({ paused: true });
+
+        tl.fromTo(
+          stage,
+          { scale: 0, opacity: 0 },
+          { scale: 1, opacity: 1, duration: 0.45, ease: "power3.out" },
+          0,
+        );
+
+        var typeDriver = { t: 0 };
+        tl.to(
+          typeDriver,
+          {
+            t: TYPE_END,
+            duration: TYPE_END,
+            ease: "none",
+            onUpdate: function () {
+              showChars(charsAt(typeDriver.t));
+            },
+          },
+          0,
+        );
+
+        var blinkCycles = Math.max(1, Math.round(TYPE_END / 0.85));
+        var blink = { p: 0 };
+        tl.to(
+          blink,
+          {
+            p: Math.PI * 2 * blinkCycles,
+            duration: TYPE_END,
+            ease: "none",
+            onUpdate: function () {
+              caretElement.style.opacity = Math.sin(blink.p) >= 0 ? "1" : "0";
+            },
+          },
+          0,
+        );
+        tl.set(caretElement, { opacity: 1 }, TYPE_END);
+        tl.set(caretElement, { opacity: 0 }, EXEC_AT);
+
+        outputElements.forEach(function (element, index) {
+          tl.fromTo(
+            element,
+            { opacity: 0 },
+            { opacity: 1, duration: PRINT, ease: "none", immediateRender: true },
+            OUT_START + index * OUT_STEP,
+          );
+        });
+
+        tl.fromTo(
+          stage,
+          { scale: 1, opacity: 1 },
+          {
+            scale: 0,
+            opacity: 0,
+            duration: COLLAPSE_DUR,
+            ease: "power2.in",
+            immediateRender: false,
+          },
+          COLLAPSE_AT,
+        );
+
+        tl.fromTo(
+          payoff,
+          { scale: 0, opacity: 0 },
+          { scale: 1, opacity: 1, duration: POP_DUR, ease: "power3.out" },
+          POP_AT,
+        );
+
+        tl.seek(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["01-grep-fails"] = tl;
+      })();
+    </script>
+  </div>
+</template>

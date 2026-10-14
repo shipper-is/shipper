@@ -1,0 +1,341 @@
+<template>
+  <div data-hf-id="hf-rmad" id="root" data-composition-id="02-index-hits" data-duration="10.5" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Geist";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Medium.woff2") format("woff2");}
+      @font-face{font-family:"Geist";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Regular.woff2") format("woff2");}
+      @font-face{font-family:"Geist";font-weight:600;font-style:normal;font-display:block;src:url("assets/fonts/Geist-SemiBold.woff2") format("woff2");}
+      @font-face{font-family:"Geist Mono";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Medium.woff2") format("woff2");}
+      @font-face{font-family:"Geist Mono";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Regular.woff2") format("woff2");}
+
+      #root,
+      #root *,
+      #root *::before,
+      #root *::after {
+        box-sizing: border-box;
+      }
+
+      #root {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        container-type: size;
+        isolation: isolate;
+        color: #ffffff;
+        font-family: "Geist Mono";
+        pointer-events: none;
+      }
+
+      [class~="f02-index-hits-bg"],
+      [class~="f02-index-hits-clip"] {
+        position: absolute;
+        inset: 0;
+      }
+
+      [class~="f02-index-hits-bg"] {
+        background: #000000;
+      }
+
+      [class~="f02-index-hits-clip"] {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 6.5cqh;
+      }
+
+      [class~="f02-index-hits-stage"] {
+        width: 70cqw;
+      }
+
+      [class~="f02-index-hits-panel"] {
+        display: flex;
+        flex-direction: column;
+        min-height: 56cqh;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        background: #181818;
+      }
+
+      [class~="f02-index-hits-bar"] {
+        display: flex;
+        align-items: center;
+        gap: 0.7cqw;
+        padding: 1.7cqh 2.2cqw;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: #181818;
+      }
+
+      [class~="f02-index-hits-dot"] {
+        width: 0.72cqw;
+        height: 0.72cqw;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.38);
+      }
+
+      [class~="f02-index-hits-body"] {
+        flex: 1;
+        padding: 3.6cqh 2.8cqw 3.2cqh;
+      }
+
+      [data-terminal="command"],
+      [class~="f02-index-hits-status"],
+      [class~="f02-index-hits-tail"],
+      [class~="f02-index-hits-file"] {
+        font-family: "Geist Mono";
+        font-weight: 400;
+        font-size: 2.15cqw;
+        line-height: 1.6;
+        color: #ffffff;
+        white-space: pre;
+      }
+
+      [data-terminal="command"],
+      [class~="f02-index-hits-tail"] {
+        display: block;
+      }
+
+      [data-terminal="command"]::before,
+      [class~="f02-index-hits-tail"]::before {
+        content: "$";
+        margin-right: 0.75ch;
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      [class~="f02-index-hits-str"] {
+        color: #ffffff;
+      }
+
+      [class~="f02-index-hits-well"] {
+        position: relative;
+        min-height: 3.44cqw;
+        margin-top: 0.15cqh;
+      }
+
+      [class~="f02-index-hits-status"] {
+        position: absolute;
+        left: 0;
+        top: 0;
+        color: rgba(255, 255, 255, 0.58);
+        font-weight: 400;
+      }
+
+      [class~="f02-index-hits-result"] {
+        display: flex;
+        align-items: baseline;
+        gap: 2.2cqw;
+        transform-origin: 50% 50%;
+        will-change: transform, opacity;
+      }
+
+      [class~="f02-index-hits-file"] {
+        font-weight: 500;
+      }
+
+      [class~="f02-index-hits-kicker"] {
+        font-family: "Geist Mono";
+        font-weight: 500;
+        font-size: 1.46cqw;
+        line-height: 1;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #ffffff;
+        white-space: pre;
+      }
+
+      [class~="f02-index-hits-tail"] {
+        margin-top: 0.15cqh;
+      }
+
+      [class~="f02-index-hits-caret"] {
+        display: inline-block;
+        width: 0.62ch;
+        height: 1.05em;
+        margin-left: 0.08ch;
+        background: #ffffff;
+        vertical-align: text-bottom;
+        will-change: opacity;
+      }
+    </style>
+
+    <div data-hf-id="hf-te8c" class="clip f02-index-hits-bg" data-start="0" data-duration="10.5" data-track-index="0"></div>
+
+    <div data-hf-id="hf-i6ys" class="clip f02-index-hits-clip" data-start="0" data-duration="10.5" data-track-index="1">
+      <div data-hf-id="hf-2h45" class="f02-index-hits-stage" data-role="stage" role="img">
+        <div data-hf-id="hf-l3mj" class="f02-index-hits-panel">
+          <div data-hf-id="hf-8yrr" class="f02-index-hits-bar" aria-hidden="true">
+            <span data-hf-id="hf-7lu9" class="f02-index-hits-dot"></span>
+            <span data-hf-id="hf-r7wl" class="f02-index-hits-dot"></span>
+            <span data-hf-id="hf-seto" class="f02-index-hits-dot"></span>
+          </div>
+          <div data-hf-id="hf-aphn" class="f02-index-hits-body">
+            <div data-hf-id="hf-ge90" data-terminal="command">shipper_search <span data-hf-id="hf-1hrt" class="f02-index-hits-str">"have we planned this before?"</span></div>
+            <div data-hf-id="hf-jfdb" class="f02-index-hits-well">
+              <div data-hf-id="hf-rx9o" class="f02-index-hits-status" data-terminal="output" data-role="status">searching .shipper/</div>
+              <div data-hf-id="hf-v94y" class="f02-index-hits-result" data-terminal="output" data-role="result">
+                <span data-hf-id="hf-ikcv" class="f02-index-hits-file">semantic-search-mcp.md</span><span data-hf-id="hf-uu2r" class="f02-index-hits-kicker">plan · done</span>
+              </div>
+            </div>
+            <div data-hf-id="hf-vmvm" class="f02-index-hits-tail" data-role="tail" aria-hidden="true"><span data-hf-id="hf-2gf6" class="f02-index-hits-caret" data-role="caret"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        var script = document.currentScript;
+        var root = script && script.closest ? script.closest("#root") : null;
+        if (!root || root.getAttribute("data-composition-id") !== "02-index-hits") {
+          root = document.querySelector('[data-composition-id="02-index-hits"]');
+        }
+        if (!root || typeof gsap === "undefined") return;
+
+        var TYPE_START = 1.2;
+        var TYPE_END = 4.4;
+        var STATUS_IN = 4.4;
+        var STATUS_IN_DUR = 0.12;
+        var STATUS_OUT = 5.55;
+        var STATUS_OUT_DUR = 0.18;
+        var RESULT_AT = 6.2;
+        var DURATION = 10;
+
+        var stage = root.querySelector('[data-role="stage"]');
+        var commandElement = root.querySelector('[data-terminal="command"]');
+        var statusEl = root.querySelector('[data-role="status"]');
+        var resultEl = root.querySelector('[data-role="result"]');
+        var tailEl = root.querySelector('[data-role="tail"]');
+        var tailCaret = tailEl ? tailEl.querySelector('[data-role="caret"]') : null;
+
+        var textNodes = [];
+        if (commandElement) {
+          var walker = document.createTreeWalker(commandElement, NodeFilter.SHOW_TEXT, null);
+          while (walker.nextNode()) {
+            textNodes.push({ node: walker.currentNode, full: walker.currentNode.data });
+          }
+        }
+        var fullText = textNodes
+          .map(function (entry) {
+            return entry.full;
+          })
+          .join("");
+
+        function showChars(count) {
+          var remaining = count;
+          for (var i = 0; i < textNodes.length; i += 1) {
+            var entry = textNodes[i];
+            var take = Math.min(entry.full.length, Math.max(0, remaining));
+            entry.node.data = entry.full.slice(0, take);
+            remaining -= entry.full.length;
+          }
+        }
+
+        var commandCaret = null;
+        if (commandElement) {
+          commandCaret = document.createElement("span");
+          commandCaret.className = "f02-index-hits-caret";
+          commandCaret.setAttribute("data-role", "caret");
+          commandCaret.setAttribute("aria-hidden", "true");
+          commandElement.appendChild(commandCaret);
+        }
+        if (stage) stage.setAttribute("aria-label", ("$ " + fullText).trim());
+
+        var rows = [
+          { t: 0, n: 0 },
+          { t: TYPE_START, n: 0 },
+        ];
+        var charCount = fullText.length;
+        var typeSpan = TYPE_END - TYPE_START;
+        for (var c = 1; c <= charCount; c += 1) {
+          rows.push({
+            t: c === charCount ? TYPE_END : TYPE_START + (typeSpan * c) / charCount,
+            n: c,
+          });
+        }
+
+        function charsAt(time) {
+          for (var i = rows.length - 1; i >= 0; i -= 1) {
+            if (time >= rows[i].t - 0.001) return rows[i].n;
+          }
+          return 0;
+        }
+
+        function caretOn(time, start, end) {
+          var span = end - start;
+          var cycles = Math.max(1, Math.round(span / 0.9));
+          var p = ((time - start) / span) * Math.PI * 2 * cycles;
+          return Math.sin(p) >= 0;
+        }
+
+        function statusOpacity(time) {
+          if (time < STATUS_IN) return 0;
+          if (time < STATUS_IN + STATUS_IN_DUR) return (time - STATUS_IN) / STATUS_IN_DUR;
+          if (time < STATUS_OUT) return 1;
+          if (time < STATUS_OUT + STATUS_OUT_DUR) {
+            return 1 - (time - STATUS_OUT) / STATUS_OUT_DUR;
+          }
+          return 0;
+        }
+
+        function apply(time) {
+          showChars(charsAt(time));
+          if (commandCaret) {
+            commandCaret.style.opacity =
+              time >= TYPE_END ? "0" : caretOn(time, 0, TYPE_END) ? "1" : "0";
+          }
+          if (statusEl) statusEl.style.opacity = String(statusOpacity(time));
+          if (tailCaret) {
+            tailCaret.style.opacity =
+              time >= RESULT_AT ? (caretOn(time, RESULT_AT, DURATION) ? "1" : "0") : "0";
+          }
+        }
+
+        showChars(0);
+        apply(0);
+
+        var tl = gsap.timeline({ paused: true });
+        var clock = { t: 0 };
+        tl.to(
+          clock,
+          {
+            t: DURATION,
+            duration: DURATION,
+            ease: "none",
+            onUpdate: function () {
+              apply(tl.time());
+            },
+          },
+          0,
+        );
+
+        tl.fromTo(
+          resultEl,
+          { opacity: 0, scale: 0, y: 12, force3D: false },
+          {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            duration: 0.4,
+            ease: "expo.out",
+            force3D: false,
+          },
+          RESULT_AT,
+        );
+
+        tl.fromTo(
+          tailEl,
+          { opacity: 0 },
+          { opacity: 1, duration: 0.12, ease: "none" },
+          RESULT_AT,
+        );
+
+        tl.seek(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["02-index-hits"] = tl;
+      })();
+    </script>
+  </div>
+</template>

@@ -1,0 +1,148 @@
+<template>
+  <style>
+    @font-face{font-family:"Geist";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Medium.woff2") format("woff2");}
+    @font-face{font-family:"Geist";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Regular.woff2") format("woff2");}
+    @font-face{font-family:"Geist";font-weight:600;font-style:normal;font-display:block;src:url("assets/fonts/Geist-SemiBold.woff2") format("woff2");}
+    @font-face{font-family:"Geist Mono";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Medium.woff2") format("woff2");}
+    @font-face{font-family:"Geist Mono";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Regular.woff2") format("woff2");}
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      container-type: size;
+    }
+
+    .clip {
+      position: absolute;
+      inset: 0;
+    }
+
+    [id="f03-two-proofs-ground"] {
+      background: #000000;
+    }
+
+    [class~="f03-two-proofs-scene"] {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 32cqh;
+      gap: 2.4cqw;
+    }
+
+    [class~="f03-two-proofs-statement"] {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: center;
+      gap: 0.28em;
+      margin: 0;
+      max-width: 78cqw;
+      font-family: "Geist";
+      font-weight: 400;
+      font-size: 7.3cqw;
+      line-height: 1.02;
+      letter-spacing: -0.022em;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+
+    [class~="f03-two-proofs-kicker"] {
+      margin: 0;
+      font-family: "Geist Mono";
+      font-weight: 500;
+      font-size: 1.46cqw;
+      line-height: 1.2;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+  </style>
+
+  <div data-hf-id="hf-4259" id="root" data-composition-id="03-two-proofs" data-width="1920" data-height="1080" data-duration="6.4">
+    <div data-hf-id="hf-lt1c" id="f03-two-proofs-ground" class="clip" data-start="0" data-duration="6.4" data-track-index="0"></div>
+
+    <div data-hf-id="hf-pd67" id="f03-two-proofs-s1" class="clip f03-two-proofs-scene" data-start="0" data-duration="2.8" data-track-index="1">
+      <p data-hf-id="hf-uw0i" id="f03-two-proofs-line-1" class="f03-two-proofs-statement">
+        <span data-hf-id="hf-wwiw" class="f03-two-proofs-word">Stays</span>
+        <span data-hf-id="hf-0wbz" class="f03-two-proofs-word">on</span>
+        <span data-hf-id="hf-41u9" class="f03-two-proofs-word">your</span>
+        <span data-hf-id="hf-fnyr" class="f03-two-proofs-word">machine.</span>
+      </p>
+      <p data-hf-id="hf-clxs" id="f03-two-proofs-kicker-1" class="f03-two-proofs-kicker">local embeddings</p>
+    </div>
+
+    <div data-hf-id="hf-xix0" id="f03-two-proofs-s2" class="clip f03-two-proofs-scene" data-start="2.8" data-duration="3.6" data-track-index="2">
+      <p data-hf-id="hf-qxwh" id="f03-two-proofs-line-2" class="f03-two-proofs-statement">
+        <span data-hf-id="hf-q6hs" class="f03-two-proofs-word">Only</span>
+        <span data-hf-id="hf-4ucc" class="f03-two-proofs-word">what</span>
+        <span data-hf-id="hf-o0d0" class="f03-two-proofs-word">changed.</span>
+      </p>
+      <p data-hf-id="hf-yfh8" id="f03-two-proofs-kicker-2" class="f03-two-proofs-kicker">unchanged text is never re-embedded</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      var line1 = document.getElementById("f03-two-proofs-line-1");
+      var line2 = document.getElementById("f03-two-proofs-line-2");
+      var words1 = line1.querySelectorAll('[class~="f03-two-proofs-word"]');
+      var words2 = line2.querySelectorAll('[class~="f03-two-proofs-word"]');
+      var kicker1 = document.getElementById("f03-two-proofs-kicker-1");
+      var kicker2 = document.getElementById("f03-two-proofs-kicker-2");
+
+      var tl = gsap.timeline({ paused: true });
+
+      tl.fromTo(
+        words1,
+        { opacity: 0, filter: "blur(6px)" },
+        {
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.38,
+          ease: "power2.out",
+          stagger: 0.055,
+        },
+        0,
+      );
+
+      tl.fromTo(
+        kicker1,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.4, ease: "power1.out" },
+        1.4,
+      );
+
+      tl.fromTo(
+        words2,
+        { opacity: 0, filter: "blur(6px)" },
+        {
+          opacity: 1,
+          filter: "blur(0px)",
+          duration: 0.38,
+          ease: "power2.out",
+          stagger: 0.055,
+        },
+        2.8,
+      );
+
+      tl.fromTo(
+        kicker2,
+        { opacity: 0 },
+        { opacity: 1, duration: 0.4, ease: "power1.out" },
+        4.4,
+      );
+
+      tl.seek(0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["03-two-proofs"] = tl;
+    })();
+  </script>
+</template>
