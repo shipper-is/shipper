@@ -1,0 +1,6 @@
+.thumbnails/
+.hyperframes/preview/
+.hyperframes/frame-packets/
+.hyperframes/history-id
+.hyperframes/hf-ids-stamped.json
+renders/

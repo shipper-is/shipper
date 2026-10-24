@@ -1,0 +1,416 @@
+<template>
+  <style>
+    @font-face{font-family:"Geist";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Regular.woff2") format("woff2");}
+    @font-face{font-family:"Geist";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Medium.woff2") format("woff2");}
+    @font-face{font-family:"Geist Mono";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Regular.woff2") format("woff2");}
+    @font-face{font-family:"Geist Mono";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Medium.woff2") format("woff2");}
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      container-type: size;
+      color: #ffffff;
+    }
+
+    .clip {
+      position: absolute;
+      inset: 0;
+    }
+
+    #session-ground {
+      background: #000000;
+    }
+
+    #session-captions {
+      pointer-events: none;
+    }
+
+    .session-caption {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 92px;
+      margin: 0;
+      text-align: center;
+      font-family: "Geist";
+      font-weight: 400;
+      font-size: 60px;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+      opacity: 0;
+    }
+
+    #session-window {
+      position: absolute;
+      left: 120px;
+      top: 212px;
+      width: 1680px;
+      height: 752px;
+      background: #111111;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #session-bar {
+      position: relative;
+      height: 40px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 8px;
+    }
+
+    .session-light {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.22);
+    }
+
+    #session-title {
+      position: absolute;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: "Geist Mono";
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    #session-body {
+      position: absolute;
+      left: 36px;
+      right: 36px;
+      top: 62px;
+      bottom: 20px;
+      font-family: "Geist Mono";
+      font-weight: 400;
+      font-size: 23px;
+      color: #ffffff;
+    }
+
+    #session-viewport {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 528px;
+      overflow: hidden;
+    }
+
+    #session-transcript {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+    }
+
+    .session-row {
+      position: relative;
+      height: 33px;
+      line-height: 33px;
+      white-space: pre;
+      opacity: 0;
+    }
+
+    .session-row::before {
+      content: "";
+      position: absolute;
+      left: -14px;
+      right: -14px;
+      top: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.13);
+      opacity: var(--wash, 0);
+    }
+
+    .session-row > span {
+      position: relative;
+    }
+
+    .session-dim {
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .session-strong {
+      font-weight: 500;
+    }
+
+    .session-dot {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      margin: 0 14px 2px 2px;
+      border-radius: 50%;
+      background: #ffffff;
+      vertical-align: middle;
+    }
+
+    .session-elbow {
+      display: inline-block;
+      width: 12px;
+      height: 15px;
+      margin: 0 16px 9px 30px;
+      border-left: 2px solid rgba(255, 255, 255, 0.55);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+      vertical-align: middle;
+    }
+
+    #session-welcome {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 780px;
+      height: 92px;
+      padding: 10px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.32);
+      border-radius: 8px;
+      line-height: 24px;
+      font-size: 19px;
+      white-space: pre;
+    }
+
+    #session-status {
+      position: absolute;
+      left: 0;
+      top: 538px;
+      height: 30px;
+      line-height: 30px;
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.6);
+      opacity: 0;
+      white-space: pre;
+    }
+
+    #session-star {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      margin-right: 10px;
+      vertical-align: -2px;
+    }
+
+    #session-input {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 574px;
+      height: 58px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      padding: 0 18px;
+      line-height: 56px;
+      white-space: pre;
+    }
+
+    .session-ch {
+      display: none;
+    }
+
+    #session-caret {
+      display: inline-block;
+      width: 12px;
+      height: 26px;
+      background: #ffffff;
+      vertical-align: -5px;
+    }
+
+    #session-hint {
+      position: absolute;
+      left: 18px;
+      top: 640px;
+      font-size: 17px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  </style>
+
+  <div id="root" data-composition-id="01-session" data-width="1920" data-height="1080" data-duration="24.6">
+    <div id="session-ground" class="clip" data-start="0" data-duration="24.6" data-track-index="0"></div>
+
+    <div id="session-stage" class="clip" data-start="0" data-duration="24.6" data-track-index="1">
+      <div id="session-window">
+        <div id="session-bar">
+          <span class="session-light"></span>
+          <span class="session-light"></span>
+          <span class="session-light"></span>
+          <span id="session-title">claude — ~/code/shipper</span>
+        </div>
+        <div id="session-body">
+          <div id="session-viewport">
+            <div id="session-transcript" data-layout-allow-overflow></div>
+          </div>
+          <div id="session-status"><svg id="session-star" viewBox="-10 -10 20 20" aria-hidden="true"><g stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"><line x1="0" y1="-8" x2="0" y2="8"/><line x1="-6.9" y1="-4" x2="6.9" y2="4"/><line x1="-6.9" y1="4" x2="6.9" y2="-4"/></g></svg>Planning… <span class="session-dim">(esc to interrupt)</span></div>
+          <div id="session-input"><span class="session-dim">&gt;</span> <span id="session-typed"></span><span id="session-caret" data-layout-allow-occlusion></span></div>
+          <div id="session-hint">? for shortcuts</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="session-captions" class="clip" data-start="0" data-duration="24.6" data-track-index="2">
+      <p id="session-cap-1" class="session-caption">Start a plan the way you always do.</p>
+      <p id="session-cap-2" class="session-caption">First, it checks what your team already shipped.</p>
+      <p id="session-cap-3" class="session-caption">It finds the gotcha you wrote down last time.</p>
+      <p id="session-cap-4" class="session-caption">Then it plans around it.</p>
+      <p id="session-cap-5" class="session-caption">Nobody had to remember. The last plan did.</p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      var ROW = 33;
+      var VISIBLE = 16;
+      var PROMPT = "/shipper-plan add a setting so search can skip some folders";
+      var GOTCHA_SRC = ".shipper/plans/done/repo-and-user-config-setup-console.md";
+
+      var transcript = document.getElementById("session-transcript");
+      var typed = document.getElementById("session-typed");
+      var caret = document.getElementById("session-caret");
+      var status = document.getElementById("session-status");
+      var star = document.getElementById("session-star");
+      var input = document.getElementById("session-input");
+      var hint = document.getElementById("session-hint");
+
+      function esc(text) {
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+
+      // Each row: [appear time, kind, html]. Rows 0-2 are the welcome box.
+      var rows = [
+        [0, "welcome", ""],
+        [0, "blank", ""],
+        [0, "blank", ""],
+        [0, "blank", ""],
+        [4.0, "user", esc("> " + PROMPT)],
+        [4.0, "blank", ""],
+        [4.6, "bullet", "I'll start by checking what this repo has already planned."],
+        [4.6, "blank", ""],
+        [5.8, "bullet", '<span class="session-strong">shipper - shipper_search (MCP)</span>(query: "add a setting so search can skip some folders")'],
+        [6.8, "elbow", "1. [plan, done] Repo and User Configuration, and a Setup Console <span class=\"session-dim\">(score 0.71)</span>"],
+        [7.05, "cont", "2. [plan, done] Semantic Search MCP for Shipper Files <span class=\"session-dim\">(score 0.67)</span>"],
+        [7.3, "cont", "3. [plan, done] Global Skills Install <span class=\"session-dim\">(score 0.66)</span>"],
+        [7.3, "blank", ""],
+        [9.5, "bullet", '<span class="session-strong">shipper - shipper_get_doc (MCP)</span>(path: "' + GOTCHA_SRC + '")'],
+        [10.2, "elbow", "## E: Gotchas"],
+        [10.5, "cont", "- Do not drop unknown keys on save. A plain z.object strips unknown keys,"],
+        [10.75, "cont", "  so saving from the UI would silently delete anything a user typed by hand."],
+        [11.0, "cont", "  Use z.looseObject for every object schema in config files."],
+        [11.0, "blank", ""],
+        [13.5, "bullet", '<span class="session-strong">Write</span>(.shipper/plans/open/search-exclude-dirs.md)'],
+        [14.2, "elbow", "Wrote 112 lines to .shipper/plans/open/search-exclude-dirs.md"],
+        [14.2, "blank", ""],
+        [15.1, "bullet", "Plan written. One gotcha carried forward from repo-and-user-config-setup-console.md:"],
+        [15.4, "plain", "  search.excludeDirs uses z.looseObject, so saving from the setup console never"],
+        [15.7, "plain", "  deletes keys a user typed by hand."]
+      ];
+
+      var els = rows.map(function (row) {
+        var el = document.createElement("div");
+        el.className = "session-row";
+        var kind = row[1];
+        if (kind === "welcome") {
+          el.innerHTML =
+            '<div id="session-welcome" data-layout-allow-overflow><span class="session-strong" data-layout-allow-overflow>✻ Welcome to Claude Code!</span>\n\n<span class="session-dim">  cwd: ~/code/shipper</span></div>';
+        } else if (kind === "user") {
+          el.innerHTML = '<span class="session-dim">' + row[2] + "</span>";
+        } else if (kind === "bullet") {
+          el.innerHTML = '<span class="session-dot"></span><span>' + row[2] + "</span>";
+        } else if (kind === "elbow") {
+          el.innerHTML = '<span class="session-elbow"></span><span>' + row[2] + "</span>";
+        } else if (kind === "cont") {
+          el.innerHTML = "<span>       " + row[2] + "</span>";
+        } else if (kind === "plain") {
+          el.innerHTML = "<span>" + row[2] + "</span>";
+        }
+        transcript.appendChild(el);
+        return el;
+      });
+
+      for (var c = 0; c < PROMPT.length; c += 1) {
+        var ch = document.createElement("span");
+        ch.className = "session-ch";
+        ch.textContent = PROMPT.charAt(c);
+        typed.appendChild(ch);
+      }
+      var chars = typed.querySelectorAll(".session-ch");
+
+      var tl = gsap.timeline({ paused: true });
+
+      // Captions: each lands as the terminal reaches its moment.
+      var caps = [
+        ["session-cap-1", 0.3, 5.3],
+        ["session-cap-2", 5.6, 9.25],
+        ["session-cap-3", 9.5, 13.0],
+        ["session-cap-4", 13.3, 18.8],
+        ["session-cap-5", 19.1, null]
+      ];
+      caps.forEach(function (cap) {
+        var el = document.getElementById(cap[0]);
+        tl.fromTo(el, { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, cap[1]);
+        if (cap[2] !== null) {
+          tl.to(el, { opacity: 0, duration: 0.22, ease: "power2.in" }, cap[2]);
+        }
+      });
+
+      // Typing: solid caret while keys land, blinking before and after.
+      tl.fromTo(caret, { opacity: 1 }, { opacity: 0, duration: 0.4, ease: "steps(1)", repeat: 1, yoyo: true }, 0);
+      var t = 0.8;
+      for (var k = 0; k < chars.length; k += 1) {
+        tl.set(chars[k], { display: "inline" }, t);
+        t += PROMPT.charAt(k) === " " ? 0.075 : 0.042;
+      }
+      tl.set(typed, { display: "none" }, 4.0);
+      tl.fromTo(
+        caret,
+        { opacity: 1 },
+        { opacity: 0, duration: 0.5, ease: "steps(1)", repeat: 39, yoyo: true, immediateRender: false },
+        4.0
+      );
+
+      // Rows arrive; the transcript scrolls a line at a time once it overflows.
+      var offset = 0;
+      rows.forEach(function (row, index) {
+        if (row[0] > 0) tl.set(els[index], { opacity: 1 }, row[0]);
+        var need = Math.max(0, index - (VISIBLE - 1));
+        if (need > offset) {
+          offset = need;
+          tl.to(transcript, { y: -offset * ROW, duration: 0.14, ease: "power2.out" }, row[0]);
+        }
+      });
+      tl.set(els.slice(0, 4), { opacity: 1 }, 0);
+
+      // Working status line.
+      tl.set(status, { opacity: 1 }, 4.1);
+      tl.to(star, { rotation: 360 * 6, duration: 13, ease: "none", transformOrigin: "50% 50%" }, 4.1);
+      tl.set(status, { opacity: 0 }, 17.1);
+
+      // Highlights: the hit, the lesson, the carried-forward summary.
+      function wash(list, at) {
+        tl.to(list, { "--wash": 1, duration: 0.3, ease: "power2.out" }, at);
+      }
+      wash([els[9]], 8.0);
+      wash([els[15], els[16], els[17]], 11.6);
+      wash([els[22], els[23], els[24]], 16.4);
+
+      // Payoff: everything but the summary falls back.
+      var rest = els.filter(function (el, index) {
+        return index < 22;
+      });
+      tl.to(rest.concat([input]), { opacity: 0.28, duration: 0.6, ease: "power2.inOut" }, 19.1);
+
+      tl.set({}, {}, 24);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["01-session"] = tl;
+    })();
+  </script>
+</template>

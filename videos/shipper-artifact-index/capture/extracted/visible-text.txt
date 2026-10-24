@@ -1,0 +1,14 @@
+Shipper artifact index
+
+Give your coding agent an MCP tool that semantically searches every plan, spike, bug, and review in .shipper/ — powered by a small local embeddings model.
+
+Repos with hundreds of .shipper/ files make grep-based discovery slow and noisy. Questions like "have we planned something like this before?" and "is this bug a regression of an old one?" get one tool call instead of a noisy file dump.
+
+What is true:
+- Indexed artifacts: plans, spikes, bugs, reviews.
+- Local model: nomic-embed-text-v1.5. Vectors stay on the machine. No document text or embeddings leave it.
+- Incremental: unchanged chunk text is never re-embedded. Moving a plan from open to done costs nothing.
+- Search is brute-force cosine similarity in process. At this scale it takes milliseconds. No vector database.
+- Tools: shipper_search, shipper_similar, shipper_get_doc, shipper_list_docs, shipper_reindex.
+- CLI: shipper index, shipper search, shipper mcp install.
+- The index file lives in the user cache, not inside the repo.

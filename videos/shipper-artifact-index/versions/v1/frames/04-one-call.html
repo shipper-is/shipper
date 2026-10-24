@@ -1,0 +1,265 @@
+<template>
+  <div data-hf-id="hf-blre" id="root" data-composition-id="04-one-call" data-duration="7" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:"Geist";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Medium.woff2") format("woff2");}
+      @font-face{font-family:"Geist";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/Geist-Regular.woff2") format("woff2");}
+      @font-face{font-family:"Geist";font-weight:600;font-style:normal;font-display:block;src:url("assets/fonts/Geist-SemiBold.woff2") format("woff2");}
+      @font-face{font-family:"Geist Mono";font-weight:500;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Medium.woff2") format("woff2");}
+      @font-face{font-family:"Geist Mono";font-weight:400;font-style:normal;font-display:block;src:url("assets/fonts/GeistMono-Regular.woff2") format("woff2");}
+
+      #root,
+      #root * {
+        box-sizing: border-box;
+      }
+
+      #root {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        container-type: size;
+        isolation: isolate;
+      }
+
+      .f04-one-call-bg {
+        position: absolute;
+        inset: 0;
+        background: #000000;
+      }
+
+      .f04-one-call-stage {
+        position: absolute;
+        inset: 0;
+      }
+
+      .f04-one-call-headline {
+        position: absolute;
+        left: 50%;
+        top: 18%;
+        z-index: 4;
+        margin: 0;
+        font-family: "Geist";
+        font-weight: 400;
+        font-style: normal;
+        font-size: 9.9cqw;
+        line-height: 0.98;
+        letter-spacing: -0.028em;
+        color: #ffffff;
+        white-space: nowrap;
+        transform-origin: 50% 50%;
+        will-change: transform, opacity;
+      }
+
+      .f04-one-call-panel {
+        position: absolute;
+        left: 13cqw;
+        top: 40%;
+        width: 74cqw;
+        height: 22cqh;
+        z-index: 2;
+        overflow: hidden;
+        background: #181818;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        opacity: 0;
+        border-radius: 12px;
+        transform-origin: 0% 50%;
+        will-change: transform, opacity;
+      }
+
+      .f04-one-call-fit {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        transform-origin: 0% 50%;
+      }
+
+      .f04-one-call-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.62cqw;
+        height: 4.8cqh;
+        padding: 0 2.4cqw;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        flex: 0 0 auto;
+      }
+
+      .f04-one-call-dot {
+        width: 0.62cqw;
+        height: 0.62cqw;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.38);
+      }
+
+      .f04-one-call-body {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: center;
+        padding: 0 2.4cqw 0.3cqh;
+      }
+
+      .f04-one-call-line {
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+        font-family: "Geist Mono";
+        font-weight: 400;
+        font-size: 3.1cqw;
+        line-height: 1;
+        color: #ffffff;
+      }
+
+      .f04-one-call-glyph {
+        margin-right: 0.75ch;
+        color: #ffffff;
+        font-weight: 500;
+      }
+
+      .f04-one-call-cmd {
+        white-space: pre;
+      }
+
+      .f04-one-call-caret {
+        display: inline-block;
+        width: 0.52ch;
+        height: 1.05em;
+        margin-left: 0.1ch;
+        background: #ffffff;
+        flex: 0 0 auto;
+      }
+
+      .f04-one-call-footer {
+        position: absolute;
+        left: 50%;
+        top: 70%;
+        z-index: 4;
+        margin: 0;
+        font-family: "Geist Mono";
+        font-weight: 500;
+        font-size: 1.56cqw;
+        line-height: 1;
+        letter-spacing: 0.04em;
+        color: rgba(255, 255, 255, 0.62);
+        white-space: nowrap;
+      }
+    </style>
+
+    <div data-hf-id="hf-f1w3" class="clip f04-one-call-bg" data-start="0" data-duration="7" data-track-index="0"></div>
+
+    <div data-hf-id="hf-kh0f" class="clip f04-one-call-stage" data-start="0" data-duration="7" data-track-index="1">
+      <div data-hf-id="hf-pj8i" id="f04-one-call-headline" class="f04-one-call-headline">One call.</div>
+
+      <div data-hf-id="hf-jzc2" id="f04-one-call-panel" class="f04-one-call-panel">
+        <div data-hf-id="hf-7wju" id="f04-one-call-fit" class="f04-one-call-fit">
+          <div data-hf-id="hf-svsj" class="f04-one-call-bar" aria-hidden="true">
+            <span data-hf-id="hf-6myt" class="f04-one-call-dot"></span>
+            <span data-hf-id="hf-9u6x" class="f04-one-call-dot"></span>
+            <span data-hf-id="hf-b140" class="f04-one-call-dot"></span>
+          </div>
+          <div data-hf-id="hf-loyj" class="f04-one-call-body">
+            <div data-hf-id="hf-2cgh" class="f04-one-call-line">
+              <span data-hf-id="hf-yz8y" class="f04-one-call-glyph">$</span><span data-hf-id="hf-igdz" id="f04-one-call-cmd" class="f04-one-call-cmd"></span><span data-hf-id="hf-nug8" id="f04-one-call-caret" class="f04-one-call-caret" aria-hidden="true"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-lam6" id="f04-one-call-footer" class="f04-one-call-footer">plans · spikes · bugs · reviews</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        var headline = document.getElementById("f04-one-call-headline");
+        var panel = document.getElementById("f04-one-call-panel");
+        var cmd = document.getElementById("f04-one-call-cmd");
+        var caret = document.getElementById("f04-one-call-caret");
+        var footer = document.getElementById("f04-one-call-footer");
+        if (!headline || !panel || !cmd || !caret || !footer) return;
+
+        var COMMAND = "shipper mcp install";
+        var TYPE_START = 3;
+        var CHAR_STEP = 0.1;
+        var SPACE_HOLD = 0.16;
+        var chars = [];
+        var typedAt = TYPE_START;
+        var index;
+        cmd.textContent = "";
+        for (index = 0; index < COMMAND.length; index += 1) {
+          var span = document.createElement("span");
+          span.textContent = COMMAND.charAt(index);
+          span.style.display = "inline-block";
+          span.style.width = "0";
+          span.style.overflow = "hidden";
+          span.style.verticalAlign = "bottom";
+          cmd.appendChild(span);
+          chars.push({ el: span, t: typedAt });
+          typedAt += CHAR_STEP;
+          if (COMMAND.charAt(index) === " ") typedAt += SPACE_HOLD;
+        }
+
+        var tl = gsap.timeline({ paused: true });
+
+        tl.fromTo(
+          panel,
+          { scaleX: 0.2, opacity: 0 },
+          { scaleX: 1, opacity: 1, duration: 0.7, ease: "power3.out", immediateRender: false },
+          1.6,
+        );
+
+        tl.fromTo(
+          headline,
+          { xPercent: -50, yPercent: -50, y: 0, scale: 1, opacity: 0, color: "#ffffff" },
+          {
+            xPercent: -50,
+            yPercent: -50,
+            y: 0,
+            scale: 1,
+            opacity: 1,
+            color: "#ffffff",
+            duration: 0.36,
+            ease: "power2.out",
+          },
+          0,
+        );
+
+        tl.fromTo(
+          headline,
+          { xPercent: -50, yPercent: -50, y: 0, scale: 1, color: "#ffffff" },
+          {
+            xPercent: -50,
+            yPercent: -50,
+            y: "-4cqh",
+            scale: 0.56,
+            color: "rgba(255,255,255,0.55)",
+            duration: 0.65,
+            ease: "power2.inOut",
+            immediateRender: false,
+          },
+          1.6,
+        );
+
+        chars.forEach(function (ch) {
+          tl.set(ch.el, { width: "auto", overflow: "visible" }, ch.t);
+        });
+        tl.fromTo(
+          caret,
+          { opacity: 1 },
+          { opacity: 0, duration: 0.45, ease: "steps(1)", repeat: 8, yoyo: true },
+          5.3,
+        );
+
+        tl.fromTo(
+          footer,
+          { xPercent: -50, opacity: 0 },
+          { xPercent: -50, opacity: 1, duration: 0.42, ease: "power1.out" },
+          5.4,
+        );
+
+        tl.seek(0);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["04-one-call"] = tl;
+      })();
+    </script>
+  </div>
+</template>
