@@ -11,7 +11,7 @@ The lane charters, personas, accepted evidence kinds, and the output contract ev
 
 ## Hard rules
 
-- **Findings only.** Nothing under review is edited. The only writes are scratch files in a temporary work directory, repro tests in a disposable worktree that is removed afterward, the scenario-test lifecycle owned by shipper-test, and the review artifact in `<reviews>/`. Fixes are a separate, explicit request from the user.
+- **Findings only.** Nothing under review is edited. The only writes are scratch files in a temporary work directory, repro tests in a disposable worktree that is removed afterward, and the review artifact in `<reviews>/`. Fixes are a separate, explicit request from the user.
 - **Plain code decides.** Unit splitting, the risk floor, sampling, and the verdict come from the scripts in `./scripts/`. Never compute them by hand, and never override or soften the policy script's verdict.
 - **Blockers need evidence; suggestions don't.** A blocker without accepted proof becomes a suggestion. An author agent will dutifully "fix" a hallucinated blocker and make the code worse.
 - **Model diversity over model size.** Heavy panels span at least two model families, and a finding is fact-checked by a different family than the one that wrote it.
@@ -43,7 +43,7 @@ The user points you at a PR, a branch, or local changes. Defaults: if a PR exist
 
    Use `--uncommitted` instead of `--base` for local changes. The output splits the diff into units (directories, with tests joined to the source they cover), and gives each unit a light or heavy floor per lane from path rules (auth, billing, migrations, infra, dependency manifests, secrets, plus any repo rules). It also flags deterministically sampled low-risk units for heavy review, lists files that usually change with each unit but are missing from the diff, and reports the size budget. If Bun or the script is unavailable, continue the review, but the verdict is ESCALATE with the reason "policy engine unavailable".
 2. If `budget.exceeded` is true, stop before launching lanes. Report ESCALATE because the diff is too large to review without truncating it, and suggest splitting the PR. Continue only if the user explicitly asks for a full review anyway.
-3. Write `<work>/context.md` for every subagent to read. It contains the target and the exact diff command; the units table from `floor.json` (files, floor per lane, matched rules, sampled, co-change partners); and the intent sources. Intent sources are the linked ticket (when you can fetch it), the Shipper plan, spike, or bug file this change came from (matched by `branch`, `pr_number`, or `pr_url` frontmatter in `<plans>/`, `<spikes>/`, `<bugs>/`), its acceptance criteria and phase Completion Notes, and the PR description. Also include required CI check status (`gh pr checks`), the repo's rule documents, scenarios in `.shipper/tests/` that cover touched flows, and whether read-only production access is detectable.
+3. Write `<work>/context.md` for every subagent to read. It contains the target and the exact diff command; the units table from `floor.json` (files, floor per lane, matched rules, sampled, co-change partners); and the intent sources. Intent sources are the linked ticket (when you can fetch it), the Shipper plan, spike, or bug file this change came from (matched by `branch`, `pr_number`, or `pr_url` frontmatter in `<plans>/`, `<spikes>/`, `<bugs>/`), its acceptance criteria and phase Completion Notes, and the PR description. Also include required CI check status (`gh pr checks`), the repo's rule documents, and whether read-only production access is detectable.
 
 ## Step 3: Triage and review plan
 
@@ -75,7 +75,6 @@ Every proposed blocker needs proof of a kind its lane accepts (see LANES.md). Fo
 
 - **Sandbox proof** (repro tests, benchmarks, bundle diffs, cross-tenant probes against local fixtures): work only in a disposable worktree at the reviewed state, created with `git worktree add --detach <work>/sandbox <head>` (for uncommitted targets, use the commit from `git stash create` and copy untracked files in). Never commit or push from it, and remove it with `git worktree remove --force` when done. Record the command and its output as the evidence `ref`.
 - **Read-only proof** (query plans, production queries, contract traces, scanner output, secret matches): follow the production-data rules in LANES.md.
-- **Scenario tests** (via the shipper-test skill): these run sequentially, because they publish workflows and must not race other writers on the branch. Re-run existing scenarios that cover the changed flow on the PR branch. Create or extend a scenario only when the PR relies on manual verification for a high-consequence flow (auth, payments, data loss, realtime, native app behavior), and note the runner cost (for example, "one ubuntu runner, about 10 minutes"). A scenario failure is `scenario-run` evidence for an Uptime blocker. Record the gate result, run URL, recordings, and runner minutes.
 
 ## Step 6: Verify
 
@@ -138,7 +137,6 @@ Then, in order:
 - **Blockers:** `ID | Lane | Persona | Location (file:line) | Finding | Evidence`. Each is written so an author agent can act on it directly.
 - **Suggestions:** `ID | Severity | Lane | Persona | Location | Finding`, sorted by severity, including demoted blockers with the reason. These go to the author agent or become follow-up tickets; they never block.
 - **Intent trace:** each acceptance criterion marked Met, Partial, or Unmet, with locations.
-- **Scenario evidence:** gate status, run link, and recording link or embedded screenshots.
 - **Coverage notes:** the review plan (units per tier, sampled units, kick-ups), lanes skipped or failed, scanners run and skipped, how many findings verifiers deleted, model families used, and claims that could not be verified.
 - **Rule proposals:** Architect deprecation proposals and repeated findings (see below).
 - **Footer:** `Automated review by shipper-review (QUIPS), not a human reviewer. A human still approves and merges.`
@@ -182,7 +180,7 @@ The body is the full Step 9 report, followed by a `## Scorecard data` section co
 
 When the user says findings were addressed, review the delta, not the whole PR again:
 
-1. Re-run the risk floor at the new head. Rerun the lanes whose findings the fix commits touch, plus Uptime always (fixes introduce bugs), plus Security whenever the delta touches a unit with a heavy Security floor or a Security finding is still open. Re-verify new findings, and re-run a scenario only if the fix touched its flow.
+1. Re-run the risk floor at the new head. Rerun the lanes whose findings the fix commits touch, plus Uptime always (fixes introduce bugs), plus Security whenever the delta touches a unit with a heavy Security floor or a Security finding is still open. Re-verify new findings.
 2. Update each prior finding's `status`: `fixed`, `dismissed`, `disputed` (the author disagrees with evidence), or `open`. A Security finding counts as dismissed only when `dismissedBy` names the human from the security team who dismissed it.
 3. Carry the coverage of untouched units forward from the prior scorecard, have the judge merge the new findings, and run the policy script on the complete updated scorecard.
 4. Update the PR comment and the artifact in place: refresh `commit`, `verdict`, the lane keys, `reviewed_at`, the header, and the scorecard data, then commit. Do not create a second file for the same target.
@@ -194,5 +192,4 @@ If the same class of finding appears across multiple reviews of a repo, the revi
 ## How this fits the Shipper framework
 
 - **shipper-ship** should run this skill after opening the PR and before requesting human review. The report becomes part of the PR's evidence, and the artifact in `<reviews>/` links back to the plan, spike, or bug file that produced the change.
-- **shipper-test** is this skill's mechanism for executable verification. This skill decides *when* a scenario is worth its cost; shipper-test defines *how* it is built and run.
 - **shipper-loop / shipper-build** may treat a READY verdict as a completion gate for a plan's final phase. A FIX verdict's blockers are the author agent's next task; an ESCALATE verdict goes to a human.

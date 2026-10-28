@@ -122,7 +122,7 @@ export const DEFAULT_RISK_FLOOR: RiskRule[] = [
 
 export const DEFAULT_EVIDENCE_KINDS: Record<Lane, string[]> = {
   quality: ["rule-citation"],
-  uptime: ["repro-test", "scenario-run", "ci-failure", "migration-check", "contract-trace"],
+  uptime: ["repro-test", "ci-failure", "migration-check", "contract-trace"],
   intent: ["criterion-trace", "claim-check", "scope-trace"],
   performance: ["query-plan", "benchmark", "bundle-diff", "production-query"],
   security: ["repro-test", "cross-tenant-probe", "scanner", "secret-match", "code-trace"],

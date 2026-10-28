@@ -1,5 +1,4 @@
 - [ ] Ask the user on initial setup what they do (engineer, designer, project manager, product owner, atc.) so that we can slightly tailor the experience to each persona
-- [ ] Eventually we will build out this suite to include skills like "shipper-test" to be able to test plans once they have been completed so that users who are non-developers can run a comprehensive test suite on their changes
 - [x] We'll want a "shipper-ship" skill that will manage the whole PR flow for the user
 - [x] Update the "shipper-plan" and "shipper-build" skills to manage git branching and committing for the user (configurable for advanced users)
 - [x] We'll want the user to be able to store their default coding agent and default models for each skill (Fable 5 for shipper-plan, Composer 2.5 for shipper-build, etc.)

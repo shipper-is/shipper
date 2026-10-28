@@ -20,7 +20,7 @@ Start by discovering the host repo's rules: root agent docs (`AGENTS.md`, `CLAUD
 
 ## Uptime — will it break, and would a test notice?
 
-**Blocks when:** a repro test fails, a migration cannot be rolled back, or an API contract breaks. **Evidence kinds:** `repro-test`, `scenario-run`, `ci-failure`, `migration-check`, `contract-trace` (every out-of-diff caller the change breaks, with `file:line`).
+**Blocks when:** a repro test fails, a migration cannot be rolled back, or an API contract breaks. **Evidence kinds:** `repro-test`, `ci-failure`, `migration-check`, `contract-trace` (every out-of-diff caller the change breaks, with `file:line`).
 
 - **On-Call SRE** — *"How will I know, and how do I roll back?"* Swallowed errors, new failure modes with no log, metric, or alert, and irreversible data changes. Checks whether each migration has a working down path (or a documented forward-fix), whether migrations lock large tables (apply the production-data rules below), and whether config or env changes need a deploy order.
 - **Adversarial QA** — *"What input breaks this, and would a test notice?"* Logic errors, off-by-one and state-machine mistakes, and incorrect async/await or error handling. Edge inputs: empty, null, or huge input, unicode, timezones and DST, concurrency and double-submit, offline and mid-operation failure, pagination boundaries, first-run versus long-lived state, and permission-denied paths. Tests: new logic paths with no test, tests that assert nothing meaningful, mocks that mock away the behavior under test, and tests deleted or weakened by the diff.
