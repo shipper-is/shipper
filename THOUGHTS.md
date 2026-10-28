@@ -1,7 +1,0 @@
-- [ ] Ask the user on initial setup what they do (engineer, designer, project manager, product owner, atc.) so that we can slightly tailor the experience to each persona
-- [x] We'll want a "shipper-ship" skill that will manage the whole PR flow for the user
-- [x] Update the "shipper-plan" and "shipper-build" skills to manage git branching and committing for the user (configurable for advanced users)
-- [x] We'll want the user to be able to store their default coding agent and default models for each skill (Fable 5 for shipper-plan, Composer 2.5 for shipper-build, etc.)
-- [ ] Update the shipper-build skill to try and force more "parallel tool calling" and "comprehensive file editing" so that we don't waste steps making 1 or 2 line changes to the same file multiple times.
-- [x] Rework the UI so that it has a left nav that contains all plans within the repo and when clicked it shows a view in the mean area to be able to see the execution progress and plan progress
-- [x] Need a UI to review/view plan files
