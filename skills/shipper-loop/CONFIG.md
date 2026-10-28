@@ -16,7 +16,7 @@ Later files win: global, then repo, then local. Merge field by field: a local `g
 
 Exceptions:
 
-- `paths` is read only from the repo config. Ignore `paths` in the global and local files. The rest of those files still applies.
+- `paths` and `review` are read only from the repo config. Ignore them in the global and local files. The rest of those files still applies.
 - `instructions` are combined, not replaced (see below).
 
 What the user asks for in the current conversation always beats config.
@@ -35,9 +35,10 @@ What the user asks for in the current conversation always beats config.
 | `git.branchPrefix` | `"shipper/"` | Prefix for feature branches Shipper creates. Letters, digits, `.`, `_`, `/`, and `-` only |
 | `instructions.all` | none | Extra instructions for every Shipper skill |
 | `instructions.<skill-name>` | none | Extra instructions for one skill. Names: `shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, `shipper-bug` |
-| `models.<agent>.<skill-name>` | none | Model to use when starting a subagent for that skill. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions |
+| `models.<agent>.<skill-name>` | none | Model to use when starting a subagent for that skill. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions, plus `shipper-review` (see Models) |
 | `search.enabled` | `true` | Whether to use the `shipper_search` MCP tools |
 | `search.extraDirs` | `[]` | Extra markdown directories included in search |
+| `review` | none | shipper-review only: extra risk-floor rules, ignored paths, sample rate, size budget, and accepted evidence kinds. shipper-review's scripts read and validate it; other skills ignore it |
 
 All `paths` are relative to the repository root and use forward slashes. Strip trailing slashes, drop `.` and empty segments, and resolve `..` that stays inside the repository (`docs/plans/` and `./a/../b` become `docs/plans` and `b`). Reject an empty result, a leading `/`, a backslash, a path that escapes the repository, and any `.git` or `node_modules` segment. An invalid value keeps the default for that artifact type and does not drop the rest of the file. If two artifact types normalize to the same directory, the earlier of plans, spikes, bugs, reviews, and modules keeps it; the later one stays on its default.
 
@@ -49,7 +50,7 @@ Collect instructions in this order: global `all`, global `<this skill>`, repo `a
 
 ## Models
 
-`models` are keyed by coding agent, then by skill name. Use `claude` if you are Claude Code, `cursor` if you are Cursor (editor or CLI), and `opencode` if you are opencode. You cannot change your own model. Only use this setting when you start a subagent to run a Shipper skill: if `models.<your agent>.<that skill>` is set and your subagent tool accepts a model, pass it. If the tool rejects the value, retry once without a model and mention it to the user. Skill names are the same six as `instructions`.
+`models` are keyed by coding agent, then by skill name. Use `claude` if you are Claude Code, `cursor` if you are Cursor (editor or CLI), and `opencode` if you are opencode. You cannot change your own model. Only use this setting when you start a subagent to run a Shipper skill: if `models.<your agent>.<that skill>` is set and your subagent tool accepts a model, pass it. If the tool rejects the value, retry once without a model and mention it to the user. Skill names are the same six as `instructions`. shipper-review takes an object instead of one id: `models.<agent>.shipper-review` may set `triage`, `light`, and `heavy`, each a model id or a list of ids (list models from different vendors so its panels and fact-checkers can mix model families).
 
 ## Search
 

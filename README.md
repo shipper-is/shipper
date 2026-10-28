@@ -64,8 +64,7 @@ Artifact directories below are the **defaults**. A repo can move them with `path
 |------|----------|
 | `<repo>/.shipper/config.json` | Committed repo config (shared by the team) |
 | `<repo>/.shipper/config.local.json` | This user's overrides for this repo (not committed) |
-| `<repo>/.shipper/.gitignore` | Keeps `config.local.json` out of git |
-| `<repo>/.shipper/plans/open/` | Active plans, default location (commit these) |
+| `<repo>/.shipper/.gitignore` | Keeps `config.local.json` out of git || `<repo>/.shipper/plans/open/` | Active plans, default location (commit these) |
 | `<repo>/.shipper/plans/done/` | Completed plans, default location |
 | `<repo>/.shipper/spikes/open/` | Active spikes, default location |
 | `<repo>/.shipper/spikes/done/` | Completed spikes, default location |
@@ -100,7 +99,7 @@ Three JSON files share one settings shape. Missing files are normal.
 
 Two exceptions:
 
-- **`paths` is repo-only.** Plans are committed, so the team has to agree where they live. `paths` in the global or local file is ignored. The setup console lists those keys as ignored.
+- **`paths` and `review` are repo-only.** Plans are committed, so the team has to agree where they live, and review thresholds are team policy that one person should not be able to lower locally. Either key in the global or local file is ignored. The setup console lists those keys as ignored.
 - **`instructions` accumulate.** Order: global `all`, global skill, repo `all`, repo skill, local `all`, local skill. Empty strings are skipped. When two conflict, the later text wins. They never override a skill's hard rules or an explicit request in the chat. Skill names are `shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, and `shipper-bug`. `shipper-review` follows `instructions.all` only.
 
 A file that is not valid JSON, or that gives a known key a value that key does not allow, is skipped entirely (one bad field drops the file). Unknown keys are kept and do not make the file invalid. An invalid path keeps that artifact type's default and does not drop the rest of the file. Paths are relative, use forward slashes, and must stay inside the repo (no `..` escapes, no `.git` or `node_modules` segments).
@@ -121,9 +120,15 @@ A file that is not valid JSON, or that gives a known key a value that key does n
 | `git.branchPrefix` | `"shipper/"` | Prefix for feature branches Shipper creates. Letters, digits, `.`, `_`, `/`, and `-` only |
 | `instructions.all` | none | Extra instructions for every Shipper skill |
 | `instructions.<skill-name>` | none | Extra instructions for one skill. Names: `shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, `shipper-bug` |
-| `models.<agent>.<skill-name>` | none | Model to use when starting a subagent for that skill. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions |
+| `models.<agent>.<skill-name>` | none | Model to use when starting a subagent for that skill. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions, plus `shipper-review`, which takes `{ "triage", "light", "heavy" }` (each a model id or a list of ids) |
 | `search.enabled` | `true` | Whether to use the `shipper_search` MCP tools |
 | `search.extraDirs` | `[]` | Extra markdown directories included in search |
+| `review.riskFloor` | `[]` | shipper-review: extra `{ name, paths, lanes }` rules that force heavy review, added to the built-in auth, billing, migration, infra, dependency, and secrets rules |
+| `review.replaceDefaultRiskFloor` | `false` | shipper-review: drop the built-in risk-floor rules |
+| `review.floorIgnore` | `["*.md", "*.mdx"]` | shipper-review: globs that never trigger a risk-floor rule |
+| `review.sampleRate` | `0.05` | shipper-review: share of low-risk units that get a heavy review anyway |
+| `review.budget` | `{ "maxFiles": 150, "maxChangedLines": 6000 }` | shipper-review: a larger diff escalates instead of being reviewed |
+| `review.evidenceKinds.<lane>` | see `skills/shipper-review/scripts/config.ts` | shipper-review: proof kinds that let a finding block, per lane |
 
 Example repo config:
 

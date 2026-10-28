@@ -104,8 +104,8 @@ export function ConfigSection({
               {layer.ignoredKeys.length > 0 && (
                 <div className="setup-warning">
                   <p>
-                    Ignored in this layer: {layer.ignoredKeys.join(", ")}. Artifact paths are read
-                    only from the repo config.
+                    Ignored in this layer: {layer.ignoredKeys.join(", ")}. Artifact paths and review
+                    settings are read only from the repo config.
                   </p>
                 </div>
               )}

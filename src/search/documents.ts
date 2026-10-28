@@ -33,6 +33,12 @@ const FRONTMATTER_KEYS = [
   "fixed_at",
   "reported_at",
   "reviewed_at",
+  "verdict",
+  "quality",
+  "uptime",
+  "intent",
+  "performance",
+  "security",
   "merge_risk",
   "production_risk",
 ] as const;

@@ -216,6 +216,30 @@ Body.
     });
   });
 
+  it("extracts the QUIPS verdict and lane grades from a review", async () => {
+    const markdown = `---
+type: review
+verdict: fix
+quality: pass
+uptime: block
+intent: suggest
+performance: pass
+security: pass
+---
+
+# Review
+`;
+    const meta = readDocMetadata(markdown, { relPath: ".shipper/reviews/pr-1-x.md" });
+    expect(meta.frontmatter).toEqual({
+      verdict: "fix",
+      quality: "pass",
+      uptime: "block",
+      intent: "suggest",
+      performance: "pass",
+      security: "pass",
+    });
+  });
+
   it("falls back to filename when there is no H1", async () => {
     const meta = readDocMetadata("no title here\n", {
       relPath: ".shipper/bugs/open/mystery.md",

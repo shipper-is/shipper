@@ -45,6 +45,9 @@ export type UpdateCheckState = {
 
 const SETTINGS_KEYS = new Set(["models", "instructions", "git", "search"]);
 
+// `review` stays out of KNOWN_KEYS so a console save, which only sends form keys, keeps it.
+const REPO_ONLY_KEYS = ["paths", "review"] as const;
+
 const KNOWN_KEYS: Record<ConfigLayer, ReadonlySet<string>> = {
   global: new Set([...SETTINGS_KEYS, "embeddings", "state"]),
   repo: new Set([...SETTINGS_KEYS, "paths"]),
@@ -278,13 +281,10 @@ export async function readLayer(layer: ConfigLayer, repoRoot: string): Promise<L
   }
 
   const value = result.data as Record<string, unknown>;
-  const ignoredKeys: string[] = [];
-  if (
-    (layer === "global" || layer === "local") &&
-    Object.prototype.hasOwnProperty.call(value, "paths")
-  ) {
-    ignoredKeys.push("paths");
-  }
+  const ignoredKeys =
+    layer === "repo"
+      ? []
+      : REPO_ONLY_KEYS.filter((key) => Object.prototype.hasOwnProperty.call(value, key));
   return { layer, path, exists: true, value, error: null, ignoredKeys };
 }
 

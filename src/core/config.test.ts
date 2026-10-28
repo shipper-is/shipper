@@ -172,11 +172,12 @@ describe("layered config", () => {
     });
     await writeJson(localConfigPath(repoDir), {
       paths: { spikes: "docs/local-spikes" },
+      review: { sampleRate: 0 },
     });
 
     const loaded = await loadConfig(repoDir);
     expect(loaded.layers.global.ignoredKeys).toEqual(["paths"]);
-    expect(loaded.layers.local.ignoredKeys).toEqual(["paths"]);
+    expect(loaded.layers.local.ignoredKeys).toEqual(["paths", "review"]);
     expect(loaded.layers.repo.ignoredKeys).toEqual([]);
     expect(loaded.layers.global.value).toMatchObject({
       paths: { plans: "docs/global-plans" },
@@ -280,10 +281,15 @@ describe("layered config", () => {
 
     await writeJson(repoConfigPath(repoDir), {
       custom: { keep: true },
+      review: { sampleRate: 0.1 },
       git: { branchPrefix: "old/" },
     });
     const repoLayer = await writeLayer("repo", repoDir, { search: { enabled: false } });
-    expect(repoLayer.value).toMatchObject({ custom: { keep: true }, search: { enabled: false } });
+    expect(repoLayer.value).toMatchObject({
+      custom: { keep: true },
+      review: { sampleRate: 0.1 },
+      search: { enabled: false },
+    });
     expect(repoLayer.value).not.toHaveProperty("git");
   });
 
