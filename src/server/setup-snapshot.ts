@@ -3,7 +3,6 @@ import { detectAgents } from "../agents/detect.ts";
 import { DEFAULT_EMBED_IDLE_MINUTES } from "../constants.ts";
 import { findStrayArtifacts, resolveArtifactDirs } from "../core/artifact-paths.ts";
 import { layerPath, loadConfig, type LoadedConfig } from "../core/config.ts";
-import { listInstalledModules } from "../core/modules.ts";
 import { getSkillStatus } from "../core/skill-status.ts";
 import { checkForUpdate, type UpdateNotice } from "../core/update-check.ts";
 import { getEmbedServerStatus, type EmbedServerStatus } from "../embeddings/server-manager.ts";
@@ -42,7 +41,6 @@ export type SetupSnapshotDeps = {
   getMcpStatus: typeof getMcpStatus;
   getIndexStatus: typeof getIndexStatus;
   getEmbedServerStatus: typeof getEmbedServerStatus;
-  listInstalledModules: typeof listInstalledModules;
   findStrayArtifacts: typeof findStrayArtifacts;
   checkForUpdate: typeof checkForUpdate;
   getVersion: typeof getVersion;
@@ -59,7 +57,6 @@ export function defaultSetupSnapshotDeps(): SetupSnapshotDeps {
     getMcpStatus,
     getIndexStatus,
     getEmbedServerStatus,
-    listInstalledModules,
     findStrayArtifacts,
     checkForUpdate,
     getVersion,
@@ -205,13 +202,12 @@ export async function collectSetupSnapshot(
   const effective = loaded.effective;
   const dirs = resolveArtifactDirs(repoRoot, effective);
 
-  const [docs, detected, strayArtifacts, notice, embedStatus, modules] = await Promise.all([
+  const [docs, detected, strayArtifacts, notice, embedStatus] = await Promise.all([
     withTimeout(deps.discoverDocs(repoRoot, { config: effective }), timeoutMs, () => []),
     withTimeout(deps.detectAgents(), timeoutMs, () => []),
     withTimeout(deps.findStrayArtifacts(repoRoot, effective), timeoutMs, () => []),
     withTimeout(deps.checkForUpdate(), timeoutMs, () => null),
     withTimeout(deps.getEmbedServerStatus(), timeoutMs, () => null),
-    withTimeout(deps.listInstalledModules(dirs.modules), timeoutMs, () => []),
   ]);
 
   const detectedKinds = detected.map((agent) => agent.kind);
@@ -226,16 +222,6 @@ export async function collectSetupSnapshot(
   const artifacts = ARTIFACT_TYPES.map((type, indexInList) => {
     const dir = effective.paths[type];
     const directoryExists = exists[indexInList] ?? false;
-    if (type === "modules") {
-      return {
-        type,
-        dir,
-        exists: directoryExists,
-        open: null,
-        done: null,
-        total: modules.length,
-      };
-    }
     if (type === "reviews") {
       return {
         type,
@@ -270,7 +256,6 @@ export async function collectSetupSnapshot(
     },
     artifacts,
     strayArtifacts,
-    modules,
     agents: AGENT_KINDS.map((kind) => {
       const found = detectedByKind.get(kind);
       return {

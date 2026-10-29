@@ -5,7 +5,7 @@ description: A one off small feature implementation using the Shipper framework
 
 The goal of this skill is to implement a small feature request from the user utilizing a condensed version of the Shipper framework.
 
-Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, and reviews live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>`) and which team and personal preferences apply.
 
 The Shipper framework follows a simple pattern of:
 

@@ -49,7 +49,6 @@ export type SetupSnapshot = {
     total: number;
   }>;
   strayArtifacts: Array<{ type: ArtifactType; dir: string; count: number }>;
-  modules: Array<{ id: string; name: string; version: string | null }>;
   agents: Array<{
     kind: AgentKind;
     detected: boolean;

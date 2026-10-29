@@ -10,7 +10,7 @@ The goal of this skill is to create a Pull Request that is easily reviewable by 
 3. What existing pieces of the codebase were reused instead of rewritten
 4. What steps were taken to test or harden the code that is included in the PR
 
-Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, and reviews live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>`) and which team and personal preferences apply.
 
 One of the best reference points you'll have is the Shipper plan that is associated with this PR to review the notes that were left behind at the end of each Phase from the build engineers. This should be your starting point for understanding what was completed and how it was completed.
 

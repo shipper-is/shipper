@@ -5,7 +5,7 @@ description: Catalog and fix bugs using an evidence-first Shipper workflow
 
 The goal of this skill is to take a bug report from the user, catalog it as a structured bug file, and drive it to a high-confidence fix. Like the shipper-spike skill, one engineer owns the whole lifecycle: cataloging, diagnosis, fix, and proof all happen in a single flow.
 
-Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, and reviews live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>`) and which team and personal preferences apply.
 
 The core opinion of this skill is that bugs fail differently than features. Features fail from missing context; bugs fail from wrong diagnosis. The classic failure is patching a symptom (adding a null check, a try/catch, a retry) instead of removing the cause, then declaring the bug fixed without ever having seen it happen. Every rule in this skill exists to prevent that. The ordering is non-negotiable:
 

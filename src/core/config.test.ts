@@ -80,7 +80,6 @@ describe("layered config", () => {
         "git.branchPrefix",
         "git.commitEachPhase",
         "paths.bugs",
-        "paths.modules",
         "paths.plans",
         "paths.reviews",
         "paths.spikes",
@@ -196,21 +195,19 @@ describe("layered config", () => {
       paths: {
         plans: "../x",
         spikes: "/abs",
-        bugs: ".git/x",
-        reviews: "docs/same",
-        modules: "docs/same/",
+        bugs: "docs/same",
+        reviews: "docs/same/",
       },
     });
 
     const loaded = await loadConfig(repoDir);
     expect(loaded.effective.paths.plans).toBe(DEFAULT_ARTIFACT_PATHS.plans);
     expect(loaded.effective.paths.spikes).toBe(DEFAULT_ARTIFACT_PATHS.spikes);
-    expect(loaded.effective.paths.bugs).toBe(DEFAULT_ARTIFACT_PATHS.bugs);
-    expect(loaded.effective.paths.reviews).toBe("docs/same");
-    expect(loaded.effective.paths.modules).toBe(DEFAULT_ARTIFACT_PATHS.modules);
-    expect(loaded.sources["paths.reviews"]).toBe("repo");
-    expect(loaded.sources["paths.modules"]).toBe("default");
-    expect(loaded.pathErrors.length).toBeGreaterThanOrEqual(4);
+    expect(loaded.effective.paths.bugs).toBe("docs/same");
+    expect(loaded.effective.paths.reviews).toBe(DEFAULT_ARTIFACT_PATHS.reviews);
+    expect(loaded.sources["paths.bugs"]).toBe("repo");
+    expect(loaded.sources["paths.reviews"]).toBe("default");
+    expect(loaded.pathErrors.length).toBeGreaterThanOrEqual(3);
     expect(loaded.effective.git.branchPrefix).toBe("shipper/");
   });
 

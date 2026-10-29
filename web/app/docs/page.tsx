@@ -26,12 +26,6 @@ const cards = [
     description:
       "Give your coding agent an MCP tool that semantically searches every plan, spike, bug, and review in .shipper/ — powered by a small local embeddings model.",
   },
-  {
-    href: "/modules",
-    title: "Modules",
-    description:
-      "Browse open source feature specs — customer support, analytics, and more — and plan them into your codebase with shipper-plan.",
-  },
 ] as const;
 
 export default function DocsPage() {
