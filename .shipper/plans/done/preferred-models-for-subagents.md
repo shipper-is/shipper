@@ -2,6 +2,8 @@
 type: plan
 started_at: "2026-10-29T10:38:21-04:00"
 completed_at: "2026-10-29T11:24:40-04:00"
+pr_url: https://github.com/shipper-is/shipper/pull/30
+pr_number: 30
 ---
 
 # Preferred Models for Skills and Subagents
