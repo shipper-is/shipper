@@ -13,13 +13,18 @@ import {
   SKILL_NAMES,
   globalConfigSchema,
   localConfigSchema,
+  normalizeModelList,
   repoConfigSchema,
   validateArtifactDir,
+  type AgentKind,
   type ArtifactType,
   type ConfigLayer,
   type ConfigSource,
   type EffectiveConfig,
   type InstructionEntry,
+  type ReviewModelConfig,
+  type SkillModelConfig,
+  type SkillName,
 } from "../shared/config-schema.ts";
 
 export type LayerState = {
@@ -312,6 +317,118 @@ function defaultEffective(): EffectiveConfig {
   };
 }
 
+function nonEmptyId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function roleFor(skill: SkillName): "research" | "investigate" | "phase" | undefined {
+  switch (skill) {
+    case "shipper-plan":
+    case "shipper-spike":
+      return "research";
+    case "shipper-bug":
+      return "investigate";
+    case "shipper-loop":
+      return "phase";
+    case "shipper-build":
+    case "shipper-ship":
+      return undefined;
+    default: {
+      const exhaustive: never = skill;
+      return exhaustive;
+    }
+  }
+}
+
+function agentModels(
+  effective: EffectiveConfig,
+  agent: AgentKind,
+): NonNullable<EffectiveConfig["models"][AgentKind]> {
+  const current = effective.models[agent] ?? {};
+  effective.models[agent] = current;
+  return current;
+}
+
+function writeSkillField(
+  effective: EffectiveConfig,
+  agent: AgentKind,
+  skill: SkillName,
+  field: keyof SkillModelConfig,
+  value: string,
+): void {
+  const bucket = agentModels(effective, agent);
+  const next: SkillModelConfig = { ...bucket[skill] };
+  next[field] = value;
+  bucket[skill] = next;
+}
+
+function writeReviewField<K extends keyof ReviewModelConfig>(
+  effective: EffectiveConfig,
+  agent: AgentKind,
+  field: K,
+  value: NonNullable<ReviewModelConfig[K]>,
+): void {
+  const bucket = agentModels(effective, agent);
+  const next: ReviewModelConfig = { ...bucket["shipper-review"] };
+  next[field] = value;
+  bucket["shipper-review"] = next;
+}
+
+function applySkillModel(
+  layer: ConfigLayer,
+  agent: AgentKind,
+  skill: SkillName,
+  raw: unknown,
+  effective: EffectiveConfig,
+  sources: Record<string, ConfigSource>,
+): void {
+  if (typeof raw === "string") {
+    const model = nonEmptyId(raw);
+    if (!model) return;
+    writeSkillField(effective, agent, skill, "model", model);
+    sources[`models.${agent}.${skill}.model`] = layer;
+    return;
+  }
+  if (!isRecord(raw)) return;
+
+  const model = nonEmptyId(raw.model);
+  if (model) {
+    writeSkillField(effective, agent, skill, "model", model);
+    sources[`models.${agent}.${skill}.model`] = layer;
+  }
+
+  const role = roleFor(skill);
+  if (!role) return;
+  const roleId = nonEmptyId(raw[role]);
+  if (!roleId) return;
+  writeSkillField(effective, agent, skill, role, roleId);
+  sources[`models.${agent}.${skill}.${role}`] = layer;
+}
+
+function applyReviewModels(
+  layer: ConfigLayer,
+  agent: AgentKind,
+  raw: unknown,
+  effective: EffectiveConfig,
+  sources: Record<string, ConfigSource>,
+): void {
+  if (!isRecord(raw)) return;
+  const triage = nonEmptyId(raw.triage);
+  if (triage) {
+    writeReviewField(effective, agent, "triage", triage);
+    sources[`models.${agent}.shipper-review.triage`] = layer;
+  }
+  for (const field of ["light", "heavy"] as const) {
+    if (!Object.prototype.hasOwnProperty.call(raw, field)) continue;
+    const list = normalizeModelList(raw[field]);
+    if (!list) continue;
+    writeReviewField(effective, agent, field, list);
+    sources[`models.${agent}.shipper-review.${field}`] = layer;
+  }
+}
+
 function applyModels(
   layer: ConfigLayer,
   value: Record<string, unknown>,
@@ -324,13 +441,11 @@ function applyModels(
     const perAgent = models[agent];
     if (!isRecord(perAgent)) continue;
     for (const skill of SKILL_NAMES) {
-      const model = perAgent[skill];
-      if (typeof model !== "string" || model.length === 0) continue;
-      const current = effective.models[agent] ?? {};
-      current[skill] = model;
-      effective.models[agent] = current;
-      sources[`models.${agent}.${skill}`] = layer;
+      if (!Object.prototype.hasOwnProperty.call(perAgent, skill)) continue;
+      applySkillModel(layer, agent, skill, perAgent[skill], effective, sources);
     }
+    if (!Object.prototype.hasOwnProperty.call(perAgent, "shipper-review")) continue;
+    applyReviewModels(layer, agent, perAgent["shipper-review"], effective, sources);
   }
 }
 

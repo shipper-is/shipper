@@ -1,6 +1,7 @@
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk";
 import { execa } from "execa";
+import { AGENT_KINDS } from "../shared/config-schema.ts";
 import { detectAgents } from "./detect.ts";
 import type { AgentKind } from "./types.ts";
 import { getFreePort } from "./utils.ts";
@@ -154,4 +155,37 @@ export async function listModels(kind: AgentKind): Promise<ModelOption[]> {
 
   cache.set(kind, models);
   return models;
+}
+
+export function formatModelCatalog(catalog: Partial<Record<AgentKind, ModelOption[]>>): string {
+  const lines: string[] = [];
+
+  for (const kind of AGENT_KINDS) {
+    const models = catalog[kind];
+    if (!models) {
+      continue;
+    }
+
+    lines.push(kind);
+    for (const model of models) {
+      lines.push(`  ${model.id}\t${model.label}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+export function modelCatalogJson(catalog: Partial<Record<AgentKind, ModelOption[]>>): string {
+  const agents: Partial<Record<AgentKind, { id: string; label: string }[]>> = {};
+
+  for (const kind of AGENT_KINDS) {
+    const models = catalog[kind];
+    if (!models) {
+      continue;
+    }
+
+    agents[kind] = models.map((model) => ({ id: model.id, label: model.label }));
+  }
+
+  return JSON.stringify({ agents }, null, 2);
 }

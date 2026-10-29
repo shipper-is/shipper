@@ -2,6 +2,12 @@ import { Command } from "commander";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { detectAgents } from "./agents/detect.ts";
+import {
+  formatModelCatalog,
+  listModels,
+  modelCatalogJson,
+  type ModelOption,
+} from "./agents/models.ts";
 import type { AgentKind } from "./agents/types.ts";
 import { DEFAULT_EMBED_IDLE_MINUTES } from "./constants.ts";
 import {
@@ -344,6 +350,59 @@ function runConfigPath(repoRoot: string): void {
   console.log(`local\t${localConfigPath(repoRoot)}`);
 }
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function runModelsList(opts: { agent?: string; json?: boolean }): Promise<void> {
+  const catalog: Partial<Record<AgentKind, ModelOption[]>> = {};
+
+  if (opts.agent !== undefined) {
+    if (!isAgentKind(opts.agent)) {
+      console.error(`Unknown agent: ${opts.agent}`);
+      console.error(`Supported agents: ${AGENT_KINDS.join(", ")}`);
+      process.exit(1);
+    }
+
+    try {
+      catalog[opts.agent] = await listModels(opts.agent);
+    } catch (err: unknown) {
+      console.error(errorMessage(err));
+      process.exit(1);
+    }
+  } else {
+    const detected = await detectAgents();
+    if (detected.length === 0) {
+      console.error("No coding agents detected");
+      process.exit(1);
+    }
+
+    let succeeded = false;
+    for (const agent of detected) {
+      try {
+        catalog[agent.kind] = await listModels(agent.kind);
+        succeeded = true;
+      } catch (err: unknown) {
+        console.error(`${agent.kind}: ${errorMessage(err)}`);
+      }
+    }
+
+    if (!succeeded) {
+      process.exit(1);
+    }
+  }
+
+  if (opts.json) {
+    console.log(modelCatalogJson(catalog));
+    return;
+  }
+
+  const text = formatModelCatalog(catalog);
+  if (text) {
+    console.log(text);
+  }
+}
+
 async function resolveCommandRepo(cmd: { optsWithGlobals: () => { dir?: string } }): Promise<string> {
   const globalOpts = cmd.optsWithGlobals();
   return resolveRepoRoot({
@@ -419,6 +478,19 @@ export async function main(argv: string[] = process.argv): Promise<void> {
         console.error(message);
         process.exit(1);
       }
+    });
+
+  const modelsCmd = program
+    .command("models")
+    .description("list models available to each coding agent");
+
+  modelsCmd
+    .command("list")
+    .description("print the live model catalog")
+    .option("--agent <kind>", "limit to one harness (claude, cursor, opencode)")
+    .option("--json", "print machine-readable JSON")
+    .action(async (opts: { agent?: string; json?: boolean }) => {
+      await runModelsList(opts);
     });
 
   const embedCmd = program.command("embed").description("manage the shared local embedding server");

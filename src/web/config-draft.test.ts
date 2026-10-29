@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   draftIssues,
   payloadForSave,
+  readReviewModels,
   setEvidenceText,
   setExtraDirs,
   setGitField,
@@ -10,6 +11,8 @@ import {
   setPath,
   setReviewSampleRate,
   setSearchEnabled,
+  writeReviewModels,
+  writeSkillModel,
 } from "./config-draft.ts";
 
 describe("config draft", () => {
@@ -51,6 +54,100 @@ describe("config draft", () => {
         claude: { "shipper-build": "opus" },
       },
     });
+  });
+
+  it("stores a role beside the launch model and returns to a string when the role is cleared", () => {
+    const withResearch = writeSkillModel(
+      { models: { cursor: { "shipper-plan": "composer-2.5" } } },
+      "cursor",
+      "shipper-plan",
+      { model: "composer-2.5", research: "gpt-5" },
+    );
+    expect(withResearch).toEqual({
+      models: { cursor: { "shipper-plan": { model: "composer-2.5", research: "gpt-5" } } },
+    });
+    const cleared = writeSkillModel(withResearch, "cursor", "shipper-plan", { model: "composer-2.5" });
+    expect(cleared).toEqual({
+      models: { cursor: { "shipper-plan": "composer-2.5" } },
+    });
+  });
+
+  it("keeps unknown nested model keys", () => {
+    const next = writeSkillModel(
+      {
+        models: {
+          cursor: {
+            "shipper-plan": { model: "big", extra: true },
+            "shipper-review": { triage: "opus", note: "keep" },
+            custom: "stay",
+          },
+        },
+      },
+      "cursor",
+      "shipper-plan",
+      { model: "big", research: "mid" },
+    );
+    expect(next).toEqual({
+      models: {
+        cursor: {
+          "shipper-plan": { model: "big", extra: true, research: "mid" },
+          "shipper-review": { triage: "opus", note: "keep" },
+          custom: "stay",
+        },
+      },
+    });
+  });
+
+  it("removes shipper-review when the last field is cleared", () => {
+    const cleared = writeReviewModels(
+      {
+        models: {
+          cursor: {
+            "shipper-build": "composer-2.5",
+            "shipper-review": { triage: "opus" },
+          },
+        },
+      },
+      "cursor",
+      {},
+    );
+    expect(cleared).toEqual({
+      models: { cursor: { "shipper-build": "composer-2.5" } },
+    });
+  });
+
+  it("does not append a duplicate review model", () => {
+    const draft = {
+      models: { cursor: { "shipper-review": { light: ["fast-a", "fast-b"] } } },
+    };
+    const current = readReviewModels(draft, "cursor");
+    const next = writeReviewModels(draft, "cursor", {
+      ...current,
+      light: [...(current.light ?? []), "fast-a"],
+    });
+    expect(next).toEqual(draft);
+  });
+
+  it("flags a blank role and an empty review list without blocking a one-family list", () => {
+    const invalid = draftIssues("local", {
+      models: {
+        cursor: {
+          "shipper-plan": { research: "  " },
+          "shipper-review": { light: [] },
+        },
+      },
+    });
+    expect(invalid).toEqual([
+      { path: "models.cursor.shipper-plan.research", message: "Use a non-empty model id." },
+      { path: "models.cursor.shipper-review.light", message: "This list is empty." },
+    ]);
+
+    const oneFamily = draftIssues("local", {
+      models: {
+        cursor: { "shipper-review": { light: ["composer-2.5", "composer-2.5-fast"] } },
+      },
+    });
+    expect(oneFamily).toEqual([]);
   });
 
   it("drops an empty instruction and keeps unknown instruction keys", () => {

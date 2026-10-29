@@ -34,7 +34,14 @@ What the user asks for in the current conversation always beats config.
 | `git.branchPrefix` | `"shipper/"` | Prefix for feature branches Shipper creates. Letters, digits, `.`, `_`, `/`, and `-` only |
 | `instructions.all` | none | Extra instructions for every Shipper skill |
 | `instructions.<skill-name>` | none | Extra instructions for one skill. Names: `shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, `shipper-bug` |
-| `models.<agent>.<skill-name>` | none | Model to use when starting a subagent for that skill. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions, plus `shipper-review` (see Models) |
+| `models.<agent>.<skill-name>` | none | Launch model when starting that skill as a subagent: a string, or `{ "model" }` when that skill also has a role. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions (see Models) |
+| `models.<agent>.shipper-plan.research` | none | Research subagents while planning |
+| `models.<agent>.shipper-spike.research` | none | Research subagents while planning a spike |
+| `models.<agent>.shipper-bug.investigate` | none | Investigation subagents while diagnosing a bug |
+| `models.<agent>.shipper-loop.phase` | falls back to `models.<agent>.shipper-build` | Model for each phase subagent |
+| `models.<agent>.shipper-review.triage` | none | One model id for the triage subagent |
+| `models.<agent>.shipper-review.light` | none | Ordered list of model ids for light-tier reviewers |
+| `models.<agent>.shipper-review.heavy` | none | Ordered list of model ids for heavy-tier reviewers |
 | `search.enabled` | `true` | Whether to use the `shipper_search` MCP tools |
 | `search.extraDirs` | `[]` | Extra markdown directories included in search |
 | `review` | none | shipper-review only: extra risk-floor rules, ignored paths, sample rate, size budget, and accepted evidence kinds. shipper-review's scripts read and validate it; other skills ignore it |
@@ -49,7 +56,7 @@ Collect instructions in this order: global `all`, global `<this skill>`, repo `a
 
 ## Models
 
-`models` are keyed by coding agent, then by skill name. Use `claude` if you are Claude Code, `cursor` if you are Cursor (editor or CLI), and `opencode` if you are opencode. You cannot change your own model. Only use this setting when you start a subagent to run a Shipper skill: if `models.<your agent>.<that skill>` is set and your subagent tool accepts a model, pass it. If the tool rejects the value, retry once without a model and mention it to the user. Skill names are the same six as `instructions`. shipper-review takes an object instead of one id: `models.<agent>.shipper-review` may set `triage`, `light`, and `heavy`, each a model id or a list of ids (list models from different vendors so its panels and fact-checkers can mix model families).
+`models` are keyed by coding agent, then by skill name. Use `claude` if you are Claude Code, `cursor` if you are Cursor (editor or CLI), and `opencode` if you are opencode. You cannot change your own model. Pass `model` when starting another Shipper skill: that is `models.<your agent>.<that skill>` when the value is a string, or `models.<your agent>.<that skill>.model` when the skill is an object. Pass the role or tier key when starting that skill's own helpers (`research`, `investigate`, `phase`, `triage`, `light`, or `heavy`). A list is walked in order, round-robin, so the user can alternate families. If the subagent tool rejects an id, retry that subagent once without a model and say so. `shipper models list --agent <claude|cursor|opencode> --json` prints `{ "agents": { "<kind>": [{ "id", "label" }] } }`. When a review tier is unset, run that command and choose from it: the fastest available model for triage, fast models from two vendors for light, and frontier models from two vendors for heavy. When the command fails, keep today's behavior (choose from what the subagent tool accepts) and record it in the review coverage notes. `shipper-build` and `shipper-ship` have no child slot.
 
 ## Search
 

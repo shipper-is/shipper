@@ -114,8 +114,8 @@ describe("layered config", () => {
     const loaded = await loadConfig(repoDir);
     expect(loaded.effective.git.branchMode).toBe("current");
     expect(loaded.sources["git.branchMode"]).toBe("local");
-    expect(loaded.effective.models.cursor?.["shipper-build"]).toBe("local-model");
-    expect(loaded.sources["models.cursor.shipper-build"]).toBe("local");
+    expect(loaded.effective.models.cursor?.["shipper-build"]).toEqual({ model: "local-model" });
+    expect(loaded.sources["models.cursor.shipper-build.model"]).toBe("local");
     expect(loaded.effective.search.enabled).toBe(false);
     expect(loaded.sources["search.enabled"]).toBe("local");
   });
@@ -141,10 +141,94 @@ describe("layered config", () => {
     expect(loaded.sources["git.branchMode"]).toBe("repo");
     expect(loaded.sources["git.commitEachPhase"]).toBe("local");
     expect(loaded.effective.models.cursor).toEqual({
-      "shipper-build": "repo-model",
-      "shipper-plan": "local-plan",
+      "shipper-build": { model: "repo-model" },
+      "shipper-plan": { model: "local-plan" },
     });
     expect(loaded.layers.repo.value).toMatchObject({ hello: 1 });
+  });
+
+  it("merges skill model fields independently of a higher-layer launch string", async () => {
+    await writeJson(repoConfigPath(repoDir), {
+      models: { cursor: { "shipper-plan": { model: "big", research: "mid" } } },
+    });
+    await writeJson(localConfigPath(repoDir), {
+      models: { cursor: { "shipper-plan": "local-big" } },
+    });
+
+    const loaded = await loadConfig(repoDir);
+    expect(loaded.effective.models.cursor?.["shipper-plan"]).toEqual({
+      model: "local-big",
+      research: "mid",
+    });
+    expect(loaded.sources["models.cursor.shipper-plan.model"]).toBe("local");
+    expect(loaded.sources["models.cursor.shipper-plan.research"]).toBe("repo");
+    expect(loaded.sources["models.cursor.shipper-plan"]).toBeUndefined();
+  });
+
+  it("merges review tiers field by field and dedupes lists", async () => {
+    await writeJson(globalConfigPath(), {
+      models: {
+        cursor: { "shipper-review": { triage: "triage-model", heavy: ["a", "b"] } },
+      },
+    });
+    await writeJson(repoConfigPath(repoDir), {
+      models: { cursor: { "shipper-review": { heavy: "frontier" } } },
+    });
+    await writeJson(localConfigPath(repoDir), {
+      models: { cursor: { "shipper-review": { light: ["fast-a", "fast-a", "fast-b"] } } },
+    });
+
+    const loaded = await loadConfig(repoDir);
+    expect(loaded.effective.models.cursor?.["shipper-review"]).toEqual({
+      triage: "triage-model",
+      heavy: ["frontier"],
+      light: ["fast-a", "fast-b"],
+    });
+    expect(loaded.sources["models.cursor.shipper-review.triage"]).toBe("global");
+    expect(loaded.sources["models.cursor.shipper-review.heavy"]).toBe("repo");
+    expect(loaded.sources["models.cursor.shipper-review.light"]).toBe("local");
+  });
+
+  it("rejects a string review value and drops that layer's other keys", async () => {
+    await writeJson(repoConfigPath(repoDir), {
+      models: { cursor: { "shipper-build": "repo-model" } },
+    });
+    await writeJson(localConfigPath(repoDir), {
+      models: {
+        cursor: {
+          "shipper-plan": "local-plan",
+          "shipper-review": "opus",
+        },
+      },
+    });
+
+    const loaded = await loadConfig(repoDir);
+    expect(loaded.layers.local.error).toMatch(/models\.cursor\["shipper-review"\]/);
+    expect(loaded.layers.local.value).toBeNull();
+    expect(loaded.effective.models.cursor).toEqual({
+      "shipper-build": { model: "repo-model" },
+    });
+    expect(loaded.effective.models.cursor?.["shipper-plan"]).toBeUndefined();
+    expect(loaded.sources["models.cursor.shipper-build.model"]).toBe("repo");
+    expect(loaded.sources["models.cursor.shipper-plan.model"]).toBeUndefined();
+  });
+
+  it("keeps a role that does not belong to the skill on the layer only", async () => {
+    await writeJson(repoConfigPath(repoDir), {
+      models: {
+        cursor: { "shipper-build": { model: "builder", research: "should-stay-on-disk" } },
+      },
+    });
+
+    const loaded = await loadConfig(repoDir);
+    expect(loaded.layers.repo.value).toMatchObject({
+      models: {
+        cursor: { "shipper-build": { model: "builder", research: "should-stay-on-disk" } },
+      },
+    });
+    expect(loaded.effective.models.cursor?.["shipper-build"]).toEqual({ model: "builder" });
+    expect(loaded.sources["models.cursor.shipper-build.model"]).toBe("repo");
+    expect(loaded.sources["models.cursor.shipper-build.research"]).toBeUndefined();
   });
 
   it("replaces search.extraDirs instead of concatenating", async () => {

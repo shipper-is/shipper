@@ -250,3 +250,37 @@ export function parseSavedModelChoice(
     fast: parsed.fast,
   };
 }
+
+const VENDOR_PREFIXES: { prefix: string; vendor: string }[] = [
+  { prefix: "claude", vendor: "claude" },
+  { prefix: "anthropic", vendor: "claude" },
+  { prefix: "gpt", vendor: "gpt" },
+  { prefix: "openai", vendor: "gpt" },
+  { prefix: "o1", vendor: "gpt" },
+  { prefix: "o3", vendor: "gpt" },
+  { prefix: "o4", vendor: "gpt" },
+  { prefix: "gemini", vendor: "gemini" },
+  { prefix: "google", vendor: "gemini" },
+  { prefix: "grok", vendor: "grok" },
+  { prefix: "xai", vendor: "grok" },
+  { prefix: "composer", vendor: "composer" },
+];
+
+export function modelVendor(id: string): string {
+  const slash = id.indexOf("/");
+  const token = slash === -1 ? id : id.slice(0, slash);
+  const folded = token.toLowerCase();
+
+  for (const { prefix, vendor } of VENDOR_PREFIXES) {
+    if (folded.startsWith(prefix)) {
+      return vendor;
+    }
+  }
+
+  if (slash !== -1) {
+    return token;
+  }
+
+  const dash = id.indexOf("-");
+  return dash === -1 ? id : id.slice(0, dash);
+}

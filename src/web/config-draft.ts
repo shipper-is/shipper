@@ -1,11 +1,16 @@
 import { LANES, type Lane } from "../../skills/shipper-review/scripts/review-config.ts";
 import {
+  AGENT_KINDS,
   ARTIFACT_TYPES,
   DEFAULT_ARTIFACT_PATHS,
+  SKILL_NAMES,
+  normalizeModelList,
   validateArtifactDir,
   type AgentKind,
   type ArtifactType,
   type ConfigLayer,
+  type ReviewModelConfig,
+  type SkillModelConfig,
   type SkillName,
 } from "../shared/config-schema.ts";
 
@@ -106,16 +111,95 @@ export function setInstruction(
   return withChild(draft, "instructions", instructions);
 }
 
+const SKILL_MODEL_FIELDS = ["model", "research", "investigate", "phase"] as const;
+const REVIEW_LIST_FIELDS = ["light", "heavy"] as const;
+const MODEL_ID_MESSAGE = "Use a non-empty model id.";
+const EMPTY_LIST_MESSAGE = "This list is empty.";
+
+function trimmedModelId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isTrimmedModelId(value: unknown): boolean {
+  return typeof value === "string" && value.length > 0 && value === value.trim();
+}
+
+function agentModels(draft: Record<string, unknown>, agent: AgentKind): Record<string, unknown> | undefined {
+  if (!isRecord(draft.models)) return undefined;
+  const perAgent = draft.models[agent];
+  return isRecord(perAgent) ? perAgent : undefined;
+}
+
+function withAgentModels(
+  draft: Record<string, unknown>,
+  agent: AgentKind,
+  update: (perAgent: Record<string, unknown>) => void,
+): Record<string, unknown> {
+  const models = isRecord(draft.models) ? { ...draft.models } : {};
+  const perAgent = isRecord(models[agent]) ? { ...models[agent] } : {};
+  update(perAgent);
+  if (Object.keys(perAgent).length === 0) delete models[agent];
+  else models[agent] = perAgent;
+  return withChild(draft, "models", models);
+}
+
+export function readSkillModel(
+  draft: Record<string, unknown>,
+  agent: AgentKind,
+  skill: SkillName,
+): SkillModelConfig {
+  const raw = agentModels(draft, agent)?.[skill];
+  if (typeof raw === "string") {
+    const model = trimmedModelId(raw);
+    return model ? { model } : {};
+  }
+  if (!isRecord(raw)) return {};
+  const result: SkillModelConfig = {};
+  for (const field of SKILL_MODEL_FIELDS) {
+    const id = trimmedModelId(raw[field]);
+    if (id) result[field] = id;
+  }
+  return result;
+}
+
+export function writeSkillModel(
+  draft: Record<string, unknown>,
+  agent: AgentKind,
+  skill: SkillName,
+  value: SkillModelConfig,
+): Record<string, unknown> {
+  return withAgentModels(draft, agent, (perAgent) => {
+    const existing = perAgent[skill];
+    const stored: Record<string, unknown> = isRecord(existing) ? { ...existing } : {};
+    for (const field of SKILL_MODEL_FIELDS) {
+      const id = trimmedModelId(value[field]);
+      if (id) stored[field] = id;
+      else delete stored[field];
+    }
+    const known = SKILL_MODEL_FIELDS.filter((field) => typeof stored[field] === "string");
+    const hasUnknown = Object.keys(stored).some(
+      (key) => !(SKILL_MODEL_FIELDS as readonly string[]).includes(key),
+    );
+    if (known.length === 0 && !hasUnknown) {
+      delete perAgent[skill];
+      return;
+    }
+    if (known.length === 1 && stored.model !== undefined && !hasUnknown) {
+      perAgent[skill] = stored.model;
+      return;
+    }
+    perAgent[skill] = stored;
+  });
+}
+
 export function modelValue(
   draft: Record<string, unknown>,
   agent: AgentKind,
   skill: SkillName,
 ): string | undefined {
-  if (!isRecord(draft.models)) return undefined;
-  const perAgent = draft.models[agent];
-  if (!isRecord(perAgent)) return undefined;
-  const model = perAgent[skill];
-  return typeof model === "string" && model.length > 0 ? model : undefined;
+  return readSkillModel(draft, agent, skill).model;
 }
 
 export function setModel(
@@ -124,13 +208,45 @@ export function setModel(
   skill: SkillName,
   model: string | undefined,
 ): Record<string, unknown> {
-  const models = isRecord(draft.models) ? { ...draft.models } : {};
-  const perAgent = isRecord(models[agent]) ? { ...models[agent] } : {};
-  if (model === undefined || model === "") delete perAgent[skill];
-  else perAgent[skill] = model;
-  if (Object.keys(perAgent).length === 0) delete models[agent];
-  else models[agent] = perAgent;
-  return withChild(draft, "models", models);
+  const current = readSkillModel(draft, agent, skill);
+  const id = model === undefined ? undefined : trimmedModelId(model);
+  if (id) current.model = id;
+  else delete current.model;
+  return writeSkillModel(draft, agent, skill, current);
+}
+
+export function readReviewModels(draft: Record<string, unknown>, agent: AgentKind): ReviewModelConfig {
+  const raw = agentModels(draft, agent)?.["shipper-review"];
+  if (!isRecord(raw)) return {};
+  const result: ReviewModelConfig = {};
+  const triage = trimmedModelId(raw.triage);
+  if (triage) result.triage = triage;
+  for (const field of REVIEW_LIST_FIELDS) {
+    const list = normalizeModelList(raw[field]);
+    if (list) result[field] = list;
+  }
+  return result;
+}
+
+export function writeReviewModels(
+  draft: Record<string, unknown>,
+  agent: AgentKind,
+  value: ReviewModelConfig,
+): Record<string, unknown> {
+  return withAgentModels(draft, agent, (perAgent) => {
+    const existing = perAgent["shipper-review"];
+    const stored: Record<string, unknown> = isRecord(existing) ? { ...existing } : {};
+    const triage = trimmedModelId(value.triage);
+    if (triage) stored.triage = triage;
+    else delete stored.triage;
+    for (const field of REVIEW_LIST_FIELDS) {
+      const list = normalizeModelList(value[field]);
+      if (list) stored[field] = list;
+      else delete stored[field];
+    }
+    if (Object.keys(stored).length === 0) delete perAgent["shipper-review"];
+    else perAgent["shipper-review"] = stored;
+  });
 }
 
 export function readSearchEnabled(draft: Record<string, unknown>): boolean | undefined {
@@ -230,8 +346,62 @@ export function draftIssues(layer: ConfigLayer, draft: Record<string, unknown>):
   }
 
   if (layer === "repo") issues.push(...reviewIssues(draft));
+  issues.push(...modelIssues(draft));
 
   return issues;
+}
+
+function modelIssues(draft: Record<string, unknown>): DraftIssue[] {
+  if (!isRecord(draft.models)) return [];
+  const issues: DraftIssue[] = [];
+  for (const agent of AGENT_KINDS) {
+    const perAgent = draft.models[agent];
+    if (!isRecord(perAgent)) continue;
+    for (const skill of SKILL_NAMES) {
+      if (!Object.prototype.hasOwnProperty.call(perAgent, skill)) continue;
+      issues.push(...skillModelIssues(perAgent[skill], `models.${agent}.${skill}`));
+    }
+    if (!Object.prototype.hasOwnProperty.call(perAgent, "shipper-review")) continue;
+    issues.push(...reviewModelIssues(perAgent["shipper-review"], `models.${agent}.shipper-review`));
+  }
+  return issues;
+}
+
+function skillModelIssues(raw: unknown, path: string): DraftIssue[] {
+  if (typeof raw === "string") {
+    return isTrimmedModelId(raw) ? [] : [{ path, message: MODEL_ID_MESSAGE }];
+  }
+  if (!isRecord(raw)) return [{ path, message: MODEL_ID_MESSAGE }];
+  const issues: DraftIssue[] = [];
+  for (const field of SKILL_MODEL_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, field)) continue;
+    if (!isTrimmedModelId(raw[field])) {
+      issues.push({ path: `${path}.${field}`, message: MODEL_ID_MESSAGE });
+    }
+  }
+  return issues;
+}
+
+function reviewModelIssues(raw: unknown, path: string): DraftIssue[] {
+  if (!isRecord(raw)) return [{ path, message: MODEL_ID_MESSAGE }];
+  const issues: DraftIssue[] = [];
+  if (Object.prototype.hasOwnProperty.call(raw, "triage") && !isTrimmedModelId(raw.triage)) {
+    issues.push({ path: `${path}.triage`, message: MODEL_ID_MESSAGE });
+  }
+  for (const field of REVIEW_LIST_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, field)) continue;
+    const message = reviewListIssue(raw[field]);
+    if (message) issues.push({ path: `${path}.${field}`, message });
+  }
+  return issues;
+}
+
+function reviewListIssue(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return EMPTY_LIST_MESSAGE;
+    return value.every((item) => isTrimmedModelId(item)) ? undefined : MODEL_ID_MESSAGE;
+  }
+  return isTrimmedModelId(value) ? undefined : MODEL_ID_MESSAGE;
 }
 
 function readReview(draft: Record<string, unknown>): Record<string, unknown> {

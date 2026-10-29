@@ -104,9 +104,9 @@ Two exceptions:
 
 A file that is not valid JSON, or that gives a known key a value that key does not allow, is skipped entirely (one bad field drops the file). Unknown keys are kept and do not make the file invalid. An invalid path keeps that artifact type's default and does not drop the rest of the file. Paths are relative, use forward slashes, and must stay inside the repo (no `..` escapes, no `.git` or `node_modules` segments).
 
-`git.branchMode` left unset means each skill uses its own default (`shipper-build` and `shipper-loop` stay on the current branch; `shipper-spike` and `shipper-bug` create a feature branch). `models` apply only when a skill starts a subagent for another Shipper skill. If the agent's tool rejects the id, the skill retries once without a model.
+`git.branchMode` left unset means each skill uses its own default (`shipper-build` and `shipper-loop` stay on the current branch; `shipper-spike` and `shipper-bug` create a feature branch). `models` supply the launch model when a skill starts another Shipper skill, and the role or tier when a skill starts its own helpers. If the subagent tool rejects an id, retry that subagent once without a model.
 
-`shipper config` prints each layer and the effective value of every key, with the layer it came from. `shipper config --json` prints the same data as JSON. `shipper config path` prints the three file paths.
+`shipper config` prints each layer and the effective value of every key, with the layer it came from. `shipper config --json` prints the same data as JSON. `shipper config path` prints the three file paths. `shipper models list` prints the models each installed harness reports. `shipper models list --agent <claude|cursor|opencode> --json` prints `{ "agents": { "<kind>": [{ "id", "label" }] } }`.
 
 | Key | Default | Meaning |
 |-----|---------|---------|
@@ -119,7 +119,14 @@ A file that is not valid JSON, or that gives a known key a value that key does n
 | `git.branchPrefix` | `"shipper/"` | Prefix for feature branches Shipper creates. Letters, digits, `.`, `_`, `/`, and `-` only |
 | `instructions.all` | none | Extra instructions for every Shipper skill |
 | `instructions.<skill-name>` | none | Extra instructions for one skill. Names: `shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, `shipper-bug` |
-| `models.<agent>.<skill-name>` | none | Model to use when starting a subagent for that skill. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions, plus `shipper-review`, which takes `{ "triage", "light", "heavy" }` (each a model id or a list of ids) |
+| `models.<agent>.<skill-name>` | none | Launch model when starting that skill as a subagent: a string, or `{ "model" }` when that skill also has a role. Agents: `claude`, `cursor`, `opencode`. Same skill names as instructions (see `skills/CONFIG.md`) |
+| `models.<agent>.shipper-plan.research` | none | Research subagents while planning |
+| `models.<agent>.shipper-spike.research` | none | Research subagents while planning a spike |
+| `models.<agent>.shipper-bug.investigate` | none | Investigation subagents while diagnosing a bug |
+| `models.<agent>.shipper-loop.phase` | falls back to `models.<agent>.shipper-build` | Model for each phase subagent |
+| `models.<agent>.shipper-review.triage` | none | One model id for the triage subagent |
+| `models.<agent>.shipper-review.light` | none | Ordered list of model ids for light-tier reviewers |
+| `models.<agent>.shipper-review.heavy` | none | Ordered list of model ids for heavy-tier reviewers |
 | `search.enabled` | `true` | Whether to use the `shipper_search` MCP tools |
 | `search.extraDirs` | `[]` | Extra markdown directories included in search |
 | `review.riskFloor` | `[]` | shipper-review: extra `{ name, paths, lanes }` rules that force heavy review, added to the built-in auth, billing, migration, infra, dependency, and secrets rules |
@@ -151,7 +158,17 @@ Example local override:
 ```json
 {
   "git": { "commitEachPhase": false },
-  "models": { "cursor": { "shipper-build": "composer-2.5" } },
+  "models": {
+    "cursor": {
+      "shipper-build": "composer-2.5",
+      "shipper-plan": { "model": "composer-2.5", "research": "composer-2.5-fast" },
+      "shipper-review": {
+        "triage": "composer-2.5-fast",
+        "light": ["composer-2.5-fast", "gpt-5.4-mini"],
+        "heavy": ["gpt-5.4", "claude-opus-4.8"]
+      }
+    }
+  },
   "instructions": { "all": "Explain changes to me in plain language; I am new to this codebase." }
 }
 ```
@@ -270,6 +287,7 @@ rm -rf ~/.cache/shipper
 | `shipper` | Open the setup console (default) |
 | `shipper config` | Show the effective configuration and which layer set each key |
 | `shipper config path` | Print the global, repo, and local config file paths |
+| `shipper models list` | Print the models each installed harness reports |
 | `shipper update` | Install the latest release (or `--check` for status only) |
 | `shipper skills` | Install or refresh global skills for detected agents |
 | `shipper embed start\|stop\|status` | Manage the shared local embedding server |
@@ -286,6 +304,8 @@ shipper skills --agent cursor   # force install for one agent
 shipper config                  # effective settings for this repo
 shipper config --json           # the same data as JSON
 shipper config path             # the three config file paths
+shipper models list             # models each installed harness reports
+shipper models list --json      # the same catalog as JSON
 ```
 
 ### Flags
@@ -296,11 +316,11 @@ shipper config path             # the three config file paths
 | `--port <n>` | HTTP port override (default: 80, then the first free port from 8712 upward) |
 | `--no-open` | Do not open the browser automatically |
 | `--version` | Print version and exit |
-| `--json` | On `shipper config` and `shipper search`, print JSON |
+| `--json` | On `shipper config`, `shipper search`, and `shipper models list`, print JSON |
 | `--type <types>` | On `shipper search`, comma-separated types: `plan`, `spike`, `bug`, `review`, `doc` |
 | `--status <status>` | On `shipper search`: `open`, `done`, or `any` |
 | `--limit <n>` | On `shipper search`, max results (1–25) |
 | `--force` | On `shipper index`, rebuild the index from scratch |
-| `--agent <kind>` | On `skills`, `mcp install`, and `mcp uninstall`: `claude`, `cursor`, or `opencode` |
+| `--agent <kind>` | On `skills`, `mcp install`, `mcp uninstall`, and `models list`: `claude`, `cursor`, or `opencode` |
 | `--no-download` | On `mcp install`, skip prefetching the embedding model |
 | `--idle-minutes <n>` | On `embed start`, persist the idle shutdown time |

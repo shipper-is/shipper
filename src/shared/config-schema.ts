@@ -40,10 +40,40 @@ function perSkill<T extends z.ZodType>(value: T) {
   });
 }
 
+const modelIdSchema = z.string().trim().min(1);
+
+const skillModelSchema = z.union([
+  modelIdSchema,
+  z.looseObject({
+    model: modelIdSchema.optional(),
+    research: modelIdSchema.optional(),
+    investigate: modelIdSchema.optional(),
+    phase: modelIdSchema.optional(),
+  }),
+]);
+
+const modelListSchema = z.union([modelIdSchema, z.array(modelIdSchema).min(1)]);
+
+const reviewModelSchema = z.looseObject({
+  triage: modelIdSchema.optional(),
+  light: modelListSchema.optional(),
+  heavy: modelListSchema.optional(),
+});
+
+const agentModelsSchema = z.looseObject({
+  "shipper-plan": skillModelSchema.optional(),
+  "shipper-build": skillModelSchema.optional(),
+  "shipper-loop": skillModelSchema.optional(),
+  "shipper-spike": skillModelSchema.optional(),
+  "shipper-ship": skillModelSchema.optional(),
+  "shipper-bug": skillModelSchema.optional(),
+  "shipper-review": reviewModelSchema.optional(),
+});
+
 const modelsSchema = z.looseObject({
-  claude: perSkill(z.string().min(1)).optional(),
-  cursor: perSkill(z.string().min(1)).optional(),
-  opencode: perSkill(z.string().min(1)).optional(),
+  claude: agentModelsSchema.optional(),
+  cursor: agentModelsSchema.optional(),
+  opencode: agentModelsSchema.optional(),
 });
 
 const instructionsSchema = perSkill(z.string()).extend({
@@ -109,9 +139,46 @@ export type InstructionEntry = {
   text: string;
 };
 
+export type SkillModelConfig = {
+  model?: string;
+  research?: string;
+  investigate?: string;
+  phase?: string;
+};
+
+export type ReviewModelConfig = {
+  triage?: string;
+  light?: string[];
+  heavy?: string[];
+};
+
+/**
+ * A string becomes a one-element list. Arrays keep order, drop empties, and drop duplicates.
+ * Config merge and the setup form both use this so a saved list has one shape.
+ */
+export function normalizeModelList(value: unknown): string[] | undefined {
+  const items = typeof value === "string" ? [value] : Array.isArray(value) ? value : null;
+  if (!items) return undefined;
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const item of items) {
+    if (typeof item !== "string") continue;
+    const id = item.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids.length > 0 ? ids : undefined;
+}
+
 export type EffectiveConfig = {
   paths: Record<ArtifactType, string>;
-  models: Partial<Record<AgentKind, Partial<Record<SkillName, string>>>>;
+  models: Partial<
+    Record<
+      AgentKind,
+      Partial<Record<SkillName, SkillModelConfig>> & { "shipper-review"?: ReviewModelConfig }
+    >
+  >;
   instructions: InstructionEntry[];
   git: {
     branchMode: "current" | "feature" | null;

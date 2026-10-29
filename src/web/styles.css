@@ -566,7 +566,7 @@ code,
 
 .model-row {
   display: grid;
-  grid-template-columns: 9.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 14rem minmax(0, 1fr) auto;
   gap: 0.5rem;
   align-items: center;
   margin-bottom: 0.45rem;
