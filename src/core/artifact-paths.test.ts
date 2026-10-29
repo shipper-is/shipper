@@ -50,11 +50,11 @@ describe("resolveArtifactDirs", () => {
     const repo = await makeRepo();
     const dirs = resolveArtifactDirs(
       repo,
-      effectiveConfig({ paths: { plans: "docs/plans", modules: "vendor/modules" } }),
+      effectiveConfig({ paths: { plans: "docs/plans", reviews: "vendor/reviews" } }),
     );
     expect(dirs.plans).toBe(join(repo, "docs", "plans"));
     expect(dirs.spikes).toBe(join(repo, ".shipper", "spikes"));
-    expect(dirs.modules).toBe(join(repo, "vendor", "modules"));
+    expect(dirs.reviews).toBe(join(repo, "vendor", "reviews"));
   });
 });
 
@@ -74,7 +74,6 @@ describe("ensureArtifactDirs", () => {
       expect(await exists(join(repo, ".shipper", type))).toBe(false);
     }
     expect(await exists(join(repo, ".shipper", "reviews"))).toBe(false);
-    expect(await exists(join(repo, ".shipper", "modules"))).toBe(false);
     expect(await exists(join(repo, ".shipper", "config.json"))).toBe(false);
     expect(await exists(join(repo, ".shipper", "config.local.json"))).toBe(false);
 

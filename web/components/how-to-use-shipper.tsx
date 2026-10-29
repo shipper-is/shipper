@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CopyModuleCommand } from "@/components/copy-module-command";
+import { CopyCommand } from "@/components/copy-command";
 import { INSTALL_COMMAND } from "@/lib/constants";
 
 const setupSteps = [
@@ -143,7 +143,7 @@ function SkillCard({
       </div>
       <p className="mt-4 text-white/60">{description}</p>
       <div className="mt-4">
-        <CopyModuleCommand command={command} />
+        <CopyCommand command={command} />
       </div>
       <StepList steps={steps} />
     </article>
@@ -186,7 +186,7 @@ export function HowToUseShipper() {
                   </div>
                   <p className="mt-2 pl-12 text-white/60">{step.description}</p>
                   <div className="mt-4 pl-12">
-                    <CopyModuleCommand command={step.command} />
+                    <CopyCommand command={step.command} />
                   </div>
                 </li>
               ))}

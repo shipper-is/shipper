@@ -2,11 +2,11 @@
 
 import { useCallback, useState } from "react";
 
-type CopyModuleCommandProps = {
+type CopyCommandProps = {
   command: string;
 };
 
-export function CopyModuleCommand({ command }: CopyModuleCommandProps) {
+export function CopyCommand({ command }: CopyCommandProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(() => {
@@ -28,7 +28,7 @@ export function CopyModuleCommand({ command }: CopyModuleCommandProps) {
         <button
           type="button"
           onClick={handleCopy}
-          aria-label={copied ? "Plan command copied" : "Copy plan command"}
+          aria-label={copied ? "Command copied" : "Copy command"}
           className="font-mono shrink-0 border-t border-white bg-white px-6 py-3 text-sm font-medium text-black transition-colors hover:bg-black hover:text-white sm:border-t-0 sm:border-l"
         >
           {copied ? "Copied" : "Copy"}

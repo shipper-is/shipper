@@ -13,7 +13,7 @@ export const SKILL_NAMES = [
 ] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
-export const ARTIFACT_TYPES = ["plans", "spikes", "bugs", "reviews", "modules"] as const;
+export const ARTIFACT_TYPES = ["plans", "spikes", "bugs", "reviews"] as const;
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 
 export const CONFIG_LAYERS = ["global", "repo", "local"] as const;
@@ -24,7 +24,6 @@ export const DEFAULT_ARTIFACT_PATHS = {
   spikes: ".shipper/spikes",
   bugs: ".shipper/bugs",
   reviews: ".shipper/reviews",
-  modules: ".shipper/modules",
 } as const satisfies Record<ArtifactType, string>;
 
 /** Semantic checks live in `validateArtifactDir` in this file. */
@@ -70,7 +69,6 @@ const pathsSchema = z.looseObject({
   spikes: relativeDir.optional(),
   bugs: relativeDir.optional(),
   reviews: relativeDir.optional(),
-  modules: relativeDir.optional(),
 });
 
 export const settingsSchema = z.looseObject({

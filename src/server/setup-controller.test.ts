@@ -63,7 +63,6 @@ function fixtureSnapshot(): SetupSnapshot {
     },
     artifacts: [],
     strayArtifacts: [],
-    modules: [],
     agents: [],
     skills: [],
     mcp: [],

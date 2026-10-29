@@ -5,7 +5,7 @@ description: Orchestrate the completion of an entire Shipper plan by looping ove
 
 The goal of this skill is to take an existing Shipper plan (in `<plans>`) and drive it to full completion in a single chat. You are the orchestrator: you do not implement phases yourself. For each phase you spin up a brand new subagent that follows the shipper-build skill, you monitor its work, you verify the result, and you move on to the next phase until the plan is complete.
 
-Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, and reviews live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>`) and which team and personal preferences apply.
 
 ## Step 1: Identify the plan
 

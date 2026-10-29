@@ -29,7 +29,6 @@ What the user asks for in the current conversation always beats config.
 | `paths.spikes` | `.shipper/spikes` | Spikes live in `<spikes>/open/` and `<spikes>/done/` |
 | `paths.bugs` | `.shipper/bugs` | Bugs live in `<bugs>/open/` and `<bugs>/done/` |
 | `paths.reviews` | `.shipper/reviews` | Reviews live directly in `<reviews>/` |
-| `paths.modules` | `.shipper/modules` | Modules live in `<modules>/<id>/` |
 | `git.branchMode` | not set | `"current"` or `"feature"`. When not set, each skill uses its own default |
 | `git.commitEachPhase` | `true` | shipper-build and shipper-loop: commit after each phase |
 | `git.branchPrefix` | `"shipper/"` | Prefix for feature branches Shipper creates. Letters, digits, `.`, `_`, `/`, and `-` only |
@@ -40,9 +39,9 @@ What the user asks for in the current conversation always beats config.
 | `search.extraDirs` | `[]` | Extra markdown directories included in search |
 | `review` | none | shipper-review only: extra risk-floor rules, ignored paths, sample rate, size budget, and accepted evidence kinds. shipper-review's scripts read and validate it; other skills ignore it |
 
-All `paths` are relative to the repository root and use forward slashes. Strip trailing slashes, drop `.` and empty segments, and resolve `..` that stays inside the repository (`docs/plans/` and `./a/../b` become `docs/plans` and `b`). Reject an empty result, a leading `/`, a backslash, a path that escapes the repository, and any `.git` or `node_modules` segment. An invalid value keeps the default for that artifact type and does not drop the rest of the file. If two artifact types normalize to the same directory, the earlier of plans, spikes, bugs, reviews, and modules keeps it; the later one stays on its default.
+All `paths` are relative to the repository root and use forward slashes. Strip trailing slashes, drop `.` and empty segments, and resolve `..` that stays inside the repository (`docs/plans/` and `./a/../b` become `docs/plans` and `b`). Reject an empty result, a leading `/`, a backslash, a path that escapes the repository, and any `.git` or `node_modules` segment. An invalid value keeps the default for that artifact type and does not drop the rest of the file. If two artifact types normalize to the same directory, the earlier of plans, spikes, bugs, and reviews keeps it; the later one stays on its default.
 
-In the rest of these skill files, `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>` mean the resolved directories from this table. When you tell the user where a file is, use the real path, not the placeholder. Create a directory (and its `open/` and `done/` subfolders where listed) if it does not exist yet.
+In the rest of these skill files, `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>` mean the resolved directories from this table. When you tell the user where a file is, use the real path, not the placeholder. Create a directory (and its `open/` and `done/` subfolders where listed) if it does not exist yet.
 
 ## Instructions
 

@@ -5,7 +5,7 @@ description: Orchestrate a QUIPS code review (Quality, Uptime, Intent, Performan
 
 The goal of this skill is to produce a review that is broader, more consistent, and more measurable than a single human pass, so the human reviewer only has to read one verdict, one scorecard line, and the blockers. You are the orchestrator: you do not review code yourself. You run the scripts, plan the review, launch a fresh subagent per lane or persona, collect proof, and hand the results to a judge and then to the policy script.
 
-Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, and reviews live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>`) and which team and personal preferences apply.
 
 The lane charters, personas, accepted evidence kinds, and the output contract every reviewer follows are in [./LANES.md](./LANES.md). This skill is repo-agnostic; repo-specific rules enter only through the host repo's own documents and the optional `review` key in `.shipper/config.json` (described in CONFIG.md).
 

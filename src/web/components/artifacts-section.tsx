@@ -54,20 +54,6 @@ export function ArtifactsSection({ setup }: { setup: SetupSnapshot }) {
           ))}
         </div>
       )}
-      <h2>Installed modules</h2>
-      {setup.modules.length === 0 ? (
-        <p className="empty-note">No modules installed.</p>
-      ) : (
-        <ul className="plain-list">
-          {setup.modules.map((mod) => (
-            <li key={mod.id}>
-              <span className="mono">{mod.id}</span>
-              {mod.name !== mod.id ? ` — ${mod.name}` : ""}
-              {mod.version ? ` (${mod.version})` : ""}
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 }

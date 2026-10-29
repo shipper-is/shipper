@@ -94,7 +94,6 @@ function deps(overrides: Partial<SetupSnapshotDeps>): SetupSnapshotDeps {
       stale: true,
     }),
     getEmbedServerStatus: async () => embedStatus,
-    listInstalledModules: async () => [],
     findStrayArtifacts: async () => [],
     checkForUpdate: async () => null,
     getVersion: () => "9.9.9-test",
@@ -137,10 +136,6 @@ describe("collectSetupSnapshot", () => {
             detail: "shipper is not registered",
           }));
         },
-        listInstalledModules: async () => [
-          { id: "alpha", name: "Alpha", version: "1" },
-          { id: "beta", name: "Beta", version: null },
-        ],
         findStrayArtifacts: async () => [{ type: "plans", dir: ".shipper/plans", count: 2 }],
       }),
     );
@@ -150,8 +145,6 @@ describe("collectSetupSnapshot", () => {
     expect(byType.get("spikes")).toMatchObject({ open: 0, done: 1, total: 1, exists: false });
     expect(byType.get("bugs")).toMatchObject({ open: 0, done: 0, total: 0 });
     expect(byType.get("reviews")).toMatchObject({ open: null, done: null, total: 1 });
-    expect(byType.get("modules")).toMatchObject({ open: null, done: null, total: 2 });
-    expect(snapshot.modules).toHaveLength(2);
     expect(snapshot.strayArtifacts).toEqual([{ type: "plans", dir: ".shipper/plans", count: 2 }]);
     expect(snapshot.agents.find((agent) => agent.kind === "cursor")).toMatchObject({
       detected: true,

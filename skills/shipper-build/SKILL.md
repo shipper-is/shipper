@@ -5,7 +5,7 @@ description: Execute a singular phase from an existing Shipper plan in the codeb
 
 The goal of this skill is to take Shipper plans (in `<plans>`) and implement a singular phase of the plan to completion.
 
-Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, reviews, and modules live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, `<reviews>`, and `<modules>`) and which team and personal preferences apply.
+Before anything else, read and follow [./CONFIG.md](./CONFIG.md). It tells you where plans, spikes, bugs, and reviews live in this repository (written below as `<plans>`, `<spikes>`, `<bugs>`, and `<reviews>`) and which team and personal preferences apply.
 
 The user will direct you to which plan they are wanting you to work against. If they don't specify a Phase they want you to work on then you'll need to review the existing plan for what has already been implemented and then ask the user which Phase they'd like for you to work on next using the tool you have available to ask questions to the user.
 

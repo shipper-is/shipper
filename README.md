@@ -24,7 +24,7 @@ Shipper checks for updates once a day. When a newer release exists, the setup co
 
 1. **Plan** — in your coding agent, run `/shipper-plan`. The skill writes a structured markdown plan to the configured plans directory (default `.shipper/plans/open/`).
 2. **Build** — run `/shipper-loop` on that plan. The agent drives every remaining phase through `shipper-build` subagents, then moves the finished plan to `<plans>/done/` (default `.shipper/plans/done/`).
-3. **See the setup** — run `shipper` to open the setup console: configuration, artifact directories, installed skills, MCP registration, the search index, detected agents, and installed modules.
+3. **See the setup** — run `shipper` to open the setup console: configuration, artifact directories, installed skills, MCP registration, the search index, and detected agents.
 
 Running `shipper` starts a local web server and opens your browser at **`http://shipper.localhost`** (port 80). If port 80 is unavailable, it binds the first free port from 8712 upward. Browsers resolve `*.localhost` to your machine with no hosts-file setup. Shipper deliberately uses `.localhost`, not `.local` — the latter is reserved for Bonjour/mDNS and behaves unreliably.
 
@@ -38,7 +38,7 @@ The page has seven sections:
 
 - **Overview** — one-line status for configuration, artifacts, skills, MCP, search, and agents.
 - **Configuration** — the merged settings, plus editable Repo, Local, and Global files.
-- **Artifacts** — configured directories, open and done counts, stray files left in an old default directory, and installed modules.
+- **Artifacts** — configured directories, open and done counts, and stray files left in an old default directory.
 - **Skills** — whether each bundled skill matches the copy installed for each detected agent. **Refresh skills** reinstalls them.
 - **Search** — whether search is on, the index, and the local embedding server. **Sync index**, **Rebuild index**, **Start server**, and **Stop server** live here. Index actions stay disabled when `search.enabled` is false.
 - **MCP** — registration state per detected agent, with install and uninstall.
@@ -58,20 +58,20 @@ There is no per-project default agent. You invoke the skills in whichever agent 
 
 ## Where things live
 
-Artifact directories below are the **defaults**. A repo can move them with `paths` in `.shipper/config.json`. Plans, spikes, and bugs keep fixed `open/` and `done/` subfolders. Reviews sit directly in their directory. Modules sit in `<modules>/<id>/`.
+Artifact directories below are the **defaults**. A repo can move them with `paths` in `.shipper/config.json`. Plans, spikes, and bugs keep fixed `open/` and `done/` subfolders. Reviews sit directly in their directory.
 
 | Path | Contents |
 |------|----------|
 | `<repo>/.shipper/config.json` | Committed repo config (shared by the team) |
 | `<repo>/.shipper/config.local.json` | This user's overrides for this repo (not committed) |
-| `<repo>/.shipper/.gitignore` | Keeps `config.local.json` out of git || `<repo>/.shipper/plans/open/` | Active plans, default location (commit these) |
+| `<repo>/.shipper/.gitignore` | Keeps `config.local.json` out of git |
+| `<repo>/.shipper/plans/open/` | Active plans, default location (commit these) |
 | `<repo>/.shipper/plans/done/` | Completed plans, default location |
 | `<repo>/.shipper/spikes/open/` | Active spikes, default location |
 | `<repo>/.shipper/spikes/done/` | Completed spikes, default location |
 | `<repo>/.shipper/bugs/open/` | Open bug reports, default location |
 | `<repo>/.shipper/bugs/done/` | Fixed bugs, default location |
 | `<repo>/.shipper/reviews/` | Reviews, default location |
-| `<repo>/.shipper/modules/<id>/` | Installed modules, default location |
 | `~/.config/shipper/config.json` | Global user defaults and machine state (`embeddings`, `state`) |
 | `~/.cache/shipper/llama/` | Pinned llama.cpp `llama-server` binary (per platform) |
 | `~/.cache/shipper/models/` | Embedding GGUF (`nomic-embed-text-v1.5` Q4_K_M) |
@@ -114,7 +114,6 @@ A file that is not valid JSON, or that gives a known key a value that key does n
 | `paths.spikes` | `.shipper/spikes` | Spikes live in `<spikes>/open/` and `<spikes>/done/` |
 | `paths.bugs` | `.shipper/bugs` | Bugs live in `<bugs>/open/` and `<bugs>/done/` |
 | `paths.reviews` | `.shipper/reviews` | Reviews live directly in `<reviews>/` |
-| `paths.modules` | `.shipper/modules` | Modules live in `<modules>/<id>/` |
 | `git.branchMode` | not set | `"current"` or `"feature"`. When not set, each skill uses its own default |
 | `git.commitEachPhase` | `true` | shipper-build and shipper-loop: commit after each phase |
 | `git.branchPrefix` | `"shipper/"` | Prefix for feature branches Shipper creates. Letters, digits, `.`, `_`, `/`, and `-` only |
@@ -183,25 +182,6 @@ Push a `v*` tag to trigger `.github/workflows/release.yml`, which builds `shippe
 ```bash
 git tag v0.2.6 && git push origin v0.2.6
 ```
-
-## Modules
-
-Modules are open source, opinionated feature specs — agent-built replacements for SaaS tools like Intercom or Mixpanel. Instead of subscribing to a third-party service, you install a module and let your coding agent build the feature directly into your codebase. You own the code, and the agent can maintain it over time.
-
-Browse available modules at [shipper.is/modules](https://shipper.is/modules).
-
-```bash
-shipper modules list                    # show modules from the GitHub repo
-shipper modules add customer-support    # install into the configured modules directory
-```
-
-The default modules directory is `.shipper/modules/<id>/`. Then plan the build in your coding agent:
-
-```
-/shipper-plan https://shipper.is/modules/customer-support
-```
-
-The `shipper-plan` skill installs the module (or uses files already in the configured modules directory), reads the spec, maps it to your stack, and writes a tailored plan to the configured plans directory (default `.shipper/plans/open/`). Commit the modules directory alongside your plans — it is the long-term reference for maintaining the feature.
 
 ## Semantic search (MCP)
 
@@ -292,8 +272,6 @@ rm -rf ~/.cache/shipper
 | `shipper config path` | Print the global, repo, and local config file paths |
 | `shipper update` | Install the latest release (or `--check` for status only) |
 | `shipper skills` | Install or refresh global skills for detected agents |
-| `shipper modules list` | List available modules from the GitHub repo |
-| `shipper modules add <id-or-url>` | Install a module into the configured modules directory (default `.shipper/modules/`) |
 | `shipper embed start\|stop\|status` | Manage the shared local embedding server |
 | `shipper index` | Build or refresh the semantic search index |
 | `shipper search <query>` | Semantically search plans, spikes, bugs, reviews, and docs |

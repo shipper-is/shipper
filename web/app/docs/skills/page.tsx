@@ -11,9 +11,8 @@ const skills = [
   {
     name: "shipper-plan",
     description:
-      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to the configured plans directory (default .shipper/plans/open/). Also supports module URLs — install a Shipper module and plan building it into your repo.",
-    example:
-      "/shipper-plan https://shipper.is/modules/customer-support",
+      "Explores your codebase, asks clarifying questions, and writes a phased markdown plan to the configured plans directory (default .shipper/plans/open/).",
+    example: "/shipper-plan add a user settings page",
   },
   {
     name: "shipper-loop",
