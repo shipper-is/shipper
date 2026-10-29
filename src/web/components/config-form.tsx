@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { modelVendor } from "../../agents/model-variants.ts";
 import {
   AGENT_KINDS,
   ARTIFACT_TYPES,
@@ -15,11 +16,12 @@ import {
   draftsEqual,
   instructionValue,
   isRecord,
-  modelValue,
   pathValue,
   payloadForSave,
   readExtraDirs,
   readGit,
+  readReviewModels,
+  readSkillModel,
   readSearchEnabled,
   setExtraDirs,
   setGitField,
@@ -27,6 +29,8 @@ import {
   setModel,
   setPath,
   setSearchEnabled,
+  writeReviewModels,
+  writeSkillModel,
 } from "../config-draft.ts";
 import { AGENT_LABELS } from "../format.ts";
 import type { SaveResult } from "../hooks/use-socket.ts";
@@ -62,7 +66,189 @@ function SkillInstructions({
   );
 }
 
-type PickerTarget = { agent: AgentKind; skill: SkillName };
+type SkillRole = "research" | "investigate" | "phase";
+
+type ModelSlot =
+  | { kind: "launch"; skill: SkillName }
+  | { kind: "role"; skill: SkillName; role: SkillRole }
+  | { kind: "triage" }
+  | { kind: "list"; tier: "light" | "heavy" };
+
+type PickerTarget = { agent: AgentKind; slot: ModelSlot };
+
+const ROLE_ROWS: Array<{
+  skill: SkillName;
+  role: SkillRole;
+  label: string;
+  hint?: string;
+}> = [
+  { skill: "shipper-plan", role: "research", label: "shipper-plan research" },
+  { skill: "shipper-spike", role: "research", label: "shipper-spike research" },
+  { skill: "shipper-bug", role: "investigate", label: "shipper-bug investigate" },
+  {
+    skill: "shipper-loop",
+    role: "phase",
+    label: "shipper-loop phase",
+    hint: "Falls back to the shipper-build model when unset",
+  },
+];
+
+function slotTitle(slot: ModelSlot): string {
+  switch (slot.kind) {
+    case "launch":
+      return slot.skill;
+    case "role":
+      return `${slot.skill} ${slot.role}`;
+    case "triage":
+      return "review triage";
+    case "list":
+      return `review ${slot.tier}`;
+  }
+}
+
+function assignModel(
+  draft: Record<string, unknown>,
+  agent: AgentKind,
+  slot: ModelSlot,
+  modelId: string,
+): Record<string, unknown> {
+  if (slot.kind === "launch") return setModel(draft, agent, slot.skill, modelId);
+  if (slot.kind === "role") {
+    const skill = readSkillModel(draft, agent, slot.skill);
+    return writeSkillModel(draft, agent, slot.skill, { ...skill, [slot.role]: modelId });
+  }
+  const review = readReviewModels(draft, agent);
+  if (slot.kind === "triage") {
+    return writeReviewModels(draft, agent, { ...review, triage: modelId });
+  }
+  const list = review[slot.tier] ?? [];
+  if (list.includes(modelId)) return draft;
+  return writeReviewModels(draft, agent, { ...review, [slot.tier]: [...list, modelId] });
+}
+
+function moveItem(ids: string[], index: number, delta: number): string[] {
+  const target = index + delta;
+  if (target < 0 || target >= ids.length) return ids;
+  const next = ids.slice();
+  const current = next[index];
+  const swapped = next[target];
+  if (current === undefined || swapped === undefined) return ids;
+  next[index] = swapped;
+  next[target] = current;
+  return next;
+}
+
+function singleFamilyList(ids: string[]): boolean {
+  if (ids.length < 2) return false;
+  return new Set(ids.map((id) => modelVendor(id))).size < 2;
+}
+
+function ModelChoiceRow({
+  label,
+  value,
+  hint,
+  issue,
+  onChoose,
+  onClear,
+}: {
+  label: string;
+  value: string | undefined;
+  hint?: string;
+  issue?: string;
+  onChoose: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <>
+      <div className="model-row">
+        <span className="mono">{label}</span>
+        <span className="model-row__value mono">{value ?? "Not set"}</span>
+        <span className="button-row">
+          <button type="button" className="secondary-button" onClick={onChoose}>
+            Choose
+          </button>
+          {(value || issue) && (
+            <button type="button" className="secondary-button" onClick={onClear}>
+              Clear
+            </button>
+          )}
+        </span>
+      </div>
+      {hint && <p className="config-form__hint">{hint}</p>}
+      {issue && <span className="field-error">{issue}</span>}
+    </>
+  );
+}
+
+function ModelListRows({
+  label,
+  ids,
+  issue,
+  onAdd,
+  onChange,
+}: {
+  label: string;
+  ids: string[];
+  issue?: string;
+  onAdd: () => void;
+  onChange: (ids: string[]) => void;
+}) {
+  return (
+    <>
+      <div className="model-row">
+        <span className="mono">{label}</span>
+        <span className="model-row__value mono">{ids.length === 0 ? "Not set" : ""}</span>
+        <span className="button-row">
+          <button type="button" className="secondary-button" onClick={onAdd}>
+            Add
+          </button>
+          {issue && ids.length === 0 && (
+            <button type="button" className="secondary-button" onClick={() => onChange([])}>
+              Clear
+            </button>
+          )}
+        </span>
+      </div>
+      {ids.map((id, index) => (
+        <div className="model-row" key={id}>
+          <span />
+          <span className="model-row__value mono">{id}</span>
+          <span className="button-row">
+            {index > 0 && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onChange(moveItem(ids, index, -1))}
+              >
+                Move up
+              </button>
+            )}
+            {index < ids.length - 1 && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => onChange(moveItem(ids, index, 1))}
+              >
+                Move down
+              </button>
+            )}
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => onChange(ids.filter((_, row) => row !== index))}
+            >
+              Remove
+            </button>
+          </span>
+        </div>
+      ))}
+      {singleFamilyList(ids) && (
+        <span className="field-error">This list is a single model family. Review panels look for two.</span>
+      )}
+      {issue && <span className="field-error">{issue}</span>}
+    </>
+  );
+}
 
 export function ConfigForm({
   layer,
@@ -182,8 +368,8 @@ export function ConfigForm({
     setDiskChanged(false);
   }
 
-  function chooseModel(agent: AgentKind, skill: SkillName) {
-    setPicker({ agent, skill });
+  function chooseModel(agent: AgentKind, slot: ModelSlot) {
+    setPicker({ agent, slot });
     if (modelsByAgent[agent]) {
       setLoadingModels(false);
       return;
@@ -359,52 +545,99 @@ export function ConfigForm({
       <fieldset className="config-form__fieldset">
         <legend>Models</legend>
         <p className="config-form__hint">
-          Used when a skill starts a subagent for another skill, for example shipper-loop running
-          shipper-build.
+          Launch rows are the model used when another skill starts that skill. The rows below are
+          the helpers that skill starts itself.
         </p>
         {detectedAgents.length === 0 ? (
           <p className="empty-note">No coding agents detected, so models cannot be chosen here.</p>
         ) : (
-          detectedAgents.map((agent) => (
-            <div key={agent} className="stack-block">
-              <h3>{AGENT_LABELS[agent]}</h3>
-              {SKILL_NAMES.map((skill) => {
-                const value = modelValue(draft, agent, skill);
-                return (
-                  <div className="model-row" key={skill}>
-                    <span className="mono">{skill}</span>
-                    <span className="model-row__value mono">{value ?? "Not set"}</span>
-                    <span className="button-row">
-                      <button
-                        type="button"
-                        className="secondary-button"
-                        onClick={() => chooseModel(agent, skill)}
-                      >
-                        Choose
-                      </button>
-                      {value && (
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() =>
-                            setDraft((current) => setModel(current, agent, skill, undefined))
-                          }
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ))
+          detectedAgents.map((agent) => {
+            const review = readReviewModels(draft, agent);
+            return (
+              <div key={agent} className="stack-block">
+                <h3>{AGENT_LABELS[agent]}</h3>
+                {SKILL_NAMES.map((skill) => {
+                  const value = readSkillModel(draft, agent, skill).model;
+                  return (
+                    <ModelChoiceRow
+                      key={skill}
+                      label={skill}
+                      value={value}
+                      issue={
+                        issueFor(`models.${agent}.${skill}`) ??
+                        issueFor(`models.${agent}.${skill}.model`)
+                      }
+                      onChoose={() => chooseModel(agent, { kind: "launch", skill })}
+                      onClear={() =>
+                        setDraft((current) => setModel(current, agent, skill, undefined))
+                      }
+                    />
+                  );
+                })}
+                {ROLE_ROWS.map((row) => {
+                  const value = readSkillModel(draft, agent, row.skill)[row.role];
+                  return (
+                    <ModelChoiceRow
+                      key={row.label}
+                      label={row.label}
+                      value={value}
+                      hint={row.hint}
+                      issue={issueFor(`models.${agent}.${row.skill}.${row.role}`)}
+                      onChoose={() =>
+                        chooseModel(agent, { kind: "role", skill: row.skill, role: row.role })
+                      }
+                      onClear={() =>
+                        setDraft((current) => {
+                          const skill = readSkillModel(current, agent, row.skill);
+                          delete skill[row.role];
+                          return writeSkillModel(current, agent, row.skill, skill);
+                        })
+                      }
+                    />
+                  );
+                })}
+                <ModelChoiceRow
+                  label="review triage"
+                  value={review.triage}
+                  issue={
+                    issueFor(`models.${agent}.shipper-review.triage`) ??
+                    issueFor(`models.${agent}.shipper-review`)
+                  }
+                  onChoose={() => chooseModel(agent, { kind: "triage" })}
+                  onClear={() =>
+                    setDraft((current) => {
+                      const next = readReviewModels(current, agent);
+                      delete next.triage;
+                      return writeReviewModels(current, agent, next);
+                    })
+                  }
+                />
+                {(["light", "heavy"] as const).map((tier) => (
+                  <ModelListRows
+                    key={tier}
+                    label={`review ${tier}`}
+                    ids={review[tier] ?? []}
+                    issue={issueFor(`models.${agent}.shipper-review.${tier}`)}
+                    onAdd={() => chooseModel(agent, { kind: "list", tier })}
+                    onChange={(ids) =>
+                      setDraft((current) => {
+                        const next = readReviewModels(current, agent);
+                        if (ids.length === 0) delete next[tier];
+                        else next[tier] = ids;
+                        return writeReviewModels(current, agent, next);
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            );
+          })
         )}
         {hiddenModelAgents.length > 0 && (
           <p className="config-form__hint">
             This file also sets models for{" "}
             {hiddenModelAgents.map((agent) => AGENT_LABELS[agent]).join(", ")}. Those values are
-            kept when you save.
+            kept when you save, including review tiers and helper roles.
           </p>
         )}
       </fieldset>
@@ -563,10 +796,10 @@ export function ConfigForm({
       )}
       {picker && !loadingModels && families && families.length > 0 && (
         <ModelPicker
-          title={`${picker.skill} for ${AGENT_LABELS[picker.agent]}`}
+          title={`${slotTitle(picker.slot)} for ${AGENT_LABELS[picker.agent]}`}
           families={families}
           onSelect={(modelId) => {
-            setDraft((current) => setModel(current, picker.agent, picker.skill, modelId));
+            setDraft((current) => assignModel(current, picker.agent, picker.slot, modelId));
             setPicker(null);
           }}
           onCancel={() => setPicker(null)}

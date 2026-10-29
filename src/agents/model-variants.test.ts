@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getFamilyEfforts,
   groupModelFamilies,
+  modelVendor,
   parseModelVariant,
   resolveVariantChoice,
 } from "./model-variants.ts";
@@ -31,5 +32,14 @@ describe("model variant grouping", () => {
       effort: "default",
       fast: false,
     });
+  });
+});
+
+describe("modelVendor", () => {
+  it("maps harness ids onto the review vendor names", () => {
+    expect(modelVendor("composer-2.5-fast")).toBe("composer");
+    expect(modelVendor("claude-opus-5-5-high")).toBe("claude");
+    expect(modelVendor("openai/gpt-5")).toBe("gpt");
+    expect(modelVendor("groq/llama")).toBe("groq");
   });
 });

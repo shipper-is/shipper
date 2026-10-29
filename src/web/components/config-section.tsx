@@ -186,11 +186,28 @@ function EffectivePane({ setup }: { setup: SetupSnapshot }) {
     source: sources["search.extraDirs"] ?? "default",
   });
   for (const agent of AGENT_KINDS) {
+    const perAgent = effective.models[agent];
+    if (!perAgent) continue;
     for (const skill of SKILL_NAMES) {
-      const model = effective.models[agent]?.[skill];
-      if (!model) continue;
-      const key = `models.${agent}.${skill}`;
-      rows.push({ key, value: model, source: sources[key] ?? "default" });
+      const config = perAgent[skill];
+      if (!config) continue;
+      for (const field of ["model", "research", "investigate", "phase"] as const) {
+        const value = config[field];
+        if (!value) continue;
+        const key = `models.${agent}.${skill}.${field}`;
+        rows.push({ key, value, source: sources[key] ?? "default" });
+      }
+    }
+    const review = perAgent["shipper-review"];
+    if (review?.triage) {
+      const key = `models.${agent}.shipper-review.triage`;
+      rows.push({ key, value: review.triage, source: sources[key] ?? "default" });
+    }
+    for (const field of ["light", "heavy"] as const) {
+      const list = review?.[field];
+      if (!list || list.length === 0) continue;
+      const key = `models.${agent}.shipper-review.${field}`;
+      rows.push({ key, value: list.join(", "), source: sources[key] ?? "default" });
     }
   }
 

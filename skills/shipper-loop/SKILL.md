@@ -40,7 +40,7 @@ For each remaining phase, in order, one at a time:
    - The absolute path to the repository and to the plan file
    - The exact phase number and phase title it is responsible for, and an explicit instruction to implement **only** that phase
    - An instruction to first read and follow the shipper-build skill files at the absolute paths you resolved in Step 2 (SKILL.md, GIT.md, and CONFIG.md), including checking off the plan's checkboxes and writing Completion Notes
-   - If `models.<your agent>.shipper-build` is set, start each phase subagent with that model (see CONFIG.md)
+   - Start each phase subagent with `models.<your agent>.shipper-loop.phase` when set, otherwise with `models.<your agent>.shipper-build` when set (see CONFIG.md)
    - The git preferences from Step 2, stated explicitly: which branch mode to use (current branch or feature branch) and whether to commit after the phase
    - Any decisions or answers the user has already given that are relevant to this phase
    - An instruction that it cannot ask the user questions: it should make reasonable decisions consistent with the plan and codebase conventions, and clearly report in its final response anything it was blocked on or unsure about
@@ -53,15 +53,15 @@ For each remaining phase, in order, one at a time:
    - If committing is enabled, a `Phase N: <phase title>` commit exists on the working branch (`git log`)
 
 4. **Iterate.** If verification fails or the subagent reported a blocker:
-   - If the gap is something a subagent can fix (unchecked boxes, missing commit, failing tests, incomplete section), spin up a new subagent with a focused prompt describing exactly what is incomplete and how to finish it.
-   - If the blocker is a genuine decision only the user can make, use the question tool to ask the user, then relay the answer into a fresh subagent for the phase.
+   - If the gap is something a subagent can fix (unchecked boxes, missing commit, failing tests, incomplete section), spin up a new subagent with a focused prompt describing exactly what is incomplete and how to finish it. That retry uses the same model as the phase subagent.
+   - If the blocker is a genuine decision only the user can make, use the question tool to ask the user, then relay the answer into a fresh subagent for the phase. That subagent uses the same model as the phase subagent.
    - After 3 failed attempts on the same phase, stop the loop and report to the user exactly where things stand and what went wrong.
 
 5. Mark the phase's todo item complete and give the user a one or two sentence progress update (what the phase delivered, anything notable from its Completion Notes) before starting the next phase.
 
 ## Step 4: Completion
 
-After the final phase's subagent finishes, verify the plan-completion steps from the shipper-build GIT.md were done: `completed_at` is set in frontmatter, the plan file was moved from `<plans>/open/` to `<plans>/done/`, and (if committing is enabled) a final completion commit exists. If any were missed, spin up one last subagent to finish them.
+After the final phase's subagent finishes, verify the plan-completion steps from the shipper-build GIT.md were done: `completed_at` is set in frontmatter, the plan file was moved from `<plans>/open/` to `<plans>/done/`, and (if committing is enabled) a final completion commit exists. If any were missed, spin up one last subagent to finish them. That subagent uses the same model as the phase subagents.
 
 Close out by summarizing for the user: the phases completed, the branch the work lives on (and whether changes were left uncommitted), and that the plan is ready for shipper-ship to open a PR.
 

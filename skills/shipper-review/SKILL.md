@@ -27,7 +27,7 @@ The lane charters, personas, accepted evidence kinds, and the output contract ev
 | Light | Light-tier lane generalists; fact-checking suggestions | Fast models from at least two vendors |
 | Heavy | Persona panels, evidence provers, fact-checking blockers and all Security findings, the judge | Frontier models from at least two vendors |
 
-Resolve tiers from what your subagent tool accepts, unless the user names models or the merged config sets `models.<your agent>.shipper-review` (see CONFIG.md). Record a **family** string for every reviewer (the vendor, such as `claude`, `gpt`, `gemini`, `grok`, or `composer`; Cursor's dedicated subagents are `cursor-bugbot` and `cursor-security-review`). If your harness offers only one family, say so in the coverage notes. The policy script then escalates any blocker it cannot confirm independently, rather than sending it to the author.
+Pass `models.<your agent>.shipper-review.triage`, `.light`, and `.heavy` when they are set, unless the user names a model in this chat (see CONFIG.md). `triage` is one id. Walk `light` and `heavy` in order, round-robin, so families alternate. You cannot change your own model. If the subagent tool rejects an id, retry that subagent once without a model and say so. When a review tier is unset, run `shipper models list --agent <claude|cursor|opencode> --json`. It prints `{ "agents": { "<kind>": [{ "id", "label" }] } }`. Choose from that catalog: the fastest available model for triage, fast models from two vendors for light, and frontier models from two vendors for heavy. When the command fails, keep today's behavior (choose from what the subagent tool accepts) and record it in the review coverage notes. Record a **family** string for every reviewer (the vendor from `modelVendor`: `claude` and `anthropic` are `claude`, `gpt`, `openai`, `o1`, `o3`, and `o4` are `gpt`, `gemini` and `google` are `gemini`, `grok` and `xai` are `grok`, and `composer` is `composer`; Cursor's dedicated subagents are `cursor-bugbot` and `cursor-security-review`). If your harness offers only one family, say so in the coverage notes. The policy script then escalates any blocker it cannot confirm independently, rather than sending it to the author.
 
 ## Step 1: Identify the target
 
@@ -47,14 +47,14 @@ The user points you at a PR, a branch, or local changes. Defaults: if a PR exist
 
 ## Step 3: Triage and review plan
 
-Launch one System 1 subagent with `context.md` and the diff. For every unit and lane it returns an impact (low or high), a blast radius, and its confidence. A lane is planned heavy for a unit when the floor says heavy, triage says high impact, or triage confidence is low. Triage can raise a unit above its floor but never lower it below; the policy script checks this. Append the final plan (unit × lane → tier) to `context.md`.
+Launch one System 1 subagent with `context.md` and the diff. Step 3 uses `triage`: pass `models.<your agent>.shipper-review.triage` when it is set, otherwise the triage id chosen from `shipper models list`. For every unit and lane it returns an impact (low or high), a blast radius, and its confidence. A lane is planned heavy for a unit when the floor says heavy, triage says high impact, or triage confidence is low. Triage can raise a unit above its floor but never lower it below; the policy script checks this. Append the final plan (unit × lane → tier) to `context.md`.
 
 ## Step 4: Lane review (parallel)
 
 All reviewers are read-only, so launch them concurrently. Every prompt is self-contained (the subagent cannot see this conversation). It holds the absolute repository path, the diff target, the path to `context.md`, the units it covers, and the relevant section of [./LANES.md](./LANES.md) with the output contract.
 
-- **Light tier:** one generalist per lane, covering every unit planned light for that lane, and carrying all of that lane's persona checklists.
-- **Heavy tier:** one subagent per persona, covering the units planned heavy for that lane, with personas alternating across model families so each lane's panel spans at least two.
+- **Light tier:** one generalist per lane, covering every unit planned light for that lane, and carrying all of that lane's persona checklists. Light-tier generalists round-robin `light`. Alternate families by walking the saved list in order.
+- **Heavy tier:** one subagent per persona, covering the units planned heavy for that lane. Heavy personas round-robin `heavy`. Alternate families by walking the saved list in order so each lane's panel spans at least two.
 - **Kick-ups:** when a light reviewer lists a unit in `kickUp`, launch that lane's heavy panel for the unit and update the plan.
 - **Self-consistency:** for units planned heavy on Security, run one extra Security generalist from a family that is not on the panel. The judge compares its blockers with the panel's.
 - **Cursor only:** also launch exactly one `bugbot` subagent (description "Bugbot") as a member of the Uptime lane, and one `security-review` subagent (description "Security Review") as a member of the Security lane. Use this prompt shape, without computing the diff for them and without `Base Branch` unless the base is not the repo default:
@@ -71,18 +71,18 @@ If a reviewer fails or returns malformed output, retry it once with the same pro
 
 ## Step 5: Evidence
 
-Every proposed blocker needs proof of a kind its lane accepts (see LANES.md). For each proposed blocker without it, launch a heavy-tier prover subagent that tries to produce that proof, or reports that it could not:
+Every proposed blocker needs proof of a kind its lane accepts (see LANES.md). For each proposed blocker without it, launch a heavy-tier prover subagent that tries to produce that proof, or reports that it could not. Provers round-robin `heavy`, walking the saved list in order.
 
 - **Sandbox proof** (repro tests, benchmarks, bundle diffs, cross-tenant probes against local fixtures): work only in a disposable worktree at the reviewed state, created with `git worktree add --detach <work>/sandbox <head>` (for uncommitted targets, use the commit from `git stash create` and copy untracked files in). Never commit or push from it, and remove it with `git worktree remove --force` when done. Record the command and its output as the evidence `ref`.
 - **Read-only proof** (query plans, production queries, contract traces, scanner output, secret matches): follow the production-data rules in LANES.md.
 
 ## Step 6: Verify
 
-Fact-check every finding with a reviewer from a different family than the one that wrote it. Group findings by author family so each verifier batch can pick a family outside it. Use the heavy tier for blockers and every Security finding, and the light tier for other suggestions. The verifier receives the diff and, for each finding, its location, summary, and evidence. It does not get the original reviewer's reasoning. It may read the cited files and anything they call or are called by. For each finding it returns `upheld` or `deleted` with a one-line reason. It can delete findings but never add them. Keep deleted findings in the record, marked deleted.
+Fact-check every finding with a reviewer from a different family than the one that wrote it. A fact-checker uses the tier the finding belongs to (`heavy` for blockers and every Security finding, `light` otherwise) and picks the next id in that list whose `modelVendor` differs from the author's family. When the list has no other family, say so in coverage notes. Group findings by author family so each verifier batch can pick a family outside it. The verifier receives the diff and, for each finding, its location, summary, and evidence. It does not get the original reviewer's reasoning. It may read the cited files and anything they call or are called by. For each finding it returns `upheld` or `deleted` with a one-line reason. It can delete findings but never add them. Keep deleted findings in the record, marked deleted.
 
 ## Step 7: Judge
 
-Launch one heavy-tier "tech lead" subagent with the verified findings, `floor.json`, the review plan, each lane's coverage and status, self-consistency results, and the evidence. It:
+Launch one heavy-tier "tech lead" subagent with the verified findings, `floor.json`, the review plan, each lane's coverage and status, self-consistency results, and the evidence. The judge round-robins `heavy` with the personas and provers, walking the saved list in order. It:
 
 - merges findings that share a root cause, keeping the strongest evidence and listing every persona that raised it;
 - settles persona disagreements. Following an existing norm never blocks; adding a new instance of a deprecated pattern always does. Architect `deprecation-proposal` findings go to rule proposals, not the PR;

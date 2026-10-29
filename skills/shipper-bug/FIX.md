@@ -8,7 +8,7 @@ If reproduction is genuinely infeasible (production-only data, timing-dependent 
 
 ## Stage 2: Diagnose
 
-Trace from symptom to root cause. Use parallel subagents when useful to investigate different layers or hypotheses at once. The bar for "diagnosed" is strict: you can point at the specific code and explain the mechanism such that the bug is inevitable — not "this looks suspicious" or "this is probably it."
+Trace from symptom to root cause. Use parallel subagents when useful to investigate different layers or hypotheses at once. When launching those investigation subagents, pass `models.<your agent>.shipper-bug.investigate` when it is set. The bar for "diagnosed" is strict: you can point at the specific code and explain the mechanism such that the bug is inevitable — not "this looks suspicious" or "this is probably it."
 
 - Distinguish the root cause from the trigger. The input that surfaces the bug is rarely the code that is wrong.
 - If confidence is low, do not guess. Add temporary instrumentation, re-reproduce, and observe. Remove the instrumentation before the fix commit.
