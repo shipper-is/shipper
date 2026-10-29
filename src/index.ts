@@ -38,6 +38,7 @@ import { syncIndex, syncIndexIfStale, type SyncResult } from "./search/indexer.t
 import { resolveRepoRoot } from "./search/repo-root.ts";
 import { formatHits, searchIndex, type SearchFilters } from "./search/search.ts";
 import { startServer } from "./server/http.ts";
+import { PortsUnavailableError } from "./server/listen-port.ts";
 import {
   AGENT_KINDS,
   ARTIFACT_TYPES,
@@ -141,10 +142,18 @@ async function runServe(opts: ServeOptions): Promise<void> {
     void shutdown("SIGTERM");
   });
 
-  server = await startServer(repoPath, {
-    port: opts.port,
-    openBrowser: opts.open !== false,
-  });
+  try {
+    server = await startServer(repoPath, {
+      port: opts.port,
+      openBrowser: opts.open !== false,
+    });
+  } catch (err) {
+    if (err instanceof PortsUnavailableError) {
+      console.error(err.message);
+      process.exit(1);
+    }
+    throw err;
+  }
 
   console.log(`Shipper running at ${server.url}`);
   console.log(`Repository: ${repoPath}`);

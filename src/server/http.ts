@@ -1,5 +1,6 @@
 import type { Server } from "bun";
 import indexHtml from "../web/index.html";
+import { DEFAULT_PORT, bindAvailablePort } from "./listen-port.ts";
 import { createSetupController, type SetupController } from "./setup-controller.ts";
 import { createWsHub, type WsClientData, type WsHub } from "./ws-hub.ts";
 
@@ -14,11 +15,8 @@ export type StartedServer = {
   stop: () => Promise<void>;
 };
 
-const DEFAULT_PORT = 80;
-const FALLBACK_PORT = 8712;
-
 function buildUrl(port: number): string {
-  if (port === 80) {
+  if (port === DEFAULT_PORT) {
     return "http://shipper.localhost";
   }
   return `http://shipper.localhost:${port}`;
@@ -94,20 +92,15 @@ export async function startServer(
     throw err;
   }
 
-  const preferredPort = opts.port ?? DEFAULT_PORT;
   let server: Server<WsClientData>;
-  let port = preferredPort;
+  let port: number;
 
   try {
-    try {
-      server = tryListen(port, wsHub);
-    } catch (err) {
-      if (opts.port !== undefined) {
-        throw err;
-      }
-      port = FALLBACK_PORT;
-      server = tryListen(port, wsHub);
-    }
+    const bound = bindAvailablePort((candidate) => tryListen(candidate, wsHub), {
+      port: opts.port,
+    });
+    server = bound.server;
+    port = bound.port;
   } catch (err) {
     await controller.stop();
     throw err;

@@ -26,7 +26,7 @@ Shipper checks for updates once a day. When a newer release exists, the setup co
 2. **Build** — run `/shipper-loop` on that plan. The agent drives every remaining phase through `shipper-build` subagents, then moves the finished plan to `<plans>/done/` (default `.shipper/plans/done/`).
 3. **See the setup** — run `shipper` to open the setup console: configuration, artifact directories, installed skills, MCP registration, the search index, detected agents, and installed modules.
 
-Running `shipper` starts a local web server and opens your browser at **`http://shipper.localhost`** (port 80, with fallback to `:8712` if 80 is unavailable). Browsers resolve `*.localhost` to your machine with no hosts-file setup. Shipper deliberately uses `.localhost`, not `.local` — the latter is reserved for Bonjour/mDNS and behaves unreliably.
+Running `shipper` starts a local web server and opens your browser at **`http://shipper.localhost`** (port 80). If port 80 is unavailable, it binds the first free port from 8712 upward. Browsers resolve `*.localhost` to your machine with no hosts-file setup. Shipper deliberately uses `.localhost`, not `.local` — the latter is reserved for Bonjour/mDNS and behaves unreliably.
 
 The first run installs the bundled skills into each detected agent's global skills directory and creates the default artifact folders. It does not create `.shipper/config.json` or `.shipper/config.local.json` until you save configuration.
 
@@ -315,7 +315,7 @@ shipper config path             # the three config file paths
 | Flag | Description |
 |------|-------------|
 | `--dir <path>` | Target repository (default: current directory) |
-| `--port <n>` | HTTP port override (default: 80, fallback 8712) |
+| `--port <n>` | HTTP port override (default: 80, then the first free port from 8712 upward) |
 | `--no-open` | Do not open the browser automatically |
 | `--version` | Print version and exit |
 | `--json` | On `shipper config` and `shipper search`, print JSON |
