@@ -95,6 +95,7 @@ export async function extractTarball(
   archive: string,
   targetDir: string,
   runCommand: RunCommand = execa,
+  build: string = LLAMA_CPP_BUILD,
 ): Promise<void> {
   await mkdir(dirname(targetDir), { recursive: true });
   const tmp = await mkdtemp(`${targetDir}.extract-`);
@@ -111,7 +112,7 @@ export async function extractTarball(
       );
     }
 
-    const serverRel = join(`llama-${LLAMA_CPP_BUILD}`, "llama-server");
+    const serverRel = join(`llama-${build}`, "llama-server");
     const serverAbs = join(tmp, serverRel);
     try {
       await access(serverAbs);
@@ -138,20 +139,23 @@ async function pathExists(path: string): Promise<boolean> {
   }
 }
 
-async function ensureLlamaBinary(opts: {
+export async function ensureLlamaBinary(opts: {
   platform: EmbedPlatform;
   fetchFn: FetchFn;
   onProgress?: ProgressCallback;
   runCommand: RunCommand;
+  build?: string;
+  assets?: Record<EmbedPlatform, { asset: string; sha256: string }>;
 }): Promise<string> {
   const { platform, fetchFn, onProgress, runCommand } = opts;
-  const serverBinary = llamaServerBinary(platform);
+  const build = opts.build ?? LLAMA_CPP_BUILD;
+  const serverBinary = llamaServerBinary(platform, build);
   if (await pathExists(serverBinary)) {
     return serverBinary;
   }
 
-  const { asset, sha256 } = LLAMA_CPP_ASSETS[platform];
-  const url = llamaCppAssetUrl(asset);
+  const { asset, sha256 } = (opts.assets ?? LLAMA_CPP_ASSETS)[platform];
+  const url = llamaCppAssetUrl(asset, build);
   const archiveDir = join(cacheDir(), "llama");
   await mkdir(archiveDir, { recursive: true });
   const archivePath = join(archiveDir, asset);
@@ -166,8 +170,8 @@ async function ensureLlamaBinary(opts: {
     });
   }
 
-  const installDir = llamaInstallDir(platform);
-  await extractTarball(archivePath, installDir, runCommand);
+  const installDir = llamaInstallDir(platform, build);
+  await extractTarball(archivePath, installDir, runCommand, build);
   await rm(archivePath, { force: true });
 
   if (!(await pathExists(serverBinary))) {

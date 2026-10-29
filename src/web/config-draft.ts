@@ -1,3 +1,4 @@
+import { LANES, type Lane } from "../../skills/shipper-review/scripts/review-config.ts";
 import {
   ARTIFACT_TYPES,
   DEFAULT_ARTIFACT_PATHS,
@@ -228,7 +229,333 @@ export function draftIssues(layer: ConfigLayer, draft: Record<string, unknown>):
     });
   }
 
+  if (layer === "repo") issues.push(...reviewIssues(draft));
+
   return issues;
+}
+
+function readReview(draft: Record<string, unknown>): Record<string, unknown> {
+  return isRecord(draft.review) ? draft.review : {};
+}
+
+function writeReview(
+  draft: Record<string, unknown>,
+  review: Record<string, unknown>,
+): Record<string, unknown> {
+  return withChild(draft, "review", review);
+}
+
+export function reviewSampleRateText(draft: Record<string, unknown>): string {
+  const value = readReview(draft).sampleRate;
+  if (typeof value === "number" || typeof value === "string") return String(value);
+  return "";
+}
+
+export function setReviewSampleRate(
+  draft: Record<string, unknown>,
+  text: string,
+): Record<string, unknown> {
+  const review = { ...readReview(draft) };
+  if (text === "") delete review.sampleRate;
+  else review.sampleRate = text;
+  return writeReview(draft, review);
+}
+
+export function reviewBudgetText(
+  draft: Record<string, unknown>,
+  key: "maxFiles" | "maxChangedLines",
+): string {
+  const budget = readReview(draft).budget;
+  if (!isRecord(budget)) return "";
+  const value = budget[key];
+  if (typeof value === "number" || typeof value === "string") return String(value);
+  return "";
+}
+
+export function setReviewBudgetText(
+  draft: Record<string, unknown>,
+  key: "maxFiles" | "maxChangedLines",
+  text: string,
+): Record<string, unknown> {
+  const review = { ...readReview(draft) };
+  const budget = isRecord(review.budget) ? { ...review.budget } : {};
+  if (text === "") delete budget[key];
+  else budget[key] = text;
+  if (Object.keys(budget).length === 0) delete review.budget;
+  else review.budget = budget;
+  return writeReview(draft, review);
+}
+
+export function reviewReplacesDefaults(draft: Record<string, unknown>): boolean {
+  return readReview(draft).replaceDefaultRiskFloor === true;
+}
+
+export function setReviewReplacesDefaults(
+  draft: Record<string, unknown>,
+  on: boolean,
+): Record<string, unknown> {
+  const review = { ...readReview(draft) };
+  if (on) review.replaceDefaultRiskFloor = true;
+  else delete review.replaceDefaultRiskFloor;
+  return writeReview(draft, review);
+}
+
+export function readFloorIgnore(draft: Record<string, unknown>): string[] | null {
+  const value = readReview(draft).floorIgnore;
+  if (!Array.isArray(value)) return null;
+  return value.map((entry) => (typeof entry === "string" ? entry : ""));
+}
+
+export function setFloorIgnore(
+  draft: Record<string, unknown>,
+  rows: string[] | undefined,
+): Record<string, unknown> {
+  const review = { ...readReview(draft) };
+  if (rows === undefined) delete review.floorIgnore;
+  else review.floorIgnore = rows;
+  return writeReview(draft, review);
+}
+
+export function readRiskRules(draft: Record<string, unknown>): Array<Record<string, unknown>> | null {
+  const value = readReview(draft).riskFloor;
+  if (!Array.isArray(value)) return null;
+  return value.map((rule) => (isRecord(rule) ? rule : {}));
+}
+
+export function setRiskRules(
+  draft: Record<string, unknown>,
+  rules: Array<Record<string, unknown>> | undefined,
+): Record<string, unknown> {
+  const review = { ...readReview(draft) };
+  if (rules === undefined || rules.length === 0) delete review.riskFloor;
+  else review.riskFloor = rules;
+  return writeReview(draft, review);
+}
+
+export function evidenceText(draft: Record<string, unknown>, lane: Lane): string {
+  const kinds = readReview(draft).evidenceKinds;
+  if (!isRecord(kinds)) return "";
+  const value = kinds[lane];
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.filter((entry) => typeof entry === "string").join(", ");
+  return "";
+}
+
+export function setEvidenceText(
+  draft: Record<string, unknown>,
+  lane: Lane,
+  text: string,
+): Record<string, unknown> {
+  const review = { ...readReview(draft) };
+  const kinds = isRecord(review.evidenceKinds) ? { ...review.evidenceKinds } : {};
+  if (text.trim() === "") delete kinds[lane];
+  else kinds[lane] = text;
+  if (Object.keys(kinds).length === 0) delete review.evidenceKinds;
+  else review.evidenceKinds = kinds;
+  return writeReview(draft, review);
+}
+
+function parseUnitInterval(value: unknown): number | undefined {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== ""
+        ? Number(value)
+        : Number.NaN;
+  if (!Number.isFinite(n) || n < 0 || n > 1) return undefined;
+  return n;
+}
+
+function parsePositiveInt(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) return value;
+  if (typeof value === "string" && /^[0-9]+$/.test(value.trim())) {
+    const n = Number(value);
+    if (n > 0) return n;
+  }
+  return undefined;
+}
+
+function reviewIssues(draft: Record<string, unknown>): DraftIssue[] {
+  if (draft.review === undefined) return [];
+  if (!isRecord(draft.review)) {
+    return [{ path: "review", message: "Review settings must be an object." }];
+  }
+  const review = draft.review;
+  const issues: DraftIssue[] = [];
+
+  if (
+    review.sampleRate !== undefined &&
+    parseUnitInterval(review.sampleRate) === undefined
+  ) {
+    issues.push({ path: "review.sampleRate", message: "Use a number from 0 to 1." });
+  }
+
+  if (review.budget !== undefined && !isRecord(review.budget)) {
+    issues.push({ path: "review.budget", message: "Budget must be an object." });
+  } else if (isRecord(review.budget)) {
+    for (const key of ["maxFiles", "maxChangedLines"] as const) {
+      if (review.budget[key] === undefined) continue;
+      if (parsePositiveInt(review.budget[key]) === undefined) {
+        issues.push({
+          path: `review.budget.${key}`,
+          message: "Use a positive whole number.",
+        });
+      }
+    }
+  }
+
+  if (review.floorIgnore !== undefined && !Array.isArray(review.floorIgnore)) {
+    issues.push({ path: "review.floorIgnore", message: "Use a list of globs." });
+  } else if (Array.isArray(review.floorIgnore)) {
+    review.floorIgnore.forEach((entry, index) => {
+      if (typeof entry !== "string" || entry.trim() === "") {
+        issues.push({
+          path: `review.floorIgnore.${index}`,
+          message: "Enter a glob or remove this row.",
+        });
+      }
+    });
+  }
+
+  if (review.riskFloor !== undefined && !Array.isArray(review.riskFloor)) {
+    issues.push({
+      path: "review.riskFloor",
+      message: "Extra rules must be a list.",
+    });
+  } else if (Array.isArray(review.riskFloor)) {
+    review.riskFloor.forEach((rule, index) => {
+      const record = isRecord(rule) ? rule : {};
+      if (typeof record.name !== "string" || record.name.trim() === "") {
+        issues.push({ path: `review.riskFloor.${index}.name`, message: "Name this rule." });
+      }
+      const paths = Array.isArray(record.paths) ? record.paths : [];
+      const filled = paths.filter((entry) => typeof entry === "string" && entry.trim() !== "");
+      if (filled.length === 0) {
+        issues.push({
+          path: `review.riskFloor.${index}.paths`,
+          message: "Add at least one glob.",
+        });
+      }
+      paths.forEach((entry, pathIndex) => {
+        if (typeof entry !== "string" || entry.trim() === "") {
+          issues.push({
+            path: `review.riskFloor.${index}.paths.${pathIndex}`,
+            message: "Enter a glob or remove this row.",
+          });
+        }
+      });
+      const lanes = Array.isArray(record.lanes) ? record.lanes : [];
+      const known = lanes.every(
+        (lane) => typeof lane === "string" && (LANES as readonly string[]).includes(lane),
+      );
+      if (lanes.length === 0) {
+        issues.push({
+          path: `review.riskFloor.${index}.lanes`,
+          message: "Pick at least one lane.",
+        });
+      } else if (!known) {
+        issues.push({
+          path: `review.riskFloor.${index}.lanes`,
+          message: "Use only quality, uptime, intent, performance, and security.",
+        });
+      }
+    });
+  }
+
+  if (review.evidenceKinds !== undefined && !isRecord(review.evidenceKinds)) {
+    issues.push({ path: "review.evidenceKinds", message: "Evidence kinds must be an object." });
+  } else if (isRecord(review.evidenceKinds)) {
+    for (const lane of LANES) {
+      const value = review.evidenceKinds[lane];
+      if (value === undefined) continue;
+      const items =
+        typeof value === "string"
+          ? value
+              .split(",")
+              .map((entry) => entry.trim())
+              .filter((entry) => entry.length > 0)
+          : Array.isArray(value)
+            ? value
+            : null;
+      if (
+        items === null ||
+        items.length === 0 ||
+        items.some((entry) => typeof entry !== "string" || entry.trim() === "")
+      ) {
+        issues.push({
+          path: `review.evidenceKinds.${lane}`,
+          message: "Enter at least one evidence kind, or clear the field to keep the default.",
+        });
+      }
+    }
+  }
+
+  if (
+    review.replaceDefaultRiskFloor !== undefined &&
+    typeof review.replaceDefaultRiskFloor !== "boolean"
+  ) {
+    issues.push({
+      path: "review.replaceDefaultRiskFloor",
+      message: "Replace built-in rules must be yes or no.",
+    });
+  }
+
+  return issues;
+}
+
+function normalizeList(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+  }
+  if (!Array.isArray(value)) return value;
+  return value
+    .map((entry) => (typeof entry === "string" ? entry.trim() : entry))
+    .filter((entry) => entry !== "");
+}
+
+/** Turns in-progress text fields into the JSON the review scripts accept. */
+export function normalizeReview(review: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...review };
+  if (next.sampleRate !== undefined) {
+    const rate = parseUnitInterval(next.sampleRate);
+    if (rate !== undefined) next.sampleRate = rate;
+  }
+  if (isRecord(next.budget)) {
+    const budget = { ...next.budget };
+    for (const key of ["maxFiles", "maxChangedLines"] as const) {
+      if (budget[key] === undefined) continue;
+      const parsed = parsePositiveInt(budget[key]);
+      if (parsed !== undefined) budget[key] = parsed;
+    }
+    next.budget = budget;
+  }
+  if (Array.isArray(next.floorIgnore)) {
+    next.floorIgnore = next.floorIgnore
+      .map((entry) => (typeof entry === "string" ? entry.trim() : entry))
+      .filter((entry) => entry !== "");
+  }
+  if (Array.isArray(next.riskFloor)) {
+    next.riskFloor = next.riskFloor.map((rule) => {
+      if (!isRecord(rule) || !Array.isArray(rule.paths)) return rule;
+      return {
+        ...rule,
+        paths: rule.paths
+          .map((entry) => (typeof entry === "string" ? entry.trim() : entry))
+          .filter((entry) => entry !== ""),
+      };
+    });
+  }
+  if (isRecord(next.evidenceKinds)) {
+    const kinds: Record<string, unknown> = {};
+    for (const [lane, value] of Object.entries(next.evidenceKinds)) {
+      kinds[lane] = normalizeList(value);
+    }
+    next.evidenceKinds = kinds;
+  }
+  return next;
 }
 
 /**
@@ -266,6 +593,9 @@ export function payloadForSave(
         return result.ok ? result.dir : entry;
       }),
     };
+  }
+  if (layer === "repo" && isRecord(payload.review)) {
+    payload.review = normalizeReview(payload.review);
   }
   return payload;
 }

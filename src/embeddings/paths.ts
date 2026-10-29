@@ -12,12 +12,12 @@ export function cacheDir(): string {
   return join(homedir(), ".cache", "shipper");
 }
 
-export function llamaInstallDir(platform: EmbedPlatform): string {
-  return join(cacheDir(), "llama", `${LLAMA_CPP_BUILD}-${platform}`);
+export function llamaInstallDir(platform: EmbedPlatform, build: string = LLAMA_CPP_BUILD): string {
+  return join(cacheDir(), "llama", `${build}-${platform}`);
 }
 
-export function llamaServerBinary(platform: EmbedPlatform): string {
-  return join(llamaInstallDir(platform), `llama-${LLAMA_CPP_BUILD}`, "llama-server");
+export function llamaServerBinary(platform: EmbedPlatform, build: string = LLAMA_CPP_BUILD): string {
+  return join(llamaInstallDir(platform, build), `llama-${build}`, "llama-server");
 }
 
 export function modelPath(): string {

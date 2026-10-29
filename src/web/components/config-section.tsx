@@ -9,6 +9,7 @@ import {
 import type { ModelFamilyDto, SetupSnapshot } from "../../shared/protocol.ts";
 import type { SaveResult } from "../hooks/use-socket.ts";
 import { ConfigForm } from "./config-form.tsx";
+import { ReviewSummary } from "./review-fields.tsx";
 import { SourceBadge } from "./source-badge.tsx";
 
 type ConfigTab = "effective" | ConfigLayer;
@@ -218,6 +219,10 @@ function EffectivePane({ setup }: { setup: SetupSnapshot }) {
           </tbody>
         </table>
       </div>
+      <ReviewSummary
+        raw={setup.config.layers.repo.value?.review}
+        repoSkipped={setup.config.layers.repo.error !== null}
+      />
       <h2>Instructions</h2>
       {effective.instructions.length === 0 ? (
         <p className="empty-note">No instructions.</p>

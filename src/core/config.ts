@@ -45,7 +45,8 @@ export type UpdateCheckState = {
 
 const SETTINGS_KEYS = new Set(["models", "instructions", "git", "search"]);
 
-// `review` stays out of KNOWN_KEYS so a console save, which only sends form keys, keeps it.
+// `review` stays out of KNOWN_KEYS so a save that omits it keeps the copy on disk.
+// The repo form sends the whole object when it edits review settings.
 const REPO_ONLY_KEYS = ["paths", "review"] as const;
 
 const KNOWN_KEYS: Record<ConfigLayer, ReadonlySet<string>> = {

@@ -546,6 +546,24 @@ code,
   flex: 1 1 12rem;
 }
 
+.lane-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin: 0.35rem 0 0.65rem;
+}
+
+.lane-choices label {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.review-paths {
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
 .model-row {
   display: grid;
   grid-template-columns: 9.5rem minmax(0, 1fr) auto;

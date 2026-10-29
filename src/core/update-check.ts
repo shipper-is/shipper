@@ -58,39 +58,69 @@ export type UpdateNotice = {
   installCommand: string;
 };
 
+export type UpdateStatus = {
+  current: string;
+  latest: string | null;
+  updateAvailable: boolean;
+  installCommand: string;
+};
+
+export type GetUpdateStatusOptions = {
+  /** When true, always contact GitHub instead of using the daily cache. */
+  force?: boolean;
+  fetchLatest?: () => Promise<string | null>;
+};
+
+/**
+ * Compare the running version with the latest GitHub release tag.
+ * By default reuses cached state for at most one day.
+ */
+export async function getUpdateStatus(
+  options: GetUpdateStatusOptions = {},
+): Promise<UpdateStatus> {
+  const current = getVersion();
+  const force = options.force === true;
+  const fetchLatest = options.fetchLatest ?? fetchLatestReleaseTag;
+  const state = await getUpdateCheckState();
+  const now = Date.now();
+
+  let latest: string | null = state.latestKnown ?? null;
+
+  const cacheFresh =
+    state.lastCheckAt !== undefined &&
+    now - state.lastCheckAt < ONE_DAY_MS &&
+    state.latestKnown !== undefined;
+
+  if (force || !cacheFresh) {
+    const fetched = await fetchLatest();
+    await setUpdateCheckState({
+      lastCheckAt: now,
+      latestKnown: fetched ?? state.latestKnown,
+    });
+    latest = fetched ?? state.latestKnown ?? null;
+  }
+
+  const updateAvailable = latest !== null && isNewer(latest, current);
+  return {
+    current,
+    latest,
+    updateAvailable,
+    installCommand: INSTALL_COMMAND,
+  };
+}
+
 /**
  * Returns an upgrade notice when a newer release exists.
  * Checks at most once per day; fails silently when offline.
  */
 export async function checkForUpdate(): Promise<UpdateNotice | null> {
-  const current = getVersion();
-  const state = await getUpdateCheckState();
-  const now = Date.now();
-
-  if (state.lastCheckAt && now - state.lastCheckAt < ONE_DAY_MS && state.latestKnown) {
-    if (isNewer(state.latestKnown, current)) {
-      return {
-        current,
-        latest: state.latestKnown,
-        installCommand: INSTALL_COMMAND,
-      };
-    }
+  const status = await getUpdateStatus({ force: false });
+  if (!status.updateAvailable || status.latest === null) {
     return null;
   }
-
-  const latest = await fetchLatestReleaseTag();
-  await setUpdateCheckState({
-    lastCheckAt: now,
-    latestKnown: latest ?? state.latestKnown,
-  });
-
-  if (!latest || !isNewer(latest, current)) {
-    return null;
-  }
-
   return {
-    current,
-    latest,
-    installCommand: INSTALL_COMMAND,
+    current: status.current,
+    latest: status.latest,
+    installCommand: status.installCommand,
   };
 }

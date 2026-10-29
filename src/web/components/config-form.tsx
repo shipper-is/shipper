@@ -31,6 +31,7 @@ import {
 import { AGENT_LABELS } from "../format.ts";
 import type { SaveResult } from "../hooks/use-socket.ts";
 import { ModelPicker } from "./model-picker.tsx";
+import { ReviewFields } from "./review-fields.tsx";
 
 const FORM_KEYS = new Set(["models", "instructions", "git", "search", "paths", "embeddings", "state"]);
 
@@ -191,7 +192,9 @@ export function ConfigForm({
     onListModels(agent);
   }
 
-  const untouched = Object.keys(draft).filter((key) => !FORM_KEYS.has(key));
+  const untouched = Object.keys(draft).filter(
+    (key) => !FORM_KEYS.has(key) && !(layer === "repo" && key === "review"),
+  );
   const hiddenModelAgents = AGENT_KINDS.filter((agent) => {
     if (detectedAgents.includes(agent)) return false;
     return isRecord(draft.models) && isRecord(draft.models[agent]);
@@ -503,6 +506,14 @@ export function ConfigForm({
           </div>
         </div>
       </fieldset>
+
+      {layer === "repo" && (
+        <ReviewFields
+          draft={draft}
+          issueFor={issueFor}
+          onChange={(next) => setDraft(next)}
+        />
+      )}
 
       {layer === "global" && (isRecord(draft.embeddings) || isRecord(draft.state)) && (
         <p className="config-form__hint">

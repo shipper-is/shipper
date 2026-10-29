@@ -44,6 +44,7 @@ import {
   CONFIG_LAYERS,
   type ConfigSource,
 } from "./shared/config-schema.ts";
+import { runUpdate } from "./core/update.ts";
 import { getVersion } from "./version.ts";
 
 const DOC_TYPES = ["plan", "spike", "bug", "review", "doc"] as const satisfies readonly DocType[];
@@ -394,6 +395,24 @@ export async function main(argv: string[] = process.argv): Promise<void> {
     .option("--version", "print version and exit")
     .action(async (opts: ServeOptions) => {
       await runServe(opts);
+    });
+
+  program
+    .command("update")
+    .description("check for and install the latest Shipper release")
+    .option("--check", "print update status without installing")
+    .option("--force", "reinstall even when already on the latest release")
+    .action(async (opts: { check?: boolean; force?: boolean }) => {
+      try {
+        const code = await runUpdate({ check: opts.check, force: opts.force });
+        if (code !== 0) {
+          process.exit(code);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(message);
+        process.exit(1);
+      }
     });
 
   program

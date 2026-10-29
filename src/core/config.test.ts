@@ -291,6 +291,16 @@ describe("layered config", () => {
       search: { enabled: false },
     });
     expect(repoLayer.value).not.toHaveProperty("git");
+
+    const edited = await writeLayer("repo", repoDir, {
+      search: { enabled: false },
+      review: { sampleRate: 0.4, note: "keep" },
+    });
+    expect(edited.value).toMatchObject({
+      custom: { keep: true },
+      review: { sampleRate: 0.4, note: "keep" },
+      search: { enabled: false },
+    });
   });
 
   it("creates .shipper/.gitignore when writing the local layer", async () => {

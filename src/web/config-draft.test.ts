@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   draftIssues,
   payloadForSave,
+  setEvidenceText,
   setExtraDirs,
   setGitField,
   setInstruction,
   setModel,
   setPath,
+  setReviewSampleRate,
   setSearchEnabled,
 } from "./config-draft.ts";
 
@@ -107,6 +109,30 @@ describe("config draft", () => {
       git: { commitEachPhase: false },
       search: { extraDirs: ["docs/adr"] },
     });
+  });
+
+  it("edits review on the repo layer without dropping sibling keys", () => {
+    const next = setReviewSampleRate(
+      { review: { sampleRate: 0.05, note: "keep" }, custom: true },
+      "0.2",
+    );
+    expect(next).toEqual({ review: { sampleRate: "0.2", note: "keep" }, custom: true });
+    expect(payloadForSave("repo", next)).toEqual({
+      review: { sampleRate: 0.2, note: "keep" },
+      custom: true,
+    });
+    expect(
+      payloadForSave("repo", setEvidenceText(next, "security", "repro-test, secret-match")),
+    ).toMatchObject({
+      review: { evidenceKinds: { security: ["repro-test", "secret-match"] } },
+    });
+  });
+
+  it("does not block a local save on an ignored review value", () => {
+    expect(draftIssues("local", { review: { sampleRate: "nope" } })).toEqual([]);
+    expect(draftIssues("repo", { review: { sampleRate: "nope" } })).toEqual([
+      { path: "review.sampleRate", message: "Use a number from 0 to 1." },
+    ]);
   });
 
   it("flags invalid paths, duplicates, prefixes, and blank extra dirs", () => {

@@ -13,12 +13,12 @@ curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh 
 Pin a version:
 
 ```bash
-SHIPPER_VERSION=0.2.4 sh -c 'curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh | sh'
+SHIPPER_VERSION=0.2.5 sh -c 'curl -fsSL https://raw.githubusercontent.com/shipper-is/shipper/main/install.sh | sh'
 ```
 
 macOS binaries are **unsigned** in v1. Installing via `curl | sh` avoids Gatekeeper quarantine; downloading the binary directly in a browser may require removing the quarantine attribute or allowing it in System Settings.
 
-Shipper checks for updates once a day. When a newer release exists, the setup console shows an "Update available" badge with the install command. There is no self-update in v1 — re-run the install script to upgrade.
+Shipper checks for updates once a day. When a newer release exists, the setup console shows an "Update available" badge with the install command. Upgrade from the terminal with `shipper update` (runs the same install script), or `shipper update --check` to see whether you are behind.
 
 ## What it does
 
@@ -99,7 +99,7 @@ Three JSON files share one settings shape. Missing files are normal.
 
 Two exceptions:
 
-- **`paths` and `review` are repo-only.** Plans are committed, so the team has to agree where they live, and review thresholds are team policy that one person should not be able to lower locally. Either key in the global or local file is ignored. The setup console lists those keys as ignored.
+- **`paths` and `review` are repo-only.** Plans are committed, so the team has to agree where they live, and review thresholds are team policy that one person should not be able to lower locally. Either key in the global or local file is ignored. The setup console lists those keys as ignored, shows the review policy on the Effective tab (including the built-in risk rules), and edits `review` only on the Repo tab.
 - **`instructions` accumulate.** Order: global `all`, global skill, repo `all`, repo skill, local `all`, local skill. Empty strings are skipped. When two conflict, the later text wins. They never override a skill's hard rules or an explicit request in the chat. Skill names are `shipper-plan`, `shipper-build`, `shipper-loop`, `shipper-spike`, `shipper-ship`, and `shipper-bug`. `shipper-review` follows `instructions.all` only.
 
 A file that is not valid JSON, or that gives a known key a value that key does not allow, is skipped entirely (one bad field drops the file). Unknown keys are kept and do not make the file invalid. An invalid path keeps that artifact type's default and does not drop the rest of the file. Paths are relative, use forward slashes, and must stay inside the repo (no `..` escapes, no `.git` or `node_modules` segments).
@@ -181,7 +181,7 @@ bun run build:release          # all four release targets → dist/shipper-*
 Push a `v*` tag to trigger `.github/workflows/release.yml`, which builds `shipper-darwin-arm64`, `shipper-darwin-x64`, `shipper-linux-x64`, and `shipper-linux-arm64` with SHA256 checksums attached to the GitHub Release.
 
 ```bash
-git tag v0.2.4 && git push origin v0.2.4
+git tag v0.2.5 && git push origin v0.2.5
 ```
 
 ## Modules
@@ -290,6 +290,7 @@ rm -rf ~/.cache/shipper
 | `shipper` | Open the setup console (default) |
 | `shipper config` | Show the effective configuration and which layer set each key |
 | `shipper config path` | Print the global, repo, and local config file paths |
+| `shipper update` | Install the latest release (or `--check` for status only) |
 | `shipper skills` | Install or refresh global skills for detected agents |
 | `shipper modules list` | List available modules from the GitHub repo |
 | `shipper modules add <id-or-url>` | Install a module into the configured modules directory (default `.shipper/modules/`) |

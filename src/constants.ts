@@ -42,8 +42,8 @@ export const LLAMA_CPP_ASSETS: Record<EmbedPlatform, { asset: string; sha256: st
   },
 };
 
-export function llamaCppAssetUrl(asset: string): string {
-  return `https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_CPP_BUILD}/${asset}`;
+export function llamaCppAssetUrl(asset: string, build: string = LLAMA_CPP_BUILD): string {
+  return `https://github.com/ggml-org/llama.cpp/releases/download/${build}/${asset}`;
 }
 
 export const EMBEDDING_MODEL = {

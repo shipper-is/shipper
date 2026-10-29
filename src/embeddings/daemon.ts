@@ -32,7 +32,7 @@ export function shouldShutDown(lastUsedMs: number, nowMs: number, idleMinutes: n
   return nowMs - lastUsedMs > idleMinutes * 60_000;
 }
 
-async function pickFreePort(): Promise<number> {
+export async function pickFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const server = createServer();
     server.listen(0, "127.0.0.1", () => {
