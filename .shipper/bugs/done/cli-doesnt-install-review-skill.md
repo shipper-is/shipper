@@ -4,6 +4,8 @@ reported_at: "2026-11-18T22:32:00-05:00"
 branch: shipper/bug-cli-doesnt-install-review-skill
 base_branch: main
 fixed_at: "2026-11-18T22:43:37-05:00"
+pr_url: https://github.com/shipper-is/shipper/pull/32
+pr_number: 32
 ---
 
 # CLI does not install the review skill
