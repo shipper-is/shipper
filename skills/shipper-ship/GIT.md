@@ -14,6 +14,7 @@ If frontmatter has a `branch` and the checkout is not on it, verify the working 
 
 From the main checkout on the feature branch:
 
+0. Run the local CI checks in [./CI.md](./CI.md) and commit any fixes. Push only when they pass, or when the user has accepted the remaining failures.
 1. Push the branch to the remote (`git push -u origin HEAD` if not yet tracking).
 2. Create the PR with `gh pr create` following the PR description guidance in SKILL.md.
 3. Write `pr_url` (full canonical GitHub PR URL) and `pr_number` (integer) into the plan or spike file frontmatter **on the branch**.

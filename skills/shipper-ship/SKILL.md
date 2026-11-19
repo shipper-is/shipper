@@ -16,6 +16,8 @@ One of the best reference points you'll have is the Shipper plan that is associa
 
 From there you'll do a light set of context gathering to verify the things that were built during the Shipper plan to confirm the critical pieces of the plan were completed as intended.
 
+Before you push, read and follow [./CI.md](./CI.md). Detect the checks the build machines will run on this PR (tests, lint, typecheck, build, and so on), run them locally, and fix what fails so the PR does not wait a CI cycle to find out. Do not open the PR with a failing check unless the user explicitly accepts it.
+
 The format of your PR should be the following five sections, in this order (these are the high value things a senior engineer will be looking for):
 
 1. What & Why
@@ -28,6 +30,7 @@ The format of your PR should be the following five sections, in this order (thes
 
 3. Test & Hardening Evidence
 - Show proof the code was actually executed, not just written. Paste real output: the test run results, a screenshot of the working UI, the request and response, the query result.
+- Include the local CI check results from CI.md: each check's command and whether it passed.
 - Claims like "tests were added" or "verified working" carry no weight on their own. Evidence of execution is the one thing that cannot be faked, so lead with it.
 
 4. Reuse & Convention Receipts

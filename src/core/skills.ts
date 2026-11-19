@@ -16,6 +16,7 @@ import spikeGit from "../../skills/shipper-spike/GIT.md" with { type: "text" };
 import spikeConfig from "../../skills/shipper-spike/CONFIG.md" with { type: "text" };
 import shipSkill from "../../skills/shipper-ship/SKILL.md" with { type: "text" };
 import shipGit from "../../skills/shipper-ship/GIT.md" with { type: "text" };
+import shipCi from "../../skills/shipper-ship/CI.md" with { type: "text" };
 import shipConfig from "../../skills/shipper-ship/CONFIG.md" with { type: "text" };
 import bugSkill from "../../skills/shipper-bug/SKILL.md" with { type: "text" };
 import bugCatalog from "../../skills/shipper-bug/CATALOG.md" with { type: "text" };
@@ -57,6 +58,7 @@ const SKILLS = {
   "shipper-ship": [
     { file: "SKILL.md", content: shipSkill },
     { file: "GIT.md", content: shipGit },
+    { file: "CI.md", content: shipCi },
     { file: "CONFIG.md", content: shipConfig },
   ],
   "shipper-bug": [
