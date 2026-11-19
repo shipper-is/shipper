@@ -35,7 +35,7 @@ const skills = [
   {
     name: "shipper-ship",
     description:
-      "Scaffolds a reviewable pull request from a completed plan — what changed, how to verify, and known risks. Creates the PR via gh.",
+      "Scaffolds a reviewable pull request from a completed plan — what changed, how to verify, and known risks. Runs the repo's CI checks locally first, then creates the PR via gh.",
     example: "use shipper-ship on .shipper/plans/done/my-feature.md",
   },
   {

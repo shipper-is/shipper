@@ -57,6 +57,7 @@ const skillGuides = [
     command: "/shipper-ship on .shipper/plans/done/my-feature.md",
     steps: [
       "Run the slash command with the path to a completed plan in .shipper/plans/done/.",
+      "The agent runs the repo's CI checks locally and fixes failures before pushing.",
       "The agent writes a PR summary with verification steps and test evidence.",
       "A pull request is created via gh — ready for review.",
     ],
