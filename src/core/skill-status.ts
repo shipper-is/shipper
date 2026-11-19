@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentKind } from "../agents/types.ts";
-import { SKILL_NAMES, type SkillName } from "../shared/config-schema.ts";
+import { INSTALLED_SKILL_NAMES, type InstalledSkillName } from "../shared/config-schema.ts";
 import { globalSkillsRoot, SKILLS } from "./skills.ts";
 
 export type SkillInstallState = "current" | "outdated" | "missing";
 
 export type SkillStatusEntry = {
-  name: SkillName;
+  name: InstalledSkillName;
   state: SkillInstallState;
 };
 
@@ -25,7 +25,7 @@ async function readUtf8(path: string): Promise<string | null> {
   }
 }
 
-async function skillState(root: string, name: SkillName): Promise<SkillInstallState> {
+async function skillState(root: string, name: InstalledSkillName): Promise<SkillInstallState> {
   const dir = join(root, name);
   const skillMd = await readUtf8(join(dir, "SKILL.md"));
   if (skillMd === null) {
@@ -46,7 +46,7 @@ export async function getSkillStatus(agents: AgentKind[]): Promise<AgentSkillSta
     agents.map(async (agent) => {
       const root = globalSkillsRoot(agent);
       const skills = await Promise.all(
-        SKILL_NAMES.map(async (name) => ({
+        INSTALLED_SKILL_NAMES.map(async (name) => ({
           name,
           state: await skillState(root, name),
         })),
