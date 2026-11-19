@@ -13,6 +13,10 @@ export const SKILL_NAMES = [
 ] as const;
 export type SkillName = (typeof SKILL_NAMES)[number];
 
+/** Skills written into agent directories. Review stays out of `SKILL_NAMES` because its model config is tiered. */
+export const INSTALLED_SKILL_NAMES = [...SKILL_NAMES, "shipper-review"] as const;
+export type InstalledSkillName = (typeof INSTALLED_SKILL_NAMES)[number];
+
 export const ARTIFACT_TYPES = ["plans", "spikes", "bugs", "reviews"] as const;
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 

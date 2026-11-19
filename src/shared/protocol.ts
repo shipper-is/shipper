@@ -7,7 +7,7 @@ import {
   type ConfigLayer,
   type ConfigSource,
   type EffectiveConfig,
-  type SkillName,
+  type InstalledSkillName,
 } from "./config-schema.ts";
 
 export type ModelVariantDto = {
@@ -58,7 +58,7 @@ export type SetupSnapshot = {
   skills: Array<{
     agent: AgentKind;
     root: string;
-    skills: Array<{ name: SkillName; state: "current" | "outdated" | "missing" }>;
+    skills: Array<{ name: InstalledSkillName; state: "current" | "outdated" | "missing" }>;
   }>;
   mcp: Array<{
     agent: AgentKind;

@@ -44,6 +44,12 @@ const skills = [
       "Evidence-first bug catalog and fix workflow. Reproduce before diagnosing, then drive the fix to proof in .shipper/bugs/.",
     example: "use shipper-bug to fix the login redirect loop",
   },
+  {
+    name: "shipper-review",
+    description:
+      "QUIPS review of a PR or branch. The installed skill includes the scripts that build the risk floor and compute the verdict.",
+    example: "use shipper-review on this pull request",
+  },
 ] as const;
 
 export default function SkillsDocsPage() {

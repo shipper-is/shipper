@@ -83,7 +83,7 @@ Artifact directories below are the **defaults**. A repo can move them with `path
 
 `$XDG_CONFIG_HOME/shipper/config.json` is the global file when `XDG_CONFIG_HOME` is set.
 
-Bundled `shipper-plan`, `shipper-loop`, `shipper-build`, `shipper-spike`, `shipper-ship`, and `shipper-bug` skills are embedded in the binary and installed **globally** for each detected coding agent on startup (or via `shipper skills`). Repos no longer receive skill copies — stale per-repo copies from older versions are removed on boot.
+Bundled `shipper-plan`, `shipper-loop`, `shipper-build`, `shipper-spike`, `shipper-ship`, `shipper-bug`, and `shipper-review` skills are embedded in the binary and installed **globally** for each detected coding agent on startup (or via `shipper skills`). `shipper-review` includes its `scripts/` so the risk floor and verdict can run with Bun. Repos no longer receive skill copies — stale per-repo copies from older versions are removed on boot.
 
 ## Configuration
 

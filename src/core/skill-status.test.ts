@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SKILL_NAMES } from "../shared/config-schema.ts";
+import { INSTALLED_SKILL_NAMES } from "../shared/config-schema.ts";
 import { globalSkillsRoot, installSkillsGlobally, SKILLS } from "./skills.ts";
 import { getSkillStatus } from "./skill-status.ts";
 
@@ -43,6 +43,7 @@ describe("getSkillStatus", () => {
     expect(git).toBeDefined();
     await writeFile(join(root, "shipper-build", "GIT.md"), "stale", "utf8");
     await rm(join(root, "shipper-ship", "CONFIG.md"));
+    await writeFile(join(root, "shipper-review", "scripts", "policy.ts"), "stale", "utf8");
 
     const [cursor] = await getSkillStatus(["cursor"]);
     expect(cursor?.root).toBe(root);
@@ -51,6 +52,7 @@ describe("getSkillStatus", () => {
     expect(byName.get("shipper-build")).toBe("outdated");
     expect(byName.get("shipper-ship")).toBe("outdated");
     expect(byName.get("shipper-loop")).toBe("current");
-    expect([...byName.keys()]).toEqual([...SKILL_NAMES]);
+    expect(byName.get("shipper-review")).toBe("outdated");
+    expect([...byName.keys()]).toEqual([...INSTALLED_SKILL_NAMES]);
   });
 });

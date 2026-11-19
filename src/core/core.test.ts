@@ -79,6 +79,19 @@ describe("installSkillsGlobally", () => {
     }
   });
 
+  it("installs shipper-review, including its scripts", async () => {
+    await installSkillsGlobally(["cursor"]);
+
+    const root = join(homeDir, ".cursor", "skills", "shipper-review");
+    const skill = await readFile(join(root, "SKILL.md"), "utf8");
+    expect(skill).toContain("name: shipper-review");
+    const script = await readFile(join(root, "scripts", "risk-floor.ts"), "utf8");
+    expect(script).toContain("export type FloorReport");
+    expect(await readFile(join(root, "scripts", "policy.ts"), "utf8")).toContain("export type Verdict");
+    expect(await readFile(join(root, "LANES.md"), "utf8")).toContain("QUIPS");
+    expect(await readFile(join(root, "CONFIG.md"), "utf8")).toContain("shipper-review");
+  });
+
   it("is idempotent and overwrites edited files back to embedded content", async () => {
     await installSkillsGlobally(["cursor"]);
     await installSkillsGlobally(["cursor"]);
@@ -106,6 +119,7 @@ describe("removeRepoSkills", () => {
     const customSkill = join(repoDir, ".cursor", "skills", "my-custom-skill");
     const claudeShipper = join(repoDir, ".claude", "skills", "shipper-build");
     const opencodeShipper = join(repoDir, ".opencode", "skill", "shipper-spike");
+    const reviewSkill = join(repoDir, ".claude", "skills", "shipper-review");
 
     await mkdir(shipperPlan, { recursive: true });
     await writeFile(join(shipperPlan, "SKILL.md"), "old", "utf8");
@@ -115,12 +129,15 @@ describe("removeRepoSkills", () => {
     await writeFile(join(claudeShipper, "SKILL.md"), "old", "utf8");
     await mkdir(opencodeShipper, { recursive: true });
     await writeFile(join(opencodeShipper, "SKILL.md"), "old", "utf8");
+    await mkdir(reviewSkill, { recursive: true });
+    await writeFile(join(reviewSkill, "SKILL.md"), "old", "utf8");
 
     await removeRepoSkills(repoDir);
 
     await expect(readFile(join(shipperPlan, "SKILL.md"), "utf8")).rejects.toThrow();
     await expect(readFile(join(claudeShipper, "SKILL.md"), "utf8")).rejects.toThrow();
     await expect(readFile(join(opencodeShipper, "SKILL.md"), "utf8")).rejects.toThrow();
+    await expect(readFile(join(reviewSkill, "SKILL.md"), "utf8")).rejects.toThrow();
     expect(await readFile(join(customSkill, "SKILL.md"), "utf8")).toBe("keep me");
   });
 });

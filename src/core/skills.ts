@@ -22,10 +22,27 @@ import bugCatalog from "../../skills/shipper-bug/CATALOG.md" with { type: "text"
 import bugFix from "../../skills/shipper-bug/FIX.md" with { type: "text" };
 import bugGit from "../../skills/shipper-bug/GIT.md" with { type: "text" };
 import bugConfig from "../../skills/shipper-bug/CONFIG.md" with { type: "text" };
+import reviewSkill from "../../skills/shipper-review/SKILL.md" with { type: "text" };
+import reviewLanes from "../../skills/shipper-review/LANES.md" with { type: "text" };
+import reviewConfigDoc from "../../skills/shipper-review/CONFIG.md" with { type: "text" };
+// Bun embeds the source (`type: "text"`). tsc resolves these as modules, which have no default export.
+// @ts-expect-error TS1192 -- text import, not the module's exports
+import reviewRiskFloor from "../../skills/shipper-review/scripts/risk-floor.ts" with { type: "text" };
+// @ts-expect-error TS1192 -- text import, not the module's exports
+import reviewPolicy from "../../skills/shipper-review/scripts/policy.ts" with { type: "text" };
+// @ts-expect-error TS1192 -- text import, not the module's exports
+import reviewScriptConfig from "../../skills/shipper-review/scripts/config.ts" with { type: "text" };
+// @ts-expect-error TS1192 -- text import, not the module's exports
+import reviewPolicyConfig from "../../skills/shipper-review/scripts/review-config.ts" with { type: "text" };
 import type { AgentKind } from "../agents/types.ts";
-import { SKILL_NAMES, type SkillName } from "../shared/config-schema.ts";
+import {
+  INSTALLED_SKILL_NAMES,
+  SKILL_NAMES,
+  type InstalledSkillName,
+  type SkillName,
+} from "../shared/config-schema.ts";
 
-export { SKILL_NAMES, type SkillName };
+export { INSTALLED_SKILL_NAMES, SKILL_NAMES, type InstalledSkillName, type SkillName };
 
 export type SkillFile = {
   file: string;
@@ -66,7 +83,16 @@ const SKILLS = {
     { file: "GIT.md", content: bugGit },
     { file: "CONFIG.md", content: bugConfig },
   ],
-} as const satisfies Record<SkillName, readonly SkillFile[]>;
+  "shipper-review": [
+    { file: "SKILL.md", content: reviewSkill },
+    { file: "LANES.md", content: reviewLanes },
+    { file: "CONFIG.md", content: reviewConfigDoc },
+    { file: "scripts/risk-floor.ts", content: reviewRiskFloor },
+    { file: "scripts/policy.ts", content: reviewPolicy },
+    { file: "scripts/config.ts", content: reviewScriptConfig },
+    { file: "scripts/review-config.ts", content: reviewPolicyConfig },
+  ],
+} as const satisfies Record<InstalledSkillName, readonly SkillFile[]>;
 
 export type InstallSummary = {
   agent: AgentKind;
@@ -92,11 +118,11 @@ export function globalSkillsRoot(agent: AgentKind): string {
   }
 }
 
-export function globalSkillPath(agent: AgentKind, name: SkillName): string {
+export function globalSkillPath(agent: AgentKind, name: InstalledSkillName): string {
   return join(globalSkillsRoot(agent), name, "SKILL.md");
 }
 
-function repoSkillDirForAgent(agent: AgentKind, name: SkillName): string {
+function repoSkillDirForAgent(agent: AgentKind, name: InstalledSkillName): string {
   switch (agent) {
     case "claude":
       return join(".claude", "skills", name);
@@ -127,7 +153,7 @@ export async function installSkillsGlobally(agents: AgentKind[]): Promise<Instal
 
   for (const agent of agents) {
     const root = globalSkillsRoot(agent);
-    for (const name of SKILL_NAMES) {
+    for (const name of INSTALLED_SKILL_NAMES) {
       for (const { file, content } of SKILLS[name]) {
         const absolutePath = join(root, name, file);
         await writeSkillIfChanged(absolutePath, content);
@@ -141,7 +167,7 @@ export async function installSkillsGlobally(agents: AgentKind[]): Promise<Instal
 
 export async function removeRepoSkills(targetRepo: string): Promise<void> {
   const agents: AgentKind[] = ["claude", "cursor", "opencode"];
-  for (const name of SKILL_NAMES) {
+  for (const name of INSTALLED_SKILL_NAMES) {
     for (const agent of agents) {
       const path = join(targetRepo, repoSkillDirForAgent(agent, name));
       await rm(path, { recursive: true, force: true });
